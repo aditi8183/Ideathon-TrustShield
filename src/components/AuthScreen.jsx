@@ -70,6 +70,17 @@ export default function AuthScreen({ onLoginSuccess }) {
     return { valid: true };
   };
 
+  // Resend OTP Countdown Timer Effect
+  React.useEffect(() => {
+    let timer;
+    if (isOtpSent && resendTimer > 0) {
+      timer = setInterval(() => {
+        setResendTimer((prev) => (prev > 0 ? prev - 1 : 0));
+      }, 1000);
+    }
+    return () => clearInterval(timer);
+  }, [isOtpSent, resendTimer]);
+
   // Initiate Real-Time OTP Email Dispatch
   const handleInitiateAuth = async (e) => {
     e?.preventDefault();
@@ -92,37 +103,21 @@ export default function AuthScreen({ onLoginSuccess }) {
     setGeneratedOtp(secretOtp);
 
     try {
-      // Dispatch real email via Vite Nodemailer server endpoint
+      // Dispatch real email via Vercel Serverless / Vite Nodemailer endpoint
       const response = await fetch('/api/send-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, otp: secretOtp, role })
       });
 
-      const data = await response.json();
       setIsOtpSending(false);
-
-      if (response.ok && data.success) {
-        setIsOtpSent(true);
-
-        // Start 30s countdown timer
-        setResendTimer(30);
-        const interval = setInterval(() => {
-          setResendTimer((prev) => {
-            if (prev <= 1) {
-              clearInterval(interval);
-              return 0;
-            }
-            return prev - 1;
-          });
-        }, 1000);
-      } else {
-        setIsOtpSent(true);
-      }
+      setIsOtpSent(true);
+      setResendTimer(30);
     } catch (err) {
       console.warn('Real-time email dispatch fallback mode:', err);
       setIsOtpSending(false);
       setIsOtpSent(true);
+      setResendTimer(30);
     }
   };
 
