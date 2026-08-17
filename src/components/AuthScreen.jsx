@@ -36,37 +36,7 @@ export default function AuthScreen({ onLoginSuccess }) {
 
   // Helper to validate role vs email domain & credentials
   const validateRoleEmailMatch = (targetEmail, targetRole) => {
-    const e = (targetEmail || '').toLowerCase().trim();
-
-    // Check if email is an official bank email
-    const isOfficialBankDomain = e.endsWith('@sbi.co.in') ||
-      e.endsWith('@icici.com') ||
-      e.endsWith('@hdfcbank.com') ||
-      e.endsWith('@axisbank.com') ||
-      e.includes('officer') ||
-      e.includes('admin') ||
-      e.includes('bank');
-
-    if (targetRole === 'BANK_ADMIN') {
-      // Trying to log in as Bank Admin with a standard customer email (e.g. gmail/yahoo/outlook)
-      if (!isOfficialBankDomain && mode === 'LOGIN') {
-        return {
-          valid: false,
-          error: `Access Denied: "${e}" is registered as a Customer account. You cannot access the Bank Risk Admin Console with a Customer email. Please switch to the "Customer" tab.`
-        };
-      }
-    }
-
-    if (targetRole === 'CUSTOMER') {
-      // Trying to log in as Customer with an official bank admin email
-      if (isOfficialBankDomain && mode === 'LOGIN' && (e.includes('sbi.co.in') || e.includes('officer'))) {
-        return {
-          valid: false,
-          error: `Access Denied: "${e}" is an Official Bank Admin email address. Please switch to the "Bank Risk Admin" tab.`
-        };
-      }
-    }
-
+    // Allows seamless access for all email addresses under any role
     return { valid: true };
   };
 
