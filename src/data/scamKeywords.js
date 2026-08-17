@@ -1,4 +1,4 @@
-// Wide-Range Autonomous Chakravyuh Speech Intent & Scam Classification Dataset
+// Comprehensive 10-Scenario Chakravyuh Cyber Crime Speech Intent & Scam Classification Dataset
 
 export const CHAKRAVYUH_SCAM_CATEGORIES = [
   {
@@ -10,13 +10,11 @@ export const CHAKRAVYUH_SCAM_CATEGORIES = [
     baseRiskScore: 99,
     tactics: ["Credential Harvesting", "Fake Verification Pressure", "Social Engineering"],
     intentPatterns: [
-      // English & Spoken Variations
       "otp", "one time password", "verification code", "share otp", "tell me otp", "read otp",
       "code sent to your phone", "6 digit code", "six digit code", "read out code", "pin number",
       "cvv", "bank otp", "login code", "whatsapp code", "anydesk code", "verification pin",
       "otp for account", "account otp", "send code", "enter otp", "tell otp", "give otp",
       "security code", "transaction code", "card pin", "upi pin", "bank code",
-      // Hindi / Hinglish Spoken Variations
       "ओटीपी", "पिन बताओ", "कोड बोलो", "वेरिफिकेशन कोड", "अकाउंट का ओटीपी", "ओटीपी दें",
       "ओटीपी शेयर करें", "ओटीपी आया है", "मैसेज वाला कोड", "पासवर्ड बताओ"
     ],
@@ -32,17 +30,14 @@ export const CHAKRAVYUH_SCAM_CATEGORIES = [
     baseRiskScore: 90,
     tactics: ["Delivery Fee Extortion", "Fake Order Pending Trap", "Courier Impersonation"],
     intentPatterns: [
-      // Shopping & Delivery Brands
       "flipkart", "amazon", "meesho", "myntra", "ajio", "zepto", "blinkit", "instamart",
       "zomato", "swiggy", "fedex", "dhl", "shiprocket", "delhivery", "blue dart", "shadowfax",
       "ecom express", "dtdc", "indiapost", "speed post", "courier",
-      // Delivery & Payment Action Phrases
       "parcel", "package", "delivery fee", "pay to receive", "receive your parcel",
       "please pay", "pay to get parcel", "cash on delivery", "cod charge", "delivery charge",
       "address verification fee", "delivery agent", "parcel pending", "order stuck",
       "delivery officer", "clearance fee", "detained", "customs duty", "illegal contraband",
       "drugs", "passports", "mdma", "customs clearance", "parcel hold", "pay 499", "pay 99",
-      // Hindi / Hinglish Speech Variants
       "कस्टम्स", "पार्सल", "कूरियर", "पैकेट", "फ्लिपकार्ट", "अमेज़न", "मीशो", "डिलीवरी चार्ज",
       "डिलीवरी बॉय", "पैसे पे करो", "पार्सल प्राप्त करें", "सामान अटका है", "कस्टम ड्यूटी"
     ],
@@ -58,13 +53,11 @@ export const CHAKRAVYUH_SCAM_CATEGORIES = [
     baseRiskScore: 98,
     tactics: ["Authority Impersonation", "Isolation Threat", "Fake Video Room Arrest"],
     intentPatterns: [
-      // English Speech Variants
       "digital arrest", "cbi", "police", "cyber crime", "crime branch", "narcotics bureau",
       "warrant", "court order", "supreme court", "money laundering", "don't disconnect",
       "stay on call", "stay on video", "virtual arrest", "illegal package in your name",
       "police department", "cyber cell officer", "under arrest", "police station", "investigation officer",
       "legal action", "arrest warrant", "extortion", "rbi safety vault",
-      // Hindi / Hinglish Speech Variants
       "डिजिटल अरेस्ट", "पुलिस", "सीबीआई", "वारंट", "मनी लॉन्ड्रिंग", "फोन मत काटना",
       "वीडियो कॉल पर रहो", "गिरफ्तारी", "जेल", "पुलिस स्टेशन", "क्राइम ब्रांच", "नारकोटिक्स",
       "कानूनी कार्रवाई", "अरेस्ट ऑर्डर", "गिरफ्तार"
@@ -81,11 +74,9 @@ export const CHAKRAVYUH_SCAM_CATEGORIES = [
     baseRiskScore: 85,
     tactics: ["Late Night Deadline", "Utility Impersonation", "Quick Payment Pressure"],
     intentPatterns: [
-      // English Speech Variants
       "electricity bill", "power disconnect", "light bill", "power cut", "tonight 9:30",
       "unpaid bill", "electricity officer", "discom", "meter update", "electricity department",
       "pay bill immediately", "power disconnection", "update meter", "previous month bill",
-      // Hindi / Hinglish Speech Variants
       "बिजली बिल", "पावर कट", "लाइट कट जाएगी", "बिजली अधिकारी", "बिल बकाया",
       "आज रात", "मीटर कट", "बिजली विभाग", "तुरंत बिल भरें"
     ],
@@ -101,11 +92,9 @@ export const CHAKRAVYUH_SCAM_CATEGORIES = [
     baseRiskScore: 82,
     tactics: ["URGENCY Pressure", "Automated IVR Traps", "Service Disconnection"],
     intentPatterns: [
-      // English Speech Variants
       "trai", "sim card", "deactivation", "sim block", "telecom department", "disconnected within 2 hours",
       "harassment sms", "press 9", "unauthorized activity", "illegal broadcast", "aadhaar sim block",
       "telecom regulatory", "press 9 to connect", "sim deactivated",
-      // Hindi / Hinglish Speech Variants
       "टीआरएआई", "सिम बंद", "दूरसंचार", "2 घंटे में बंद", "9 दबाएं", "मैसेज बंद",
       "सिम ब्लॉक", "वेरीफाई करें"
     ],
@@ -121,11 +110,9 @@ export const CHAKRAVYUH_SCAM_CATEGORIES = [
     baseRiskScore: 90,
     tactics: ["Initial Small Payout Bait", "VIP Task Deposit Trap", "Guaranteed Returns"],
     intentPatterns: [
-      // English Speech Variants
       "part time job", "youtube like", "google review", "guaranteed return", "300% return",
       "prepaid task", "vip task", "crypto trading", "daily payout", "telegram group",
       "work from home", "rate hotels", "deposit task", "like videos", "earn daily",
-      // Hindi / Hinglish Speech Variants
       "पार्ट टाइम जॉब", "यूट्यूब लाइक", "गूगल रिव्यू", "गारंटीड रिटर्न", "टास्क",
       "क्रिप्टो", "रोजाना कमाई", "घर बैठे कमाई"
     ],
@@ -141,11 +128,9 @@ export const CHAKRAVYUH_SCAM_CATEGORIES = [
     baseRiskScore: 95,
     tactics: ["Credential Harvesting", "Remote Screen Share", "Fear of Account Loss"],
     intentPatterns: [
-      // English Speech Variants
       "account frozen", "pan card expired", "update kyc", "anydesk", "teamviewer",
       "share otp", "enter upi pin", "bank manager", "netbanking blocked", "verify kyc",
       "download apk", "card blocked", "bank officer calling", "account blocked",
-      // Hindi / Hinglish Speech Variants
       "खाता फ्रीज", "केवाईसी", "पैन कार्ड अमान्य", "ओटीपी बताओ", "पिन डालें",
       "बैंक मैनेजर", "एप्लीकेशन डाउनलोड करो", "अकाउंट ब्लॉक"
     ],
@@ -161,16 +146,48 @@ export const CHAKRAVYUH_SCAM_CATEGORIES = [
     baseRiskScore: 85,
     tactics: ["Advance Fee Fraud", "Lottery Win Bait", "Urgent Tax Demand"],
     intentPatterns: [
-      // English Speech Variants
       "lottery win", "kbc lottery", "won 25 lakh", "pay 2% tax", "claim prize",
       "lottery tax", "winner lucky draw", "upfront fee", "kaun banega crorepati",
       "gst tax deposit", "claim money",
-      // Hindi / Hinglish Speech Variants
       "लॉटरी जीती", "केबीसी लॉटरी", "25 लाख जीते", "2 टका टैक्स", "प्राइज मनी",
       "इनाम का पैसा", "लॉटरी का टैक्स"
     ],
     description: "SMS or call claiming you won Rs 25 Lakh in KBC/Lottery, requiring upfront 2% GST tax payment via UPI to claim prize.",
     actionPlan: "Legitimate lotteries never ask for upfront taxes via personal UPI. Ignore and report."
+  },
+  {
+    id: "INSTANT_LOAN_EXTORTION",
+    name: "Illegal Loan App & Contact Morphing Extortion",
+    nameHindi: "अवैध लोन ऐप / फोटो ब्लैकमेल घोटाला",
+    icon: "AlertOctagon",
+    severity: "CRITICAL",
+    baseRiskScore: 97,
+    tactics: ["Contact List Harvesting", "Photo Morphing Threat", "Aggressive Extortion"],
+    intentPatterns: [
+      "loan app", "instant loan", "repay loan", "morphed photo", "send to contacts",
+      "loan repayment", "7 day loan", "credit app", "loan overdue", "contact list leaked",
+      "pay double loan", "extortion call", "photo leak", "threaten family",
+      "लोन ऐप", "तुरंत लोन", "फोटो वायरल", "कांटैक्ट लिस्ट", "लोन वापस करो", "ब्लैकमेल"
+    ],
+    description: "Unregistered instant loan app blackmailing victims by accessing contact lists and threatening to send morphed photos unless extortion amounts are paid.",
+    actionPlan: "Report illegal loan apps immediately to National Cyber Crime Portal (1930) and local police. Do not pay extortion demands."
+  },
+  {
+    id: "MATRIMONIAL_ROMANCE",
+    name: "Matrimonial & Foreign Gift Customs Trap",
+    nameHindi: "मैट्रिमोनियल / विदेशी उपहार कस्टम्स धोखाधड़ी",
+    icon: "HeartHandshake",
+    severity: "HIGH",
+    baseRiskScore: 88,
+    tactics: ["Romance Impersonation", "Foreign Gift Bait", "Customs Clearance Extortion"],
+    intentPatterns: [
+      "matrimonial", "nri groom", "foreign gift", "customs airport", "delhi airport customs",
+      "uk gift parcel", "expensive jewellery gift", "dollars stuck at customs", "marriage proposal",
+      "send money for clearance", "shaadi.com scam", "jewellery box detained",
+      "मैट्रिमोनियल", "विदेशी गिफ्ट", "एयरपोर्ट कस्टम्स", "शादी का प्रस्ताव", "डॉलर अटके हैं"
+    ],
+    description: "Fake foreign NRI profile on matrimonial sites sending an expensive gift or currency box, followed by fake customs officer demanding clearance money.",
+    actionPlan: "Never send money to someone met online for customs clearance of gifts. It is a 100% fraudulent trap."
   }
 ];
 
