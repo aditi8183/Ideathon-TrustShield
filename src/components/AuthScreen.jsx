@@ -34,9 +34,40 @@ export default function AuthScreen({ onLoginSuccess }) {
 
   const banksList = ['ICICI Bank', 'SBI Bank', 'HDFC Bank', 'Axis Bank', 'Bank of Baroda', 'Kotak Mahindra'];
 
-  // Helper to validate role vs email domain & credentials
+  // Smart Role & Email Domain Detector
   const validateRoleEmailMatch = (targetEmail, targetRole) => {
-    // Allows seamless access for all email addresses under any role
+    const e = (targetEmail || '').toLowerCase().trim();
+    if (!e) return { valid: true };
+
+    // Check if email is an official bank email
+    const isOfficialBankDomain = e.endsWith('@sbi.co.in') ||
+      e.endsWith('@icici.com') ||
+      e.endsWith('@hdfcbank.com') ||
+      e.endsWith('@axisbank.com') ||
+      e.includes('officer') ||
+      e.includes('admin') ||
+      e.includes('bank');
+
+    if (targetRole === 'BANK_ADMIN') {
+      // Trying to access Bank Risk Admin with a standard customer personal email (e.g. @gmail.com)
+      if (!isOfficialBankDomain) {
+        return {
+          valid: false,
+          error: `Access Restricted: "${e}" is a personal customer email. The Bank Risk Admin Console requires an official bank employee domain (e.g. officer@sbi.co.in or officer@icici.com). Please switch to the "Customer" tab.`
+        };
+      }
+    }
+
+    if (targetRole === 'CUSTOMER') {
+      // Trying to access Customer tab with an official bank admin email
+      if (isOfficialBankDomain && (e.includes('sbi.co.in') || e.includes('officer') || e.includes('admin'))) {
+        return {
+          valid: false,
+          error: `Access Notice: "${e}" is recognized as an Official Bank Admin address. Please switch to the "Bank Risk Admin" tab to access the Bank Risk Officer Console.`
+        };
+      }
+    }
+
     return { valid: true };
   };
 
