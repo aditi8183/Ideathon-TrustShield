@@ -34,36 +34,46 @@ export default function AuthScreen({ onLoginSuccess }) {
 
   const banksList = ['ICICI Bank', 'SBI Bank', 'HDFC Bank', 'Axis Bank', 'Bank of Baroda', 'Kotak Mahindra'];
 
-  // Smart Role & Email Domain Detector
+  // Dynamic Registered Account Role Store
+  const getRegisteredAccounts = () => {
+    try {
+      const stored = localStorage.getItem('trust_shield_user_roles');
+      if (stored) return JSON.parse(stored);
+    } catch (e) {}
+    return {
+      'aditiansh8183@gmail.com': 'CUSTOMER'
+    };
+  };
+
+  const registerUserRole = (userEmail, userRole) => {
+    if (!userEmail) return;
+    const accounts = getRegisteredAccounts();
+    accounts[userEmail.toLowerCase().trim()] = userRole;
+    try {
+      localStorage.setItem('trust_shield_user_roles', JSON.stringify(accounts));
+    } catch (e) {}
+  };
+
+  // Dynamic Role & Account Detector (No domain prefix/suffix restrictions)
   const validateRoleEmailMatch = (targetEmail, targetRole) => {
     const e = (targetEmail || '').toLowerCase().trim();
     if (!e) return { valid: true };
 
-    // Check if email is an official bank email
-    const isOfficialBankDomain = e.endsWith('@sbi.co.in') ||
-      e.endsWith('@icici.com') ||
-      e.endsWith('@hdfcbank.com') ||
-      e.endsWith('@axisbank.com') ||
-      e.includes('officer') ||
-      e.includes('admin') ||
-      e.includes('bank');
+    const accounts = getRegisteredAccounts();
+    const existingRole = accounts[e];
 
-    if (targetRole === 'BANK_ADMIN') {
-      // Trying to access Bank Risk Admin with a standard customer personal email (e.g. @gmail.com)
-      if (!isOfficialBankDomain) {
+    // If account has already been registered / signed in under a specific role
+    if (existingRole && existingRole !== targetRole) {
+      if (existingRole === 'CUSTOMER' && targetRole === 'BANK_ADMIN') {
         return {
           valid: false,
-          error: `Access Restricted: "${e}" is a personal customer email. The Bank Risk Admin Console requires an official bank employee domain (e.g. officer@sbi.co.in or officer@icici.com). Please switch to the "Customer" tab.`
+          error: `Access Denied: "${e}" is registered as a Customer account. You cannot access the Bank Risk Admin Console with a Customer account. Please switch to the "Customer" tab.`
         };
       }
-    }
-
-    if (targetRole === 'CUSTOMER') {
-      // Trying to access Customer tab with an official bank admin email
-      if (isOfficialBankDomain && (e.includes('sbi.co.in') || e.includes('officer') || e.includes('admin'))) {
+      if (existingRole === 'BANK_ADMIN' && targetRole === 'CUSTOMER') {
         return {
           valid: false,
-          error: `Access Notice: "${e}" is recognized as an Official Bank Admin address. Please switch to the "Bank Risk Admin" tab to access the Bank Risk Officer Console.`
+          error: `Access Notice: "${e}" is registered as a Bank Risk Admin account. Please switch to the "Bank Risk Admin" tab.`
         };
       }
     }
@@ -165,6 +175,7 @@ export default function AuthScreen({ onLoginSuccess }) {
           joined_date: new Date().toISOString()
         };
 
+        registerUserRole(email, role);
         onLoginSuccess(authenticatedUser);
       } else {
         setOtpError('Invalid OTP code. Please check your email inbox and try again.');
