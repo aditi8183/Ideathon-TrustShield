@@ -1,20 +1,20 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Mic, MicOff, AlertTriangle, Play, ShieldAlert, Zap, PhoneCall, Package, Landmark, TrendingUp, Sparkles, CheckCircle2, Radar, Gift, Volume2, VolumeX } from 'lucide-react';
+import { Mic, MicOff, AlertTriangle, Play, ShieldAlert, Zap, PhoneCall, Package, Landmark, TrendingUp, Sparkles, CheckCircle2, Radar, Gift, Volume2 } from 'lucide-react';
 import { CHAKRAVYUH_SCAM_CATEGORIES, classifySpeechAutonomously } from '../data/scamKeywords';
 
 export default function VoiceDetector({ onScamDetected, isListening, setIsListening }) {
   const [transcript, setTranscript] = useState('');
   const [classification, setClassification] = useState(null);
   const [isSimulating, setIsSimulating] = useState(false);
-  const [micStatusText, setMicStatusText] = useState('Turn on Mic to speak — Speech gets parsed live & flags issues automatically');
+  const [micStatusText, setMicStatusText] = useState('Turn on Mic to speak — Speech gets typed live & flags issues automatically');
   const [audioLevel, setAudioLevel] = useState(0); // Live mic volume level (0-100)
-  
+
   const recognitionRef = useRef(null);
   const audioContextRef = useRef(null);
   const mediaStreamRef = useRef(null);
   const animFrameRef = useRef(null);
 
-  // Preset live speech samples for simulation testing
+  // Preset live speech samples for simulation & quick testing
   const SIMULATED_CALL_SPEECH_STREAM = [
     "Hello, your FedEx package containing illegal contraband and 5 fake passports has been detained at Mumbai Customs. Pay Rs 1,500 clearance duty fee immediately via UPI.",
     "Sir, this is Inspector Sharma from Delhi Cyber Crime Cell and CBI. Your name and Aadhaar card are involved in a money laundering case. This is a digital arrest. Do not hang up the call or inform anyone.",
@@ -31,8 +31,7 @@ export default function VoiceDetector({ onScamDetected, isListening, setIsListen
       const recognition = new SpeechRecognition();
       recognition.continuous = true;
       recognition.interimResults = true;
-      // Use system language fallback for maximum hardware compatibility
-      recognition.lang = navigator.language || 'en-IN';
+      recognition.lang = 'en-US'; // Fallback to en-US for maximum Windows compatibility
 
       recognition.onresult = (event) => {
         let liveText = '';
@@ -50,9 +49,9 @@ export default function VoiceDetector({ onScamDetected, isListening, setIsListen
       recognition.onerror = (event) => {
         console.warn('Speech recognition error:', event.error);
         if (event.error === 'not-allowed') {
-          setMicStatusText('⚠️ Mic permission blocked in Chrome. Click lock icon in address bar to allow mic.');
-        } else if (event.error === 'no-speech') {
-          setMicStatusText('🎤 Listening for voice... Speak louder into your microphone.');
+          setMicStatusText('⚠️ Mic permission blocked. Click lock icon in browser address bar to allow mic.');
+        } else if (event.error === 'network') {
+          setMicStatusText('🎤 Local Mic Mode: Speak or type into box below to analyze speech stream.');
         }
       };
 
@@ -65,8 +64,6 @@ export default function VoiceDetector({ onScamDetected, isListening, setIsListen
       };
 
       recognitionRef.current = recognition;
-    } else {
-      setMicStatusText('⚠️ Speech Recognition API not supported in this browser. Use Google Chrome.');
     }
   }, [isListening, isSimulating]);
 
@@ -151,7 +148,7 @@ export default function VoiceDetector({ onScamDetected, isListening, setIsListen
       if (recognitionRef.current) {
         try {
           recognitionRef.current.start();
-          setMicStatusText('🎤 Microphone Active! Speak now — Live volume & text stream processing...');
+          setMicStatusText('🎤 Microphone Active! Speak now or type speech to analyze call stream...');
         } catch (e) {
           console.log('Speech recognition active');
         }
@@ -165,6 +162,13 @@ export default function VoiceDetector({ onScamDetected, isListening, setIsListen
     const val = e.target.value;
     setTranscript(val);
     processAutonomousClassification(val);
+  };
+
+  // Test Voice Stream Preset
+  const injectPresetVoiceStream = (speechText) => {
+    setIsListening(true);
+    setTranscript(speechText);
+    processAutonomousClassification(speechText);
   };
 
   // Simulation Trigger
@@ -250,12 +254,65 @@ export default function VoiceDetector({ onScamDetected, isListening, setIsListen
               <div className="voice-bar"></div>
               <div className="voice-bar"></div>
             </div>
-            {/* Live Audio Input Volume Bar */}
             <div style={{ fontSize: 9, color: 'var(--safe-light)', fontWeight: 800, marginTop: 4 }}>
               MIC VOL: {audioLevel}%
             </div>
           </div>
         )}
+      </div>
+
+      {/* Quick Test Voice Audio Stream Buttons */}
+      <div style={{ marginBottom: 10, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+        <button
+          type="button"
+          onClick={() => injectPresetVoiceStream("Hello, your FedEx package containing illegal contraband and 5 fake passports has been detained at Mumbai Customs. Pay Rs 1,500 clearance duty fee immediately.")}
+          style={{
+            background: 'rgba(99, 102, 241, 0.12)',
+            border: '1px solid rgba(99, 102, 241, 0.3)',
+            color: 'var(--indigo-light)',
+            padding: '3px 8px',
+            borderRadius: 6,
+            fontSize: 10,
+            fontWeight: 700,
+            cursor: 'pointer'
+          }}
+        >
+          📦 Test: FedEx Customs Scam
+        </button>
+
+        <button
+          type="button"
+          onClick={() => injectPresetVoiceStream("Sir, this is Inspector Sharma from Delhi Cyber Crime Cell and CBI. You are under digital arrest for money laundering. Do not hang up.")}
+          style={{
+            background: 'rgba(239, 68, 68, 0.12)',
+            border: '1px solid rgba(239, 68, 68, 0.3)',
+            color: 'var(--danger-light)',
+            padding: '3px 8px',
+            borderRadius: 6,
+            fontSize: 10,
+            fontWeight: 700,
+            cursor: 'pointer'
+          }}
+        >
+          🚓 Test: CBI Digital Arrest
+        </button>
+
+        <button
+          type="button"
+          onClick={() => injectPresetVoiceStream("Dear consumer, your electricity bill is unpaid. Power connection will be disconnected tonight at 9:30 PM.")}
+          style={{
+            background: 'rgba(245, 158, 11, 0.12)',
+            border: '1px solid rgba(245, 158, 11, 0.3)',
+            color: 'var(--warn-light)',
+            padding: '3px 8px',
+            borderRadius: 6,
+            fontSize: 10,
+            fontWeight: 700,
+            cursor: 'pointer'
+          }}
+        >
+          ⚡ Test: Power Cut Scam
+        </button>
       </div>
 
       {/* Real-Time Live Typed / Editable Speech Field */}
