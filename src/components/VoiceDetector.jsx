@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Mic, MicOff, AlertTriangle, Play, ShieldAlert, Zap, PhoneCall, Package, Landmark, TrendingUp, Sparkles, CheckCircle2, Radar, Gift, Volume2 } from 'lucide-react';
+import { Mic, MicOff, AlertTriangle, Play, ShieldAlert, Zap, PhoneCall, Package, Landmark, TrendingUp, Sparkles, CheckCircle2, Radar, Gift, Volume2, Activity } from 'lucide-react';
 import { CHAKRAVYUH_SCAM_CATEGORIES, classifySpeechAutonomously } from '../data/scamKeywords';
 
 export default function VoiceDetector({ onScamDetected, isListening, setIsListening }) {
@@ -8,37 +8,39 @@ export default function VoiceDetector({ onScamDetected, isListening, setIsListen
   const [isSimulating, setIsSimulating] = useState(false);
   const [micStatusText, setMicStatusText] = useState('Turn on Mic to speak — Speech gets typed live & flags issues automatically');
   const [audioLevel, setAudioLevel] = useState(0); // Live mic volume level (0-100)
+  const [isSpeechSupported, setIsSpeechSupported] = useState(true);
 
   const recognitionRef = useRef(null);
   const audioContextRef = useRef(null);
   const mediaStreamRef = useRef(null);
   const animFrameRef = useRef(null);
   const accumulatedTranscriptRef = useRef('');
-
-  // Preset live speech samples for simulation testing
-  const SIMULATED_CALL_SPEECH_STREAM = [
-    "Hello, your FedEx package containing illegal contraband and 5 fake passports has been detained at Mumbai Customs. Pay Rs 1,500 clearance duty fee immediately via UPI.",
-    "Sir, this is Inspector Sharma from Delhi Cyber Crime Cell and CBI. Your name and Aadhaar card are involved in a money laundering case. This is a digital arrest. Do not hang up the call or inform anyone.",
-    "TRAI Alert Notice: All mobile numbers under your Aadhaar will be disconnected within 2 hours due to illegal broadcasting. Press 9 to talk to telecom officer or transfer verification fee.",
-    "Dear consumer, your electricity bill of previous month is unpaid. Power connection will be disconnected tonight at 9:30 PM by electricity office officer. Call helpline and pay immediately.",
-    "Hi! Earn Rs 5,000 daily part time job by liking YouTube videos and Google reviews. Guaranteed 300% return on prepaid VIP tasks. Deposit money via UPI to start.",
-    "Congratulations! You won Rs 25 Lakh in KBC Lottery Lucky Draw. You must deposit 2% GST tax upfront via UPI to claim prize money."
-  ];
+  const lastSoundTimeRef = useRef(Date.now());
 
   // Universal Cross-Browser Speech Recognition Engine
   useEffect(() => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
     if (SpeechRecognition) {
+      setIsSpeechSupported(true);
       const recognition = new SpeechRecognition();
       recognition.continuous = true;
       recognition.interimResults = true;
-      recognition.maxAlternatives = 1;
+      recognition.maxAlternatives = 3;
 
-      // Automatically adopt the browser's primary language or fallback to English
-      recognition.lang = navigator.language || 'en-IN';
+      // Try Indian English first, fallback to browser default
+      try {
+        recognition.lang = 'en-IN';
+      } catch (e) {
+        recognition.lang = navigator.language || 'en-US';
+      }
+
+      recognition.onstart = () => {
+        setMicStatusText('🎤 Mic Active & Listening! Speak into your microphone...');
+      };
 
       recognition.onresult = (event) => {
+        lastSoundTimeRef.current = Date.now();
         let interimText = '';
         let newFinalText = '';
 
@@ -68,12 +70,17 @@ export default function VoiceDetector({ onScamDetected, isListening, setIsListen
         if (event.error === 'not-allowed') {
           setMicStatusText('⚠️ Mic access denied. Please click the lock icon in your browser address bar to allow microphone.');
         } else if (event.error === 'network') {
-          setMicStatusText('🎤 Listening... Speak into your microphone to parse speech.');
+          setMicStatusText('🎤 Listening... If speech lags, you can also type call audio directly into the box.');
+        } else if (event.error === 'no-speech') {
+          // Restart recognition silently if no speech was detected
+          if (isListening && recognitionRef.current) {
+            try { recognitionRef.current.start(); } catch (e) {}
+          }
         }
       };
 
       recognition.onend = () => {
-        // Continuous listening auto-restart
+        // Continuous listening auto-restart loop
         if (isListening && recognitionRef.current && !isSimulating) {
           try {
             recognitionRef.current.start();
@@ -83,7 +90,8 @@ export default function VoiceDetector({ onScamDetected, isListening, setIsListen
 
       recognitionRef.current = recognition;
     } else {
-      setMicStatusText('⚠️ Speech Recognition API not supported in this browser. Please open in Google Chrome or Microsoft Edge.');
+      setIsSpeechSupported(false);
+      setMicStatusText('⚠️ Web Speech API not natively enabled in this browser engine. Type call audio into the box below.');
     }
   }, [isListening, isSimulating]);
 
@@ -103,10 +111,18 @@ export default function VoiceDetector({ onScamDetected, isListening, setIsListen
     }
   };
 
-  // Web Audio Hardware Microphone Level Analyzer
+  // Web Audio Hardware Microphone Level Analyzer with Enhanced Auto-Gain & Echo Cancellation
   const startAudioAnalyzer = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+          channelCount: 1,
+          sampleRate: 48000
+        }
+      });
       mediaStreamRef.current = stream;
 
       const AudioContext = window.AudioContext || window.webkitAudioContext;
@@ -115,7 +131,8 @@ export default function VoiceDetector({ onScamDetected, isListening, setIsListen
 
       const source = audioCtx.createMediaStreamSource(stream);
       const analyser = audioCtx.createAnalyser();
-      analyser.fftSize = 256;
+      analyser.fftSize = 512;
+      analyser.smoothingTimeConstant = 0.4;
       source.connect(analyser);
 
       const dataArray = new Uint8Array(analyser.frequencyBinCount);
@@ -127,8 +144,21 @@ export default function VoiceDetector({ onScamDetected, isListening, setIsListen
           sum += dataArray[i];
         }
         const average = sum / dataArray.length;
-        const normalized = Math.min(100, Math.round((average / 128) * 100));
+
+        // Amplified volume scaling for low gain Windows microphones
+        const normalized = Math.min(100, Math.round((average / 64) * 100));
         setAudioLevel(normalized);
+
+        // If user is speaking (volume > 15%) but speech recognition hasn't emitted text in 4s, auto-kickstart recognition
+        if (normalized > 15 && (Date.now() - lastSoundTimeRef.current > 4000) && isListening && recognitionRef.current) {
+          lastSoundTimeRef.current = Date.now();
+          try {
+            recognitionRef.current.stop();
+            setTimeout(() => {
+              try { recognitionRef.current.start(); } catch (e) {}
+            }, 100);
+          } catch (e) {}
+        }
 
         animFrameRef.current = requestAnimationFrame(checkVolume);
       };
@@ -194,6 +224,15 @@ export default function VoiceDetector({ onScamDetected, isListening, setIsListen
     setClassification(null);
     accumulatedTranscriptRef.current = '';
     setMicStatusText('Simulated Call Active... Parsing spoken text word-by-word');
+
+    const SIMULATED_CALL_SPEECH_STREAM = [
+      "Hello, your Flipkart parcel containing illegal contraband and fake passports has been detained. Pay Rs 499 clearance duty fee immediately.",
+      "Sir, this is Inspector Sharma from Delhi Cyber Crime Cell and CBI. Your name and Aadhaar card are involved in money laundering. You are under digital arrest.",
+      "TRAI Alert Notice: Your mobile numbers will be disconnected within 2 hours due to illegal broadcasting. Press 9 to talk to telecom officer.",
+      "Dear consumer, your electricity bill is unpaid. Power connection will be disconnected tonight at 9:30 PM by electricity office.",
+      "Share your 6 digit bank OTP immediately to unfreeze your ICICI bank account balance.",
+      "Congratulations! You won Rs 25 Lakh in KBC Lottery. You must deposit 2% GST tax upfront via UPI to claim prize money."
+    ];
 
     const randomSpeech = SIMULATED_CALL_SPEECH_STREAM[Math.floor(Math.random() * SIMULATED_CALL_SPEECH_STREAM.length)];
 
@@ -270,8 +309,8 @@ export default function VoiceDetector({ onScamDetected, isListening, setIsListen
               <div className="voice-bar"></div>
               <div className="voice-bar"></div>
             </div>
-            <div style={{ fontSize: 9, color: 'var(--safe-light)', fontWeight: 800, marginTop: 4 }}>
-              MIC VOL: {audioLevel}%
+            <div style={{ fontSize: 9, color: audioLevel > 20 ? 'var(--safe-light)' : 'var(--warn-light)', fontWeight: 800, marginTop: 4 }}>
+              MIC VOL: {audioLevel}% {audioLevel > 20 ? '🔊' : '🔉'}
             </div>
           </div>
         )}
