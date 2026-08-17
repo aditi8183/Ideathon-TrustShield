@@ -2,8 +2,56 @@
 
 export const CHAKRAVYUH_SCAM_CATEGORIES = [
   {
+    id: "OTP_HARVESTING",
+    name: "OTP & Banking Credential Theft Scam",
+    nameHindi: "ओटीपी / पासवर्ड चोरी धोखाधड़ी",
+    icon: "Landmark",
+    severity: "CRITICAL",
+    baseRiskScore: 99,
+    tactics: ["Credential Harvesting", "Fake Verification Pressure", "Social Engineering"],
+    intentPatterns: [
+      // English & Spoken Variations
+      "otp", "one time password", "verification code", "share otp", "tell me otp", "read otp",
+      "code sent to your phone", "6 digit code", "six digit code", "read out code", "pin number",
+      "cvv", "bank otp", "login code", "whatsapp code", "anydesk code", "verification pin",
+      "otp for account", "account otp", "send code", "enter otp", "tell otp", "give otp",
+      "security code", "transaction code", "card pin", "upi pin", "bank code",
+      // Hindi / Hinglish Spoken Variations
+      "ओटीपी", "पिन बताओ", "कोड बोलो", "वेरिफिकेशन कोड", "अकाउंट का ओटीपी", "ओटीपी दें",
+      "ओटीपी शेयर करें", "ओटीपी आया है", "मैसेज वाला कोड", "पासवर्ड बताओ"
+    ],
+    description: "Fraudster tricking victim into revealing sensitive 6-digit OTP, UPI PIN, or bank credentials over phone call to hijack bank accounts or authorize fraudulent transfers.",
+    actionPlan: "NEVER share your OTP, UPI PIN, or SMS codes with anyone! Banks and official delivery agents will NEVER ask for your OTP over phone call."
+  },
+  {
+    id: "COURIER_CUSTOMS",
+    name: "Shopping Parcel & Courier Delivery Scam",
+    nameHindi: "पार्सल / ई-कॉमर्स डिलीवरी धोखाधड़ी",
+    icon: "Package",
+    severity: "HIGH",
+    baseRiskScore: 90,
+    tactics: ["Delivery Fee Extortion", "Fake Order Pending Trap", "Courier Impersonation"],
+    intentPatterns: [
+      // Shopping & Delivery Brands
+      "flipkart", "amazon", "meesho", "myntra", "ajio", "zepto", "blinkit", "instamart",
+      "zomato", "swiggy", "fedex", "dhl", "shiprocket", "delhivery", "blue dart", "shadowfax",
+      "ecom express", "dtdc", "indiapost", "speed post", "courier",
+      // Delivery & Payment Action Phrases
+      "parcel", "package", "delivery fee", "pay to receive", "receive your parcel",
+      "please pay", "pay to get parcel", "cash on delivery", "cod charge", "delivery charge",
+      "address verification fee", "delivery agent", "parcel pending", "order stuck",
+      "delivery officer", "clearance fee", "detained", "customs duty", "illegal contraband",
+      "drugs", "passports", "mdma", "customs clearance", "parcel hold", "pay 499", "pay 99",
+      // Hindi / Hinglish Speech Variants
+      "कस्टम्स", "पार्सल", "कूरियर", "पैकेट", "फ्लिपकार्ट", "अमेज़न", "मीशो", "डिलीवरी चार्ज",
+      "डिलीवरी बॉय", "पैसे पे करो", "पार्सल प्राप्त करें", "सामान अटका है", "कस्टम ड्यूटी"
+    ],
+    description: "Fraudster impersonating Flipkart, Amazon, FedEx or delivery agent demanding Rs 499/clearance fees to deliver a pending parcel or alleging illegal contraband.",
+    actionPlan: "Do NOT pay any delivery or clearance fee over UPI. Verify your order status strictly inside official shopping apps."
+  },
+  {
     id: "DIGITAL_ARREST",
-    name: "Digital Arrest Scam",
+    name: "CBI & Cyber Police Digital Arrest Scam",
     nameHindi: "डिजिटल अरेस्ट धोखाधड़ी",
     icon: "ShieldAlert",
     severity: "CRITICAL",
@@ -23,27 +71,6 @@ export const CHAKRAVYUH_SCAM_CATEGORIES = [
     ],
     description: "Fraudster impersonating law enforcement (CBI / Cyber Police) enforcing a fake virtual house arrest via voice/video call and demanding immediate fund transfer to a fake safety vault.",
     actionPlan: "Disconnect call immediately! Real police or CBI officers NEVER conduct arrests over voice/video calls or demand money transfers."
-  },
-  {
-    id: "COURIER_CUSTOMS",
-    name: "Customs / Courier Drug Seizure Scam",
-    nameHindi: "कस्टम्स / पार्सल जब्ती घोटाला",
-    icon: "Package",
-    severity: "HIGH",
-    baseRiskScore: 88,
-    tactics: ["Contraband Allegation", "Customs Tax Extortion", "Impersonation"],
-    intentPatterns: [
-      // English Speech Variants
-      "fedex", "dhl", "customs", "parcel", "package", "courier", "detained", "seized",
-      "illegal contraband", "drugs", "passports", "mdma", "customs fee", "clearance duty",
-      "mumbai customs", "taiwan parcel", "customs clearance", "illegal items", "narcotics parcel",
-      "clearance charge", "pay tax to release", "customs officer",
-      // Hindi / Hinglish Speech Variants
-      "कस्टम्स", "पार्सल", "कूरियर", "पैकेट", "अवैध सामान", "ड्रग्स", "नशीली दवाएं",
-      "कस्टम ड्यूटी", "पैसे भेजो", "पार्सल पकड़ा गया", "कस्टम अधिकारी", "जब्त"
-    ],
-    description: "Scammer claiming an international parcel containing contraband/drugs sent in your name is seized by Customs, demanding immediate clearance fees.",
-    actionPlan: "Do not pay any clearance fee over UPI. Verify tracking only on official courier websites."
   },
   {
     id: "ELECTRICITY_BILL",
@@ -147,15 +174,41 @@ export const CHAKRAVYUH_SCAM_CATEGORIES = [
   }
 ];
 
-// Autonomous Speech Scenario Classifier function (Wide-Range Natural Speech Matching)
+// Typo correction dictionary for robust real-time speech matching
+const TYPO_MAP = {
+  "pkease": "please",
+  "pls": "please",
+  "plz": "please",
+  "recieve": "receive",
+  "recive": "receive",
+  "flikpart": "flipkart",
+  "flipkartt": "flipkart",
+  "amazn": "amazon",
+  "opt": "otp",
+  "atp": "otp",
+  "acc": "account",
+  "acount": "account",
+  "acct": "account",
+  "prcel": "parcel",
+  "parcel": "parcel",
+  "custom": "customs"
+};
+
+// Autonomous Speech Scenario Classifier function
 export function classifySpeechAutonomously(transcript) {
-  if (!transcript || transcript.trim().length < 3) {
+  if (!transcript || transcript.trim().length < 2) {
     return { detected: false };
   }
 
-  // Normalize speech text
-  const cleanText = transcript.toLowerCase().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, " ");
-  
+  // Normalize transcript (lowercase, remove punctuation)
+  let cleanText = transcript.toLowerCase().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, " ");
+
+  // Apply typo correction
+  Object.keys(TYPO_MAP).forEach(typo => {
+    const regex = new RegExp(`\\b${typo}\\b`, 'gi');
+    cleanText = cleanText.replace(regex, TYPO_MAP[typo]);
+  });
+
   let bestMatch = null;
   let maxMatchCount = 0;
   let matchedPatterns = [];
@@ -163,8 +216,19 @@ export function classifySpeechAutonomously(transcript) {
   CHAKRAVYUH_SCAM_CATEGORIES.forEach((category) => {
     const hits = category.intentPatterns.filter(pattern => {
       const pLower = pattern.toLowerCase();
-      // Match full phrase or individual key words
-      return cleanText.includes(pLower) || pLower.split(' ').every(w => w.length > 2 && cleanText.includes(w));
+
+      // Direct substring match
+      if (cleanText.includes(pLower)) return true;
+
+      // Word-by-word token match for key single words (e.g., "otp", "parcel", "flipkart")
+      const wordsInPattern = pLower.split(' ');
+      if (wordsInPattern.length === 1 && pLower.length >= 3) {
+        const regex = new RegExp(`\\b${pLower}\\b`, 'i');
+        return regex.test(cleanText);
+      }
+
+      // Multi-word phrase match
+      return wordsInPattern.every(w => w.length > 2 && cleanText.includes(w));
     });
 
     if (hits.length > 0) {
@@ -177,7 +241,7 @@ export function classifySpeechAutonomously(transcript) {
   });
 
   if (bestMatch) {
-    const confidencePercentage = Math.min(99, Math.round(60 + matchedPatterns.length * 12));
+    const confidencePercentage = Math.min(99, Math.round(65 + matchedPatterns.length * 10));
     return {
       detected: true,
       category: bestMatch,
