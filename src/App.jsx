@@ -72,7 +72,6 @@ useEffect(() => {
 
   // Session Transcript state (retained in React memory across tab navigation; resets cleanly on F5 page refresh)
   const [currentTranscript, setCurrentTranscript] = useState('');
-const [currentTranscript, setCurrentTranscript] = useState('');
 
 // ADD STEP 7 HERE
 useEffect(() => {
@@ -114,9 +113,7 @@ useEffect(() => {
 const handleTranscriptChange = (text) => {
   setCurrentTranscript(text);
 };
-  const handleTranscriptChange = (text) => {
-    setCurrentTranscript(text);
-  };
+
 
   const clearTranscript = () => {
     setCurrentTranscript('');
