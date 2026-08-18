@@ -39,9 +39,7 @@ export default function AuthScreen({ onLoginSuccess }) {
       const stored = localStorage.getItem('trust_shield_user_roles');
       if (stored) return JSON.parse(stored);
     } catch (e) {}
-    return {
-      'aditiansh8183@gmail.com': 'CUSTOMER'
-    };
+    return {};
   };
 
   const registerUserRole = (userEmail, userRole) => {
@@ -181,7 +179,12 @@ export default function AuthScreen({ onLoginSuccess }) {
   const handleGoogleSignIn = async () => {
     setFormError('');
     const provider = new GoogleAuthProvider();
-    try {
+
+provider.setCustomParameters({
+  prompt: 'select_account'
+});
+
+try {
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
 
