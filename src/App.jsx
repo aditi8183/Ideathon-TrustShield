@@ -72,7 +72,48 @@ useEffect(() => {
 
   // Session Transcript state (retained in React memory across tab navigation; resets cleanly on F5 page refresh)
   const [currentTranscript, setCurrentTranscript] = useState('');
+const [currentTranscript, setCurrentTranscript] = useState('');
 
+// ADD STEP 7 HERE
+useEffect(() => {
+  if (!user) return;
+
+  const today = new Date().toISOString().split('T')[0];
+
+  // Already counted today
+  if (user.last_active_date === today) {
+    return;
+  }
+
+  const yesterdayDate = new Date();
+  yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+
+  const yesterday = yesterdayDate.toISOString().split('T')[0];
+
+  setUser(prev => {
+    if (!prev || prev.last_active_date === today) {
+      return prev;
+    }
+
+    const previousStreak = Number(prev.streak) || 0;
+
+    const newStreak =
+      prev.last_active_date === yesterday
+        ? previousStreak + 1
+        : 1;
+
+    return {
+      ...prev,
+      streak: newStreak,
+      last_active_date: today
+    };
+  });
+});
+
+// YOUR EXISTING CODE CONTINUES
+const handleTranscriptChange = (text) => {
+  setCurrentTranscript(text);
+};
   const handleTranscriptChange = (text) => {
     setCurrentTranscript(text);
   };
@@ -92,6 +133,7 @@ useEffect(() => {
   const clearPaymentDraft = () => {
     setPaymentDraft({ recipientUpi: '', amount: '', note: '', isPasted: false });
   };
+  
 
   const handleLoginSuccess = (authenticatedUser) => {
     setUser(authenticatedUser);
@@ -144,11 +186,16 @@ useEffect(() => {
 
     setBankReviews(prev => [newBankReview, ...prev]);
 
-    setUser(prev => ({
-      ...prev,
-      total_saved: (prev.total_saved || 0) + blockedData.amount,
-      guardian_points: (prev.guardian_points || 0) + 100
-    }));
+    setUser(prev => {
+  const newPoints = (prev.guardian_points || 0) + 100;
+
+  return {
+    ...prev,
+    total_saved: (prev.total_saved || 0) + Number(blockedData.amount),
+    guardian_points: newPoints,
+    level: calculateLevel(newPoints)
+  };
+});
 
     setPointEvents(prev => [
       {
@@ -165,10 +212,15 @@ useEffect(() => {
     // Payment cycle completed -> clear payment draft & active call transcript
     clearPaymentDraft();
 
-    setUser(prev => ({
-      ...prev,
-      guardian_points: (prev.guardian_points || 0) + 25
-    }));
+   setUser(prev => {
+  const newPoints = (prev.guardian_points || 0) + 25;
+
+  return {
+    ...prev,
+    guardian_points: newPoints,
+    level: calculateLevel(newPoints)
+  };
+});
 
     setPointEvents(prev => [
       {
@@ -189,11 +241,15 @@ useEffect(() => {
       return s;
     }));
 
-    setUser(prev => ({
-      ...prev,
-      guardian_points: (prev.guardian_points || 0) + 10
-    }));
+    setUser(prev => {
+  const newPoints = (prev.guardian_points || 0) + 10;
 
+  return {
+    ...prev,
+    guardian_points: newPoints,
+    level: calculateLevel(newPoints)
+  };
+});
     setPointEvents(prev => [
       {
         id: `e_${Date.now()}`,
@@ -208,10 +264,15 @@ useEffect(() => {
   const handleAddScam = (newScam) => {
     setScamList(prev => [newScam, ...prev]);
 
-    setUser(prev => ({
-      ...prev,
-      guardian_points: (prev.guardian_points || 0) + 50
-    }));
+    setUser(prev => {
+  const newPoints = (prev.guardian_points || 0) + 50;
+
+  return {
+    ...prev,
+    guardian_points: newPoints,
+    level: calculateLevel(newPoints)
+  };
+});
 
     setPointEvents(prev => [
       {
