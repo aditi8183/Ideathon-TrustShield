@@ -1,60 +1,24 @@
 // Comprehensive 15-Category Indian Cyber Crime & Multi-Lingual Intent Dataset
-// Integrates taxonomy principles from UCI SMS Spam, Nazario Phishing, Nigerian 419, CEAS-08, Enron (Legitimate Negatives), FTC Sentinel, and AI4Bharat Indic Language Pipelines.
+// Location: src/data/scamKeywords.js
 
 export const CHAKRAVYUH_SCAM_CATEGORIES = [
   {
-    id: "UPI_PAYMENT_SCAM",
-    name: "UPI Refund & QR Code Reversal Scam",
-    nameHindi: "यूपीआई रिफंड व क्यूआर कोड धोखाधड़ी",
-    icon: "Zap",
-    severity: "HIGH",
-    baseRiskScore: 92,
-    tactics: ["Money Collection Trap", "Fake Overpayment Bait", "PIN to Receive Fraud"],
-    intentPatterns: [
-      // English, Hinglish, Hindi & Regional Languages (Bengali, Tamil, Telugu, Marathi, Gujarati, Kannada)
-      "upi refund", "scan qr code to receive", "enter upi pin to receive", "gpay refund", "phonepe refund",
-      "paytm cashback", "overpayment refund", "click link to receive money", "upi pin dalo paise milenge",
-      "क्यूआर कोड स्कैन करो", "पिन डालो पैसे आएंगे", "यूपीआई रिफंड", "कैशबैक मिला है",
-      "টাকা পেতে পিন দিন", "பணம் பெற பின் உள்ளிடவும்", "డబ్బులు రావడానికి పిన్ ఎంటర్ చేయండి",
-      "पैसे मिळवण्यासाठी पिन टाका", "પૈસા મેળવવા માટે પીન નાખો", "ಹಣ ಪಡೆಯಲು ಪಿನ್ ಹಾಕಿ"
-    ],
-    description: "Scammer tricks victim into entering their UPI PIN or scanning a QR code under false promise of receiving money or a refund.",
-    actionPlan: "Remember: YOU NEVER NEED TO ENTER YOUR UPI PIN OR SCAN A QR CODE TO RECEIVE MONEY! UPI PIN is ONLY entered to send money."
-  },
-  {
-    id: "BANK_IMPERSONATION",
-    name: "Bank Manager & Account Block Scam",
-    nameHindi: "बैंक अधिकारी / खाता सील धोखाधड़ी",
-    icon: "Landmark",
+    id: "POLICE_CBI_DIGITAL_ARREST",
+    name: "CBI & Cyber Police Digital Arrest Scam",
+    nameHindi: "सीबीआई / पुलिस डिजिटल अरेस्ट धोखाधड़ी",
+    icon: "ShieldAlert",
     severity: "CRITICAL",
-    baseRiskScore: 96,
-    tactics: ["Authority Impersonation", "Account Lockout Threat", "Urgency Pressure"],
+    baseRiskScore: 99,
+    tactics: ["Authority Impersonation", "Isolation Threat", "Fake Video Room House Arrest"],
     intentPatterns: [
-      "calling from sbi", "calling from icici bank", "calling from hdfc bank", "bank manager calling",
-      "account will be blocked today", "verify bank details immediately", "card suspended", "atm card expire",
-      "बैंक मैनेजर बोल रहा हूँ", "अकाउंट ब्लॉक हो जाएगा", "एसबीआई से बोल रहा हूँ", "बैंक पासबुक",
-      "ব্যাঙ্ক থেকে বলছি অ্যাকাউন্ট বন্ধ হবে", "வங்கி மேலாளர் பேசுகிறேன் கணக்கு முடக்கப்படும்",
-      "బ్యాంక్ మేనేజర్ మాట్లాడుతున్నాను ఖాతా బ్లాక్ అవుతుంది", "बँकेतून बोलत आहे खाते ब्लॉक होईल"
+      "cbi", "arrest", "digital arrest", "police", "cyber crime", "crime branch", "narcotics", "narcotics bureau",
+      "warrant", "court order", "supreme court", "money laundering", "don't disconnect", "stay on call",
+      "stay on video", "virtual arrest", "illegal parcel", "under arrest", "police station",
+      "डिजिटल अरेस्ट", "पुलिस", "सीबीआई", "वारंट", "मनी लॉन्ड्रिंग", "फोन मत काटना", "वीडियो कॉल पर रहो", "गिरफ्तारी",
+      "ডিজিটাল অ্যারেস্ট সিবিআই", "டிஜிட்டல் கைது காவல் துறை", "డిజిటల్ అరెస్ట్ సీబీఐ", "डिजिटल अरेस्ट पोलिस"
     ],
-    description: "Fraudster impersonates bank officials claiming your bank account or ATM card is suspended unless you verify details immediately.",
-    actionPlan: "Hang up immediately! Real bank officials never call demanding card numbers, PINs, or urgent phone verification."
-  },
-  {
-    id: "KYC_SCAM",
-    name: "KYC & PAN Card Expiry Update Scam",
-    nameHindi: "केवाईसी / पैन कार्ड अपडेट धोखाधड़ी",
-    icon: "Landmark",
-    severity: "CRITICAL",
-    baseRiskScore: 95,
-    tactics: ["Regulatory Impersonation", "Suspension Pressure", "Phishing Link Injection"],
-    intentPatterns: [
-      "kyc expire", "update kyc", "pan card expired", "aadhaar kyc pending", "click link to update kyc",
-      "download apk for kyc", "bank kyc update", "kyc expired today", "pan link with bank",
-      "केवाईसी एक्सपायर", "केवाईसी अपडेट करो", "पैन कार्ड अमान्य", "केवाईसी लिंक",
-      "কেওয়াইসি আপডেট করুন", "கேஒய்சி புதுப்பிக்கவும்", "కేవైసీ అప్‌డేట్ చేయండి", "केवायसी अपडेट करा"
-    ],
-    description: "Fake SMS/call warning that your bank or wallet KYC has expired and your funds will be frozen unless updated via a fake link or app.",
-    actionPlan: "Never click external links or download APK files for KYC. Update KYC only inside official banking apps or physical branches."
+    description: "Fraudster impersonating CBI or Police enforcing a fake virtual house arrest via call/video call, extorting money into a fake RBI safety vault.",
+    actionPlan: "Disconnect immediately! Real police or CBI officers NEVER conduct digital arrests over video calls or demand money transfers."
   },
   {
     id: "OTP_HARVESTING",
@@ -76,6 +40,58 @@ export const CHAKRAVYUH_SCAM_CATEGORIES = [
     actionPlan: "NEVER share your OTP, UPI PIN, or CVV with anyone! Banks and official agents will NEVER ask for your OTP over phone call."
   },
   {
+    id: "UPI_PAYMENT_SCAM",
+    name: "UPI Refund & QR Code Reversal Scam",
+    nameHindi: "यूपीआई रिफंड व क्यूआर कोड धोखाधड़ी",
+    icon: "Zap",
+    severity: "HIGH",
+    baseRiskScore: 92,
+    tactics: ["Money Collection Trap", "Fake Overpayment Bait", "PIN to Receive Fraud"],
+    intentPatterns: [
+      "upi refund", "scan qr code", "qr code", "enter upi pin", "gpay refund", "phonepe refund",
+      "paytm cashback", "overpayment refund", "click link to receive", "upi pin dalo",
+      "क्यूआर कोड स्कैन करो", "पिन डालो पैसे आएंगे", "यूपीआई रिफंड", "कैशबैक मिला है",
+      "টাকা পেতে পিন দিন", "பணம் பெற பின் உள்ளிடவும்", "డబ్బులు రావడానికి పిన్ ఎంటర్ చేయండి",
+      "पैसे मिळवण्यासाठी पिन टाका", "પૈસા મેળવવા માટે પીન નાખો", "ಹಣ ಪಡೆಯಲು ಪಿನ್ ಹಾಕಿ"
+    ],
+    description: "Scammer tricks victim into entering their UPI PIN or scanning a QR code under false promise of receiving money or a refund.",
+    actionPlan: "Remember: YOU NEVER NEED TO ENTER YOUR UPI PIN OR SCAN A QR CODE TO RECEIVE MONEY! UPI PIN is ONLY entered to send money."
+  },
+  {
+    id: "BANK_IMPERSONATION",
+    name: "Bank Manager & Account Block Scam",
+    nameHindi: "बैंक अधिकारी / खाता सील धोखाधड़ी",
+    icon: "Landmark",
+    severity: "CRITICAL",
+    baseRiskScore: 96,
+    tactics: ["Authority Impersonation", "Account Lockout Threat", "Urgency Pressure"],
+    intentPatterns: [
+      "sbi", "icici", "hdfc", "bank manager", "account blocked", "block account",
+      "verify bank details", "card suspended", "atm card expire", "bank officer",
+      "बैंक मैनेजर", "अकाउंट ब्लॉक", "एसबीआई", "बैंक पासबुक",
+      "ব্যাঙ্ক থেকে বলছি", "வங்கி மேலாளர்", "బ్యాంక్ మేనేజర్", "बँकेतून बोलत आहे"
+    ],
+    description: "Fraudster impersonates bank officials claiming your bank account or ATM card is suspended unless you verify details immediately.",
+    actionPlan: "Hang up immediately! Real bank officials never call demanding card numbers, PINs, or urgent phone verification."
+  },
+  {
+    id: "KYC_SCAM",
+    name: "KYC & PAN Card Expiry Update Scam",
+    nameHindi: "केवाईसी / पैन कार्ड अपडेट धोखाधड़ी",
+    icon: "Landmark",
+    severity: "CRITICAL",
+    baseRiskScore: 95,
+    tactics: ["Regulatory Impersonation", "Suspension Pressure", "Phishing Link Injection"],
+    intentPatterns: [
+      "kyc", "update kyc", "kyc expire", "pan card", "aadhaar kyc", "kyc link", "download apk",
+      "bank kyc", "pan link",
+      "केवाईसी", "केवाईसी अपडेट", "पैन कार्ड", "केवाईसी लिंक",
+      "কেওয়াইসি", "கேஒய்சி", "కేవైసీ", "केवायसी"
+    ],
+    description: "Fake SMS/call warning that your bank or wallet KYC has expired and your funds will be frozen unless updated via a fake link or app.",
+    actionPlan: "Never click external links or download APK files for KYC. Update KYC only inside official banking apps or physical branches."
+  },
+  {
     id: "AADHAAR_GOVT_IMPERSONATION",
     name: "TRAI & Telecom SIM Deactivation Scam",
     nameHindi: "टीआरएआई / सिम बंद होने का डर",
@@ -84,31 +100,13 @@ export const CHAKRAVYUH_SCAM_CATEGORIES = [
     baseRiskScore: 88,
     tactics: ["Government Impersonation", "Urgency Pressure", "Service Disconnection Threat"],
     intentPatterns: [
-      "trai alert", "sim card deactivation", "sim block", "telecom department", "disconnected within 2 hours",
-      "illegal broadcasting", "aadhaar sim block", "press 9 to connect", "dot telecom officer",
-      "टीआरएआई", "सिम बंद हो जाएगा", "2 घंटे में सिम ब्लॉक", "9 दबाएं", "दूरसंचार विभाग",
-      "ট্রাই নোটিশ সিম বন্ধ হবে", "டிராய் எச்சரிக்கை சிம் முடக்கப்படும்", "ట్రాయ్ అలర్ట్ సిమ్ బ్లాక్ అవుతుంది"
+      "trai", "sim card", "deactivation", "sim block", "telecom department", "disconnected",
+      "illegal broadcasting", "aadhaar sim", "press 9", "dot officer",
+      "टीआरएआई", "सिम बंद", "2 घंटे में सिम ब्लॉक", "9 दबाएं", "दूरसंचार विभाग",
+      "ট্রাই నోটিশ", "டிராய் எச்சரிக்கை", "ట్రాయ్ అలర్ట్"
     ],
     description: "Fake automated IVR or caller claiming TRAI or Department of Telecom will disconnect all your SIM numbers within 2 hours due to illegal activity.",
     actionPlan: "TRAI and Telecom Department do not issue automated disconnection calls to individuals. Ignore and disconnect."
-  },
-  {
-    id: "POLICE_CBI_DIGITAL_ARREST",
-    name: "CBI & Cyber Police Digital Arrest Scam",
-    nameHindi: "सीबीआई / पुलिस डिजिटल अरेस्ट धोखाधड़ी",
-    icon: "ShieldAlert",
-    severity: "CRITICAL",
-    baseRiskScore: 99,
-    tactics: ["Authority Impersonation", "Isolation Threat", "Fake Video Room House Arrest"],
-    intentPatterns: [
-      "digital arrest", "cbi officer", "cyber crime police", "crime branch", "narcotics bureau",
-      "warrant issued", "supreme court order", "money laundering case", "don't disconnect call",
-      "stay on video call", "virtual arrest", "illegal parcel seized in your name", "under arrest",
-      "डिजिटल अरेस्ट", "पुलिस", "सीबीआई", "वारंट", "मनी लॉन्ड्रिंग", "फोन मत काटना", "वीडियो कॉल पर रहो", "गिरफ्तारी",
-      "ডিজিটাল অ্যারেস্ট সিবিআই", "டிஜிட்டல் கைது காவல் துறை", "డిజిటల్ అరెస్ట్ సీబీఐ", "डिजिटल अरेस्ट पोलिस"
-    ],
-    description: "Fraudster impersonating CBI or Police enforcing a fake virtual house arrest via call/video call, extorting money into a fake RBI safety vault.",
-    actionPlan: "Disconnect immediately! Real police or CBI officers NEVER conduct digital arrests over video calls or demand money transfers."
   },
   {
     id: "ELECTRICITY_BILL",
@@ -119,11 +117,10 @@ export const CHAKRAVYUH_SCAM_CATEGORIES = [
     baseRiskScore: 86,
     tactics: ["Utility Impersonation", "Late Night Deadline", "Quick Payment Pressure"],
     intentPatterns: [
-      "electricity bill unpaid", "power disconnect tonight", "light bill", "power cut at 9:30",
-      "discom officer", "electricity department", "update meter online", "previous bill unpaid",
-      "बिजली बिल", "पावर कट", "लाइट कट जाएगी", "बिजली अधिकारी", "आज रात 9:30", "मीटर ब्लॉक",
-      "বিদ্যুৎ বিল বাকি সংযোগ বিচ্ছিন্ন হবে", "மின்சார கட்டணம் பாக்கி இணைப்பு துண்டிக்கப்படும்",
-      "కరెంట్ బిల్లు బకాయి కనెక్షన్ కట్ అవుతుంది"
+      "electricity bill", "power disconnect", "light bill", "power cut", "discom",
+      "electricity officer", "electricity department", "update meter", "unpaid bill",
+      "बिजली बिल", "पावर कट", "लाइट कट", "बिजली अधिकारी", "मीटर ब्लॉक",
+      "বিদ্যুৎ বিল", "மின்சார கட்டணம்", "కరెంట్ బిల్లు"
     ],
     description: "Urgent SMS/call threatening home power disconnection tonight unless you pay an alleged unpaid electricity bill via a personal UPI link or number.",
     actionPlan: "Pay bills only through official DISCOM portals or trusted banking apps, never to personal phone numbers."
@@ -137,11 +134,11 @@ export const CHAKRAVYUH_SCAM_CATEGORIES = [
     baseRiskScore: 89,
     tactics: ["Delivery Fee Extortion", "Fake Pending Order Trap", "Courier Impersonation"],
     intentPatterns: [
-      "flipkart parcel", "amazon package", "meesho order", "fedex parcel", "dhl courier", "shiprocket",
-      "delhivery agent", "blue dart", "pay delivery fee", "pay 499 to receive parcel", "cash on delivery charge",
-      "address verification fee", "parcel pending at office", "customs duty charge",
-      "फ्लिपकार्ट पार्सल", "अमेज़न ऑर्डर", "मीशो पार्सल", "डिलीवरी चार्ज पे करो", "पार्सल अटका है", "कस्टम ड्यूटी",
-      "পার্সেল ডেলিভারি চার্জ দিন", "பார்சல் டெலிவரி கட்டணம்", "పార్శిల్ డెలివరీ ఛార్జ్"
+      "parcel", "courier", "flipkart", "amazon", "meesho", "fedex", "dhl", "shiprocket",
+      "delhivery", "blue dart", "delivery fee", "pay 499", "cash on delivery", "address verification",
+      "parcel pending", "customs duty",
+      "पार्सल", "अमेज़न", "फ्लिपकार्ट", "मीशो", "डिलीवरी चार्ज", "पार्सल अटका", "कस्टम ड्यूटी",
+      "পার্সেল", "பார்சல்", "పార్శిల్"
     ],
     description: "Fraudster impersonating Flipkart, Amazon, Meesho, or FedEx demanding Rs 499/delivery clearance fee to release a pending order.",
     actionPlan: "Do NOT pay delivery fees over personal UPI links. Track and verify your order status strictly inside official shopping apps."
@@ -155,11 +152,10 @@ export const CHAKRAVYUH_SCAM_CATEGORIES = [
     baseRiskScore: 91,
     tactics: ["Initial Small Payout Bait", "VIP Task Unlock Deposit", "Guaranteed High Yield"],
     intentPatterns: [
-      "part time job", "youtube like job", "google review job", "guaranteed 300% return",
-      "prepaid task", "vip task deposit", "earn 5000 daily", "work from home job", "telegram job group",
-      "hotel rating task", "deposit money to unlock task",
-      "पार्ट टाइम जॉब", "यूट्यूब लाइक करो", "गूगल रिव्यू", "डेली कमाई", "प्रीपेड टास्क", "वीआईपी टास्क",
-      "পার্ট টাইম কাজ ইউটিউব লাইক", "பகுதி நேர வேலை யூடியூப் லைக்", "పార్ట్ టైమ్ జాబ్ యూట్యూబ్ లైక్"
+      "part time job", "youtube like", "google review", "guaranteed return", "prepaid task",
+      "vip task", "earn daily", "work from home", "telegram job", "hotel rating", "deposit task",
+      "पार्ट टाइम जॉब", "यूट्यूब लाइक", "गूगल रिव्यू", "डेली कमाई", "प्रीपेड टास्क", "वीआईपी टास्क",
+      "পার্ট টাইম কাজ", "பகுதி நேர வேலை", "పార్ట్ టైమ్ జాబ్"
     ],
     description: "Promises easy money for rating videos/hotels, luring victims with small initial payouts before coercing large deposits for 'VIP task unlocks'.",
     actionPlan: "Stop communication! Genuine employers never ask candidates to pay money or deposit funds to receive salary."
@@ -173,10 +169,10 @@ export const CHAKRAVYUH_SCAM_CATEGORIES = [
     baseRiskScore: 93,
     tactics: ["Unrealistic Return Promise", "Fake Trading Portal", "Institutional Account Bait"],
     intentPatterns: [
-      "guaranteed stock tips", "crypto investment 500% return", "upper circuit stocks", "institutional trading account",
-      "foreign exchange trading", "whatsapp stock group", "sebi registered tips", "double money in 7 days",
-      "शेयर मार्केट गारंटीड रिटर्न", "क्रिप्टो ट्रेडिंग", "स्टॉक टिप्स ग्रुप", "7 दिन में पैसा डबल",
-      "শেয়ার বাজার গ্যারান্টিড রিটার্ন", "பங்கு சந்தை முதலீடு", "స్టాక్ మార్కెట్ టిప్స్"
+      "stock tips", "crypto investment", "upper circuit", "trading account", "forex",
+      "whatsapp stock group", "sebi registered", "double money",
+      "शेयर मार्केट", "क्रिप्टो", "स्टॉक टिप्स", "पैसा डबल",
+      "শেয়ার বাজার", "பங்கு சந்தை", "స్టాక్ మార్కెట్"
     ],
     description: "Lures victims into fake stock or crypto trading portals promising guaranteed high returns, then blocks withdrawal of funds.",
     actionPlan: "Invest only through SEBI-registered brokers. Never transfer money to personal bank accounts for stock tips."
@@ -190,10 +186,10 @@ export const CHAKRAVYUH_SCAM_CATEGORIES = [
     baseRiskScore: 97,
     tactics: ["Contact List Scraping", "Photo Morphing Threat", "Aggressive Extortion"],
     intentPatterns: [
-      "instant loan app", "7 day loan", "loan overdue", "repay loan immediately", "morphed photo leak",
-      "send photo to contact list", "extortion call", "credit loan app", "threaten family contacts",
-      "लोन ऐप", "तुरंत लोन वापस करो", "फोटो वायरल कर देंगे", "कांटैक्ट लिस्ट लीक", "ब्लैकमेल कॉल",
-      "লোন অ্যাপ ফটো ভাইরাল", "கடன்பயன்பாடு போட்டோ லீக்", "లోన్ యాప్ ఫోటో లీక్"
+      "loan app", "instant loan", "7 day loan", "loan overdue", "repay loan", "morphed photo",
+      "contact list", "extortion call", "photo leak", "threaten family",
+      "लोन ऐप", "तुरंत लोन", "फोटो वायरल", "कांटैक्ट लिस्ट", "ब्लैकमेल",
+      "লোন অ্যাপ", "கடன்பயன்பாடு", "లోన్ యాప్"
     ],
     description: "Unregistered instant loan apps accessing victim contacts and threatening to send morphed photos unless extortion amounts are paid.",
     actionPlan: "Report illegal loan apps to National Cyber Crime Portal (1930) and police. Do NOT pay extortion money."
@@ -207,10 +203,10 @@ export const CHAKRAVYUH_SCAM_CATEGORIES = [
     baseRiskScore: 87,
     tactics: ["Advance Fee Fraud", "Lottery Win Bait", "Urgent Tax Demand"],
     intentPatterns: [
-      "won 25 lakh lottery", "kbc lucky draw winner", "pay 2% gst tax to claim", "kaun banega crorepati winner",
-      "lottery processing fee", "deposit tax via upi to get prize", "whatsapp lucky draw",
-      "25 लाख की लॉटरी जीती", "केबीसी विनर", "2% टैक्स जमा करो", "इनाम का पैसा",
-      "লটারি জিতেছেন কর দিন", "லாட்டரி வென்றுள்ளீர்கள் வரி செலுத்துங்கள்", "లాటరీ గెలుచుకున్నారు పన్ను చెల్లించండి"
+      "lottery", "kbc", "won 25 lakh", "lucky draw", "pay 2% tax", "kaun banega crorepati",
+      "lottery fee", "deposit tax", "whatsapp lucky draw",
+      "लॉटरी", "केबीसी", "25 लाख", "टैक्स जमा करो", "इनाम",
+      "লটারি", "லாட்டரி", "లాటరీ"
     ],
     description: "Claiming you won a Rs 25 Lakh lottery in KBC or Lucky Draw, demanding upfront 2% GST tax via UPI to release funds.",
     actionPlan: "Real lotteries never demand upfront tax payments via personal UPI. Ignore and report."
@@ -224,10 +220,10 @@ export const CHAKRAVYUH_SCAM_CATEGORIES = [
     baseRiskScore: 95,
     tactics: ["Remote Screen Control", "Virus Threat Bait", "Full Device Takeover"],
     intentPatterns: [
-      "download anydesk", "download teamviewer", "download rustdesk", "microsoft tech support",
-      "computer has virus", "remote access code", "share 9 digit code", "allow screen control",
-      "एनीडेस्क डाउनलोड करो", "टीमव्यूअर कोड दो", "कंप्यूटर में वायरस है", "स्क्रीन शेयर करो",
-      "অ্যানিডেস্ক ডাউনলোড করুন", "எனீடெஸ்க் பதிவிறக்கவும்", "యాన్నీడెస్క్ డౌన్‌లోడ్ చేయండి"
+      "anydesk", "teamviewer", "rustdesk", "microsoft tech support", "computer virus",
+      "remote access", "share 9 digit code", "screen share",
+      "एनीडेस्क", "टीमव्यूअर", "वायरस", "स्क्रीन शेयर",
+      "অ্যানিডেস্ক", "எனீடெஸ்க்", "యాన్నీడెస్క్"
     ],
     description: "Fraudster tricks victim into downloading remote control apps (AnyDesk/TeamViewer) to gain full access to bank apps and OTPs.",
     actionPlan: "NEVER download AnyDesk, TeamViewer, or share 9-digit remote control codes with callers!"
@@ -241,10 +237,10 @@ export const CHAKRAVYUH_SCAM_CATEGORIES = [
     baseRiskScore: 89,
     tactics: ["Search Engine Impersonation", "Refund Verification Trap", "Credential Harvesting"],
     intentPatterns: [
-      "customer care officer", "helpline number", "google search helpline", "refund executive",
-      "swiggy customer care", "zomato customer care", "bank helpline number", "refund verification officer",
-      "कस्टमर केयर नंबर", "हेल्पलाइन नंबर", "रिफंड अधिकारी", "गूगल से नंबर मिला",
-      "কাস্টমার কেয়ার নম্বর", "வாடிக்கையாளர் சேவை எண்", "కస్టమర్ కేర్ నంబర్"
+      "customer care", "helpline number", "google search helpline", "refund executive",
+      "swiggy customer care", "zomato customer care", "bank helpline", "refund officer",
+      "कस्टमर केयर", "हेल्पलाइन", "रिफंड अधिकारी",
+      "কাস্টমার কেয়ার", "வாடிக்கையாளர் சேவை", "కస్టమర్ కేర్"
     ],
     description: "Fraudster posting fake helpline numbers on Google Maps/Search, posing as customer care to extract banking details during refund requests.",
     actionPlan: "Always find customer care numbers strictly inside official mobile apps or verified official domain websites."
@@ -258,10 +254,10 @@ export const CHAKRAVYUH_SCAM_CATEGORIES = [
     baseRiskScore: 89,
     tactics: ["Romance Impersonation", "Foreign Gift Clearance Bait", "Customs Extortion"],
     intentPatterns: [
-      "nri matrimonial groom", "foreign gift parcel", "customs clearance at delhi airport", "jewellery box detained",
-      "uk gift parcel", "dollars stuck at customs", "shaadi.com profile", "send money for customs clearance",
-      "मैट्रिमोनियल", "विदेशी गिफ्ट", "दिल्ली एयरपोर्ट कस्टम्स", "डॉलर अटके हैं", "शादी का प्रस्ताव",
-      "ম্যাট্রিমোনিয়াল উপহার কাস্টমস", "திருமண பரிசு சுங்கக் கட்டணம்", "మ్యాట్రిమోనియల్ గిఫ్ట్ కస్టమ్స్"
+      "matrimonial", "nri groom", "foreign gift", "delhi airport customs", "jewellery box",
+      "uk gift parcel", "dollars stuck", "shaadi.com", "customs clearance",
+      "मैट्रिमोनियल", "विदेशी गिफ्ट", "एयरपोर्ट कस्टम्स", "शादी का प्रस्ताव",
+      "ম্যাট্রিমোনিয়াল", "திருமண பரிசு", "మ్యాట్రిమోనియల్"
     ],
     description: "Fake foreign profile on matrimonial apps sending expensive gift boxes, followed by fake airport customs officer demanding clearance money.",
     actionPlan: "Never send money for customs clearance of gifts from online acquaintances. It is a 100% scam."
@@ -277,12 +273,12 @@ const LEGITIMATE_NEGATIVE_PATTERNS = [
   "बिजली का बिल भर दिया", "सामान मिल गया है", "पेमेंट ट्रांसफर कर दिया", "बिल जमा हो गया"
 ];
 
-// Typo & Transliteration Normalization Dictionary
+// Typo & Transliteration Normalization Dictionary (including OCR & Speech STT typos like cbl -> cbi)
 const TYPO_MAP = {
-  "pkease": "please", "pls": "please", "plz": "please", "recieve": "receive", "recive": "receive",
-  "flikpart": "flipkart", "flipkartt": "flipkart", "amazn": "amazon", "opt": "otp", "atp": "otp",
-  "acc": "account", "acount": "account", "acct": "account", "prcel": "parcel", "custom": "customs",
-  "kycc": "kyc", "cbi": "cbi", "anydesk": "anydesk"
+  "cbl": "cbi", "cbi": "cbi", "pkease": "please", "pls": "please", "plz": "please",
+  "recieve": "receive", "recive": "receive", "flikpart": "flipkart", "flipkartt": "flipkart",
+  "amazn": "amazon", "opt": "otp", "atp": "otp", "acc": "account", "acount": "account",
+  "acct": "account", "prcel": "parcel", "custom": "customs", "kycc": "kyc", "anydesk": "anydesk"
 };
 
 // Multilingual Script & Language Detection Sub-System
@@ -316,7 +312,6 @@ export function detectLanguageAndTranslate(rawText) {
   else if (isKannada) language = "Kannada";
   else if (isDevanagari) language = "Hindi (Native Devanagari)";
   else {
-    // Check Romanized Hinglish vs English
     const hinglishWords = ["aapka", "batao", "karo", "gaya", "hai", "paise", "bhej", "raha", "bol", "hoon", "de", "dijiye", "lelo", "milega", "aayega"];
     const lower = text.toLowerCase();
     const hasHinglish = hinglishWords.some(hw => lower.includes(hw));
@@ -331,8 +326,8 @@ export function detectLanguageAndTranslate(rawText) {
 
   if (lowerText.includes("kyc expire") || lowerText.includes("kyc expired")) {
     english_translation = "Sir, your bank KYC has expired. Please tell me the OTP immediately to prevent account blockage.";
-  } else if (lowerText.includes("cbi") || lowerText.includes("digital arrest") || lowerText.includes("police")) {
-    english_translation = "This is Inspector Sharma from Cyber Crime Police & CBI. You are under digital arrest for money laundering.";
+  } else if (lowerText.includes("cbi") || lowerText.includes("cbl") || lowerText.includes("digital arrest") || lowerText.includes("police")) {
+    english_translation = "This is Officer from Cyber Crime Police & CBI. You are under digital arrest for money laundering.";
   } else if (lowerText.includes("electricity") || lowerText.includes("power cut") || lowerText.includes("बिजली")) {
     english_translation = "Your home electricity bill is unpaid. Power connection will be disconnected tonight at 9:30 PM.";
   } else if (lowerText.includes("flipkart") || lowerText.includes("parcel") || lowerText.includes("courier")) {
@@ -350,13 +345,13 @@ export function detectLanguageAndTranslate(rawText) {
 
 // Multi-Signal Multi-Dimensional Threat Indicator Extraction Engine
 export function classifySpeechAutonomously(rawTranscript) {
-  if (!rawTranscript || rawTranscript.trim().length < 2) {
+  if (!rawTranscript || rawTranscript.trim().length < 1) {
     return { detected: false };
   }
 
   const langInfo = detectLanguageAndTranslate(rawTranscript);
 
-  // Normalize transcript (lowercase, remove punctuation)
+  // Clean text and split tokens
   let cleanText = rawTranscript.toLowerCase().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, " ");
 
   // Apply Typo Correction
@@ -365,9 +360,12 @@ export function classifySpeechAutonomously(rawTranscript) {
     cleanText = cleanText.replace(regex, TYPO_MAP[typo]);
   });
 
+  // Extract individual word tokens
+  const tokens = cleanText.split(/\s+/).filter(Boolean);
+
   // Enron-Corpus Inspired Negative Check (Filter Legitimate Context Statements)
   const isLegitimateNegative = LEGITIMATE_NEGATIVE_PATTERNS.some(pat => cleanText.includes(pat));
-  if (isLegitimateNegative && !cleanText.includes("otp") && !cleanText.includes("digital arrest")) {
+  if (isLegitimateNegative && !cleanText.includes("otp") && !cleanText.includes("digital arrest") && !cleanText.includes("cbi")) {
     return {
       detected: false,
       scam_label: false,
@@ -405,15 +403,16 @@ export function classifySpeechAutonomously(rawTranscript) {
   CHAKRAVYUH_SCAM_CATEGORIES.forEach((category) => {
     const hits = category.intentPatterns.filter(pattern => {
       const pLower = pattern.toLowerCase();
+
+      // Substring match
       if (cleanText.includes(pLower)) return true;
 
-      const wordsInPattern = pLower.split(' ');
-      if (wordsInPattern.length === 1 && pLower.length >= 3) {
-        const regex = new RegExp(`\\b${pLower}\\b`, 'i');
-        return regex.test(cleanText);
-      }
+      // Word token match
+      if (tokens.includes(pLower)) return true;
 
-      return wordsInPattern.every(w => w.length > 2 && cleanText.includes(w));
+      // Multi-word phrase match
+      const wordsInPattern = pLower.split(' ');
+      return wordsInPattern.every(w => tokens.includes(w) || cleanText.includes(w));
     });
 
     if (hits.length > 0 && hits.length > maxMatchCount) {
@@ -424,15 +423,14 @@ export function classifySpeechAutonomously(rawTranscript) {
   });
 
   if (bestMatch) {
-    // Calculate Multi-Factor Risk Score & Level
     let signalCount = Object.values(signals).filter(Boolean).length;
     let baseScore = bestMatch.baseRiskScore;
-    let confidence = Math.min(99, Math.round(68 + matchedPatterns.length * 8 + signalCount * 5));
+    let confidence = Math.min(99, Math.round(72 + matchedPatterns.length * 10 + signalCount * 5));
 
     let risk_level = "HIGH";
-    if (baseScore >= 95 || signalCount >= 4 || signals.threat || signals.credential_request) {
+    if (baseScore >= 95 || signalCount >= 3 || signals.threat || signals.credential_request) {
       risk_level = "CRITICAL";
-    } else if (baseScore >= 85 || signalCount >= 2) {
+    } else if (baseScore >= 85 || signalCount >= 1) {
       risk_level = "HIGH";
     } else {
       risk_level = "MEDIUM";
