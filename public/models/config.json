@@ -1,0 +1,17 @@
+{
+  "model_name": "IndicScam-ONNX-Multilingual",
+  "version": "1.0.0",
+  "framework": "ONNX Runtime Web (WASM)",
+  "languages": ["en", "hi", "hinglish", "ta", "te", "bn", "mr", "kn", "gu"],
+  "max_seq_length": 64,
+  "categories": [
+    "Digital Arrest & CBI Cyber Threat",
+    "Electricity Bill Cutoff Coercion",
+    "Bank KYC & OTP Harvesting",
+    "Instant Loan & Blackmail Extortion",
+    "Telegram Task & YouTube Like Scam",
+    "Courier Customs & Lottery Gift Trap",
+    "UPI Payment Refund & QR Reversal",
+    "Safe Communication"
+  ]
+}
