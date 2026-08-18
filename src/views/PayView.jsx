@@ -67,7 +67,11 @@ export default function PayView({
   // False Positive Override Request State
   const [userOverrideNote, setUserOverrideNote] = useState('');
   const [isOverrideSubmitted, setIsOverrideSubmitted] = useState(false);
-
+const [trustedNomineeEmail, setTrustedNomineeEmail] = useState('');
+const [isSendingScamAlert, setIsSendingScamAlert] = useState(false);
+const [scamAlertError, setScamAlertError] = useState('');
+const [fraudAcknowledged, setFraudAcknowledged] = useState(false);
+const [scamAlertSent, setScamAlertSent] = useState(false);
   useEffect(() => {
     // Check current hour for odd-hour transaction warning (10 PM to 6 AM)
     const currentHour = new Date().getHours();
@@ -290,6 +294,45 @@ export default function PayView({
       }
     }, 600);
   };
+ const handleSendScamAlert = async () => {
+  const email = trustedNomineeEmail.trim();
+
+  if (!email) return;
+
+  setIsSendingScamAlert(true);
+  setScamAlertSent(false);
+  setScamAlertError('');
+
+  try {
+    const response = await fetch('/api/send_scam_alert', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        email,
+        amount,
+        recipientUpi,
+        riskScore
+      })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok || !data.success) {
+      throw new Error(data.error || 'Failed to send scam alert');
+    }
+
+    setScamAlertSent(true);
+  } catch (error) {
+    console.error('Scam alert error:', error);
+    setScamAlertError(
+      error.message || 'Unable to send scam alert'
+    );
+  } finally {
+    setIsSendingScamAlert(false);
+  }
+};
 
   // Submit False Positive Request to Bank Risk Officer Console
   const handleSubmitFalsePositive = () => {
@@ -769,6 +812,169 @@ export default function PayView({
                 {riskFactors.map(f => <li key={f.id}>{f.label}</li>)}
               </ul>
             </div>
+            {/* TRUSTED NOMINEE ALERT SECTION */}
+<div style={{
+  background: 'rgba(99, 102, 241, 0.08)',
+  border: '1px solid rgba(99, 102, 241, 0.3)',
+  borderRadius: 12,
+  padding: 12,
+  textAlign: 'left',
+  marginBottom: 16
+}}>
+  <div style={{
+    fontSize: 12,
+    fontWeight: 800,
+    color: 'var(--indigo-light)',
+    marginBottom: 6,
+    display: 'flex',
+    alignItems: 'center',
+    gap: 6
+  }}>
+    <UserCheck size={15} />
+    <span>Trusted Nominee Alert</span>
+  </div>
+
+  <p style={{
+    fontSize: 11,
+    color: 'var(--sub)',
+    marginBottom: 10
+  }}>
+    Notify your trusted nominee about this suspicious payment attempt.
+  </p>
+
+  <div style={{
+    display: 'flex',
+    gap: 6,
+    marginBottom: 10
+  }}>
+    <input
+      type="email"
+      className="input-field"
+      value={trustedNomineeEmail}
+      onChange={(e) => setTrustedNomineeEmail(e.target.value)}
+      placeholder="Trusted nominee email"
+      style={{
+        fontSize: 11,
+        padding: '7px 10px',
+        flex: 1
+      }}
+    />
+
+    <button
+      onClick={handleSendScamAlert}
+disabled={
+  !trustedNomineeEmail.trim() || isSendingScamAlert
+}      style={{
+        background: 'var(--indigo)',
+        color: '#fff',
+        border: 'none',
+        borderRadius: 8,
+        padding: '7px 10px',
+        fontSize: 11,
+        fontWeight: 800,
+        whiteSpace: 'nowrap',
+        cursor: trustedNomineeEmail.trim() ? 'pointer' : 'not-allowed',
+        opacity: trustedNomineeEmail.trim() ? 1 : 0.5
+      }}
+    >
+{isSendingScamAlert ? 'Sending...' : 'Send Scam Alert'}    </button>
+  </div>
+
+  {scamAlertSent && (
+    <div style={{
+      background: 'rgba(16, 185, 129, 0.12)',
+      border: '1px solid rgba(16, 185, 129, 0.3)',
+      color: 'var(--safe-light)',
+      padding: 8,
+      borderRadius: 8,
+      fontSize: 11,
+      fontWeight: 700,
+      marginBottom: 10
+    }}>
+      <CheckCircle2
+        size={14}
+        style={{
+          display: 'inline',
+          marginRight: 5,
+          verticalAlign: 'middle'
+        }}
+      />
+      Scam alert sent to the trusted nominee.
+    </div>
+  )}
+  {scamAlertError && (
+  <div
+    style={{
+      background: 'rgba(239, 68, 68, 0.12)',
+      border: '1px solid rgba(239, 68, 68, 0.3)',
+      color: 'var(--danger-light)',
+      padding: 8,
+      borderRadius: 8,
+      fontSize: 11,
+      fontWeight: 700,
+      marginBottom: 10
+    }}
+  >
+    ⚠️ {scamAlertError}
+  </div>
+)}
+
+  <div style={{
+    background: 'rgba(239, 68, 68, 0.1)',
+    border: '1px solid rgba(239, 68, 68, 0.25)',
+    borderRadius: 8,
+    padding: 10,
+    marginBottom: 10,
+    fontSize: 11,
+    color: 'var(--danger-light)',
+    lineHeight: 1.5
+  }}>
+    ⚠️ WARNING suspicious activity was detected.
+    
+  </div>
+
+  <label style={{
+    display: 'flex',
+    alignItems: 'flex-start',
+    gap: 8,
+    fontSize: 11,
+    color: 'var(--sub)',
+    cursor: 'pointer',
+    marginBottom: 12
+  }}>
+    <input
+      type="checkbox"
+      checked={fraudAcknowledged}
+      onChange={(e) => setFraudAcknowledged(e.target.checked)}
+      style={{
+        marginTop: 2,
+        cursor: 'pointer'
+      }}
+    />
+
+    <span>
+      I understand the fraud warning and all the terms and conditions.
+      I still want to continue with this payment.
+    </span>
+  </label>
+
+  <button
+    className="btn-primary"
+    disabled={!fraudAcknowledged}
+    onClick={() => {
+      setIsBlockedModalOpen(false);
+      setIsPinModalOpen(true);
+    }}
+    style={{
+      width: '100%',
+      opacity: fraudAcknowledged ? 1 : 0.45,
+      cursor: fraudAcknowledged ? 'pointer' : 'not-allowed',
+      marginBottom: 8
+    }}
+  >
+    Proceed
+  </button>
+</div>
 
             {/* FALSE POSITIVE / INSTITUTIONAL OVERRIDE SECTION */}
             <div style={{
