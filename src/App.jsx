@@ -58,53 +58,27 @@ export default function App() {
   const [isListening, setIsListening] = useState(false);
   const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
 
-  // Persistent Transcript state (retained across tab switches & page refreshes until cleared or completed)
-  const [currentTranscript, setCurrentTranscript] = useState(() => {
-    try {
-      return localStorage.getItem('trust_shield_active_transcript') || '';
-    } catch (e) {
-      return '';
-    }
-  });
+  // Session Transcript state (retained in React memory across tab navigation; resets cleanly on F5 page refresh)
+  const [currentTranscript, setCurrentTranscript] = useState('');
 
   const handleTranscriptChange = (text) => {
     setCurrentTranscript(text);
-    try {
-      localStorage.setItem('trust_shield_active_transcript', text);
-    } catch (e) {}
   };
 
   const clearTranscript = () => {
     setCurrentTranscript('');
     setDetectedScamCall(null);
-    try {
-      localStorage.removeItem('trust_shield_active_transcript');
-    } catch (e) {}
   };
 
-  // Persistent Payment Draft state (retained across tab switches until completed or cleared)
-  const [paymentDraft, setPaymentDraft] = useState(() => {
-    try {
-      const stored = localStorage.getItem('trust_shield_payment_draft');
-      return stored ? JSON.parse(stored) : { recipientUpi: '', amount: '', note: '', isPasted: false };
-    } catch (e) {
-      return { recipientUpi: '', amount: '', note: '', isPasted: false };
-    }
-  });
+  // Session Payment Draft state (retained in React memory across tab navigation; resets cleanly on F5 page refresh)
+  const [paymentDraft, setPaymentDraft] = useState({ recipientUpi: '', amount: '', note: '', isPasted: false });
 
   const updatePaymentDraft = (newDraft) => {
     setPaymentDraft(newDraft);
-    try {
-      localStorage.setItem('trust_shield_payment_draft', JSON.stringify(newDraft));
-    } catch (e) {}
   };
 
   const clearPaymentDraft = () => {
-    const emptyDraft = { recipientUpi: '', amount: '', note: '', isPasted: false };
-    setPaymentDraft(emptyDraft);
-    try {
-      localStorage.removeItem('trust_shield_payment_draft');
-    } catch (e) {}
+    setPaymentDraft({ recipientUpi: '', amount: '', note: '', isPasted: false });
   };
 
   const handleLoginSuccess = (authenticatedUser) => {
