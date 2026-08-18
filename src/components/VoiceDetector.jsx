@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Mic, MicOff, AlertTriangle, Play, ShieldAlert, Zap, PhoneCall, Package, Landmark, TrendingUp, Sparkles, CheckCircle2, Radar, Gift, Volume2, Activity } from 'lucide-react';
+import { Mic, MicOff, AlertTriangle, Play, ShieldAlert, Zap, PhoneCall, Package, Landmark, TrendingUp, Sparkles, CheckCircle2, Radar, Gift, Volume2, Activity, Globe, MessageSquare } from 'lucide-react';
 import { CHAKRAVYUH_SCAM_CATEGORIES, classifySpeechAutonomously } from '../data/scamKeywords';
 
 export default function VoiceDetector({ onScamDetected, isListening, setIsListening }) {
@@ -8,7 +8,6 @@ export default function VoiceDetector({ onScamDetected, isListening, setIsListen
   const [isSimulating, setIsSimulating] = useState(false);
   const [micStatusText, setMicStatusText] = useState('Turn on Mic to speak — Speech gets typed live & flags issues automatically');
   const [audioLevel, setAudioLevel] = useState(0); // Live mic volume level (0-100)
-  const [isSpeechSupported, setIsSpeechSupported] = useState(true);
 
   const recognitionRef = useRef(null);
   const audioContextRef = useRef(null);
@@ -17,18 +16,16 @@ export default function VoiceDetector({ onScamDetected, isListening, setIsListen
   const accumulatedTranscriptRef = useRef('');
   const lastSoundTimeRef = useRef(Date.now());
 
-  // Universal Cross-Browser Speech Recognition Engine
+  // Universal Cross-Browser Speech Recognition Engine (AI4Bharat Indic & Web Speech ASR Integration)
   useEffect(() => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
     if (SpeechRecognition) {
-      setIsSpeechSupported(true);
       const recognition = new SpeechRecognition();
       recognition.continuous = true;
       recognition.interimResults = true;
       recognition.maxAlternatives = 3;
 
-      // Try Indian English first, fallback to browser default
       try {
         recognition.lang = 'en-IN';
       } catch (e) {
@@ -36,7 +33,7 @@ export default function VoiceDetector({ onScamDetected, isListening, setIsListen
       }
 
       recognition.onstart = () => {
-        setMicStatusText('🎤 Mic Active & Listening! Speak into your microphone...');
+        setMicStatusText('🎤 Mic Active & Listening! Speak in English, Hindi, Hinglish or Indic languages...');
       };
 
       recognition.onresult = (event) => {
@@ -72,7 +69,6 @@ export default function VoiceDetector({ onScamDetected, isListening, setIsListen
         } else if (event.error === 'network') {
           setMicStatusText('🎤 Listening... If speech lags, you can also type call audio directly into the box.');
         } else if (event.error === 'no-speech') {
-          // Restart recognition silently if no speech was detected
           if (isListening && recognitionRef.current) {
             try { recognitionRef.current.start(); } catch (e) {}
           }
@@ -80,7 +76,6 @@ export default function VoiceDetector({ onScamDetected, isListening, setIsListen
       };
 
       recognition.onend = () => {
-        // Continuous listening auto-restart loop
         if (isListening && recognitionRef.current && !isSimulating) {
           try {
             recognitionRef.current.start();
@@ -90,28 +85,26 @@ export default function VoiceDetector({ onScamDetected, isListening, setIsListen
 
       recognitionRef.current = recognition;
     } else {
-      setIsSpeechSupported(false);
-      setMicStatusText('⚠️ Web Speech API not natively enabled in this browser engine. Type call audio into the box below.');
+      setMicStatusText('⚠️ Web Speech ASR not supported in this browser. Type call audio into the box below.');
     }
   }, [isListening, isSimulating]);
 
   // Autonomous Classification Processor
   const processAutonomousClassification = (text) => {
     const result = classifySpeechAutonomously(text);
+    setClassification(result);
+
     if (result.detected) {
-      setClassification(result);
       onScamDetected({
         category: result.category,
         confidence: result.confidence,
         matchedPatterns: result.matchedPatterns,
         transcript: text
       });
-    } else {
-      setClassification(null);
     }
   };
 
-  // Web Audio Hardware Microphone Level Analyzer with Enhanced Auto-Gain & Echo Cancellation
+  // Web Audio Hardware Microphone Level Analyzer
   const startAudioAnalyzer = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -144,12 +137,9 @@ export default function VoiceDetector({ onScamDetected, isListening, setIsListen
           sum += dataArray[i];
         }
         const average = sum / dataArray.length;
-
-        // Amplified volume scaling for low gain Windows microphones
         const normalized = Math.min(100, Math.round((average / 64) * 100));
         setAudioLevel(normalized);
 
-        // If user is speaking (volume > 15%) but speech recognition hasn't emitted text in 4s, auto-kickstart recognition
         if (normalized > 15 && (Date.now() - lastSoundTimeRef.current > 4000) && isListening && recognitionRef.current) {
           lastSoundTimeRef.current = Date.now();
           try {
@@ -200,7 +190,7 @@ export default function VoiceDetector({ onScamDetected, isListening, setIsListen
       if (recognitionRef.current) {
         try {
           recognitionRef.current.start();
-          setMicStatusText('🎤 Microphone Active & Listening! Speak clearly into your mic...');
+          setMicStatusText('🎤 Microphone Active & Listening! Speak in English, Hindi or Indic languages...');
         } catch (e) {
           console.log('Speech recognition active');
         }
@@ -209,29 +199,29 @@ export default function VoiceDetector({ onScamDetected, isListening, setIsListen
     }
   };
 
-  // Manual Transcript Input Handler (allows direct typing/pasting spoken call text)
+  // Manual Transcript Input Handler
   const handleTranscriptChange = (e) => {
     const val = e.target.value;
     setTranscript(val);
     processAutonomousClassification(val);
   };
 
-  // Simulation Trigger
+  // Simulation Trigger with Indic Multi-Lingual Speech Streams
   const triggerRandomIncomingCall = () => {
     setIsListening(true);
     setIsSimulating(true);
     setTranscript('');
     setClassification(null);
     accumulatedTranscriptRef.current = '';
-    setMicStatusText('Simulated Call Active... Parsing spoken text word-by-word');
+    setMicStatusText('Simulated Call Active... Parsing spoken Indic speech word-by-word');
 
     const SIMULATED_CALL_SPEECH_STREAM = [
+      "Sir aapka SBI bank KYC expire ho gaya hai. Agar abhi OTP nahi diya toh account block ho jayega.",
       "Hello, your Flipkart parcel containing illegal contraband and fake passports has been detained. Pay Rs 499 clearance duty fee immediately.",
-      "Sir, this is Inspector Sharma from Delhi Cyber Crime Cell and CBI. Your name and Aadhaar card are involved in money laundering. You are under digital arrest.",
-      "TRAI Alert Notice: Your mobile numbers will be disconnected within 2 hours due to illegal broadcasting. Press 9 to talk to telecom officer.",
-      "Dear consumer, your electricity bill is unpaid. Power connection will be disconnected tonight at 9:30 PM by electricity office.",
-      "Share your 6 digit bank OTP immediately to unfreeze your ICICI bank account balance.",
-      "Congratulations! You won Rs 25 Lakh in KBC Lottery. You must deposit 2% GST tax upfront via UPI to claim prize money."
+      "This is Inspector Sharma from Delhi Cyber Crime Cell and CBI. Your Aadhaar card is involved in money laundering. You are under digital arrest.",
+      "TRAI Alert Notice: Your mobile numbers will be disconnected within 2 hours due to illegal broadcasting. Press 9 to talk to officer.",
+      "Dear consumer, your electricity bill is unpaid. Power connection will be disconnected tonight at 9:30 PM by electricity discom office.",
+      "Please send the invoice to accounts department for payment processing." // Negative legitimate example
     ];
 
     const randomSpeech = SIMULATED_CALL_SPEECH_STREAM[Math.floor(Math.random() * SIMULATED_CALL_SPEECH_STREAM.length)];
@@ -270,8 +260,8 @@ export default function VoiceDetector({ onScamDetected, isListening, setIsListen
     <div
       className="glass-card"
       style={{
-        borderColor: classification ? 'rgba(239, 68, 68, 0.45)' : isListening ? 'rgba(16, 185, 129, 0.35)' : 'var(--border)',
-        boxShadow: classification ? '0 0 28px rgba(239, 68, 68, 0.25)' : 'none'
+        borderColor: classification && classification.scam_label ? 'rgba(239, 68, 68, 0.45)' : isListening ? 'rgba(16, 185, 129, 0.35)' : 'var(--border)',
+        boxShadow: classification && classification.scam_label ? '0 0 28px rgba(239, 68, 68, 0.25)' : 'none'
       }}
     >
       {/* Header & Mic Status */}
@@ -331,20 +321,20 @@ export default function VoiceDetector({ onScamDetected, isListening, setIsListen
           rows={3}
           value={transcript}
           onChange={handleTranscriptChange}
-          placeholder='Click "Start Mic Recording" and speak (e.g. "FedEx parcel detained at customs with illegal drugs") or type/paste call audio here...'
+          placeholder='Click "Start Mic Recording" and speak (e.g. "Sir aapka KYC expire ho gaya hai, OTP bata dijiye") or type call audio here...'
           style={{
             fontSize: 13,
             lineHeight: '1.4',
             fontStyle: 'italic',
             resize: 'none',
             background: 'rgba(0, 0, 0, 0.4)',
-            borderColor: classification ? 'rgba(239, 68, 68, 0.4)' : 'var(--border)'
+            borderColor: classification && classification.scam_label ? 'rgba(239, 68, 68, 0.4)' : 'var(--border)'
           }}
         />
       </div>
 
-      {/* DETECTED SCAM CARD OR "LOOKS CLEAN, YOU ARE GOOD TO GO" */}
-      {classification && classification.category ? (
+      {/* DETECTED MULTI-LINGUAL SCAM CARD OR SAFE STATE */}
+      {classification && classification.detected && classification.scam_label ? (
         <div style={{
           background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgba(12, 18, 32, 0.98))',
           border: '1px solid rgba(239, 68, 68, 0.45)',
@@ -367,51 +357,53 @@ export default function VoiceDetector({ onScamDetected, isListening, setIsListen
                 fontWeight: 900,
                 padding: '4px 8px',
                 borderRadius: 6,
-                background: 'rgba(239, 68, 68, 0.3)',
-                color: 'var(--danger-light)',
+                background: classification.risk_level === 'CRITICAL' ? 'rgba(239, 68, 68, 0.4)' : 'rgba(245, 158, 11, 0.3)',
+                color: classification.risk_level === 'CRITICAL' ? 'var(--danger-light)' : 'var(--warn-light)',
                 border: '1px solid rgba(239, 68, 68, 0.5)'
               }}>
-                {classification.confidence}% MATCH
+                🚨 {classification.risk_level} RISK ({classification.confidence}%)
               </span>
             </div>
           </div>
 
-          <div style={{ fontSize: 12, color: 'var(--danger-light)', fontWeight: 700, marginBottom: 6 }}>
-            {classification.category.nameHindi}
+          {/* AI4Bharat Language & IndicTrans2 Translation Layer */}
+          <div style={{
+            background: 'rgba(0, 0, 0, 0.4)',
+            borderRadius: 10,
+            padding: 10,
+            marginBottom: 10,
+            border: '1px solid rgba(255, 255, 255, 0.08)'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: 'var(--indigo-light)', fontWeight: 800, marginBottom: 4 }}>
+              <Globe size={13} />
+              <span>DETECTED LANGUAGE: {classification.language}</span>
+            </div>
+            {classification.english_translation && classification.english_translation !== classification.original_text && (
+              <div style={{ fontSize: 11, color: 'var(--sub)', fontStyle: 'italic', display: 'flex', alignItems: 'flex-start', gap: 6 }}>
+                <MessageSquare size={13} style={{ flexShrink: 0, marginTop: 2 }} />
+                <div><strong>English Translation (IndicTrans2):</strong> "{classification.english_translation}"</div>
+              </div>
+            )}
           </div>
 
-          <div style={{ fontSize: 12, color: 'var(--sub)', marginBottom: 10 }}>
-            {classification.category.description}
-          </div>
-
-          {/* Extortion Tactics & Trigger Words */}
+          {/* Granular Multi-Factor Indicator Badges */}
           <div style={{
             background: 'rgba(0, 0, 0, 0.35)',
             borderRadius: 12,
             padding: 10,
             marginBottom: 10
           }}>
-            <div style={{ fontSize: 10, color: 'var(--muted)', fontWeight: 700, marginBottom: 4 }}>DETECTED EXTORTION TACTICS</div>
+            <div style={{ fontSize: 10, color: 'var(--muted)', fontWeight: 700, marginBottom: 4 }}>DETECTED THREAT SIGNALS</div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
-              {classification.category.tactics.map(tac => (
-                <span
-                  key={tac}
-                  style={{
-                    background: 'rgba(99, 102, 241, 0.15)',
-                    border: '1px solid rgba(99, 102, 241, 0.3)',
-                    color: 'var(--indigo-light)',
-                    fontSize: 10,
-                    fontWeight: 700,
-                    padding: '2px 8px',
-                    borderRadius: 4
-                  }}
-                >
-                  {tac}
-                </span>
-              ))}
+              {classification.signals.impersonation && <span style={{ background: 'rgba(239, 68, 68, 0.2)', color: 'var(--danger-light)', fontSize: 10, fontWeight: 800, padding: '3px 8px', borderRadius: 6, border: '1px solid rgba(239, 68, 68, 0.4)' }}>🔴 Impersonation Claim</span>}
+              {classification.signals.urgency && <span style={{ background: 'rgba(245, 158, 11, 0.2)', color: 'var(--warn-light)', fontSize: 10, fontWeight: 800, padding: '3px 8px', borderRadius: 6, border: '1px solid rgba(245, 158, 11, 0.4)' }}>🔴 Urgency Pressure</span>}
+              {classification.signals.threat && <span style={{ background: 'rgba(239, 68, 68, 0.2)', color: 'var(--danger-light)', fontSize: 10, fontWeight: 800, padding: '3px 8px', borderRadius: 6, border: '1px solid rgba(239, 68, 68, 0.4)' }}>🔴 Authority Lockout Threat</span>}
+              {classification.signals.credential_request && <span style={{ background: 'rgba(239, 68, 68, 0.3)', color: '#f87171', fontSize: 10, fontWeight: 800, padding: '3px 8px', borderRadius: 6, border: '1px solid #f87171' }}>🔑 OTP / Credential Theft</span>}
+              {classification.signals.payment_request && <span style={{ background: 'rgba(245, 158, 11, 0.2)', color: 'var(--warn-light)', fontSize: 10, fontWeight: 800, padding: '3px 8px', borderRadius: 6, border: '1px solid rgba(245, 158, 11, 0.4)' }}>💸 Extortion Payment Fee</span>}
+              {classification.signals.screen_share && <span style={{ background: 'rgba(239, 68, 68, 0.3)', color: 'var(--danger-light)', fontSize: 10, fontWeight: 800, padding: '3px 8px', borderRadius: 6, border: '1px solid rgba(239, 68, 68, 0.5)' }}>💻 Remote AnyDesk Control</span>}
             </div>
 
-            <div style={{ fontSize: 10, color: 'var(--muted)', fontWeight: 700, marginBottom: 4 }}>KEY TRIGGER WORDS DETECTED</div>
+            <div style={{ fontSize: 10, color: 'var(--muted)', fontWeight: 700, marginBottom: 4 }}>MATCHED INTENT PATTERNS</div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
               {classification.matchedPatterns.map((pat) => (
                 <span
@@ -444,11 +436,11 @@ export default function VoiceDetector({ onScamDetected, isListening, setIsListen
             borderRadius: 10
           }}>
             <AlertTriangle size={16} style={{ flexShrink: 0, marginTop: 2 }} />
-            <div><strong>Recommended Defensive Action:</strong> {classification.category.actionPlan}</div>
+            <div><strong>Recommended Action:</strong> {classification.category.actionPlan}</div>
           </div>
         </div>
       ) : isListening ? (
-        /* CLEAN SAFE STATE WHEN NO SCAM/SUSPICIOUS ISSUES FOUND */
+        /* CLEAN SAFE STATE (ENRON NEGATIVE & NORMAL STATEMENTS) */
         <div style={{
           padding: 14,
           background: 'rgba(16, 185, 129, 0.12)',
@@ -468,7 +460,7 @@ export default function VoiceDetector({ onScamDetected, isListening, setIsListen
               Looks clean, you are good to go!
             </div>
             <div style={{ fontSize: 11, color: 'rgba(255, 255, 255, 0.7)', fontWeight: 500, marginTop: 2 }}>
-              {transcript ? 'Speech text typed & analyzed — zero threat keywords, coercion tactics, or vishing signals found.' : 'Microphone active & volume analyzing... Speak or type call audio into the box above.'}
+              {transcript ? `Parsed in ${classification?.language || 'English'} — zero threat signals, coercive tactics, or scam keywords found.` : 'Microphone active & volume analyzing... Speak or type call audio into the box above.'}
             </div>
           </div>
         </div>
