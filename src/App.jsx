@@ -58,6 +58,55 @@ export default function App() {
   const [isListening, setIsListening] = useState(false);
   const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
 
+  // Persistent Transcript state (retained across tab switches & page refreshes until cleared or completed)
+  const [currentTranscript, setCurrentTranscript] = useState(() => {
+    try {
+      return localStorage.getItem('trust_shield_active_transcript') || '';
+    } catch (e) {
+      return '';
+    }
+  });
+
+  const handleTranscriptChange = (text) => {
+    setCurrentTranscript(text);
+    try {
+      localStorage.setItem('trust_shield_active_transcript', text);
+    } catch (e) {}
+  };
+
+  const clearTranscript = () => {
+    setCurrentTranscript('');
+    setDetectedScamCall(null);
+    try {
+      localStorage.removeItem('trust_shield_active_transcript');
+    } catch (e) {}
+  };
+
+  // Persistent Payment Draft state (retained across tab switches until completed or cleared)
+  const [paymentDraft, setPaymentDraft] = useState(() => {
+    try {
+      const stored = localStorage.getItem('trust_shield_payment_draft');
+      return stored ? JSON.parse(stored) : { recipientUpi: '', amount: '', note: '', isPasted: false };
+    } catch (e) {
+      return { recipientUpi: '', amount: '', note: '', isPasted: false };
+    }
+  });
+
+  const updatePaymentDraft = (newDraft) => {
+    setPaymentDraft(newDraft);
+    try {
+      localStorage.setItem('trust_shield_payment_draft', JSON.stringify(newDraft));
+    } catch (e) {}
+  };
+
+  const clearPaymentDraft = () => {
+    const emptyDraft = { recipientUpi: '', amount: '', note: '', isPasted: false };
+    setPaymentDraft(emptyDraft);
+    try {
+      localStorage.removeItem('trust_shield_payment_draft');
+    } catch (e) {}
+  };
+
   const handleLoginSuccess = (authenticatedUser) => {
     setUser(authenticatedUser);
     setIsAuthenticated(true);
@@ -72,6 +121,8 @@ export default function App() {
     setIsAuthenticated(false);
     setUser(null);
     setDetectedScamCall(null);
+    clearTranscript();
+    clearPaymentDraft();
     try {
       localStorage.removeItem('trust_shield_active_user');
       localStorage.removeItem('trust_shield_active_tab');
@@ -80,6 +131,9 @@ export default function App() {
 
   const handleScamDetected = (scamData) => {
     setDetectedScamCall(scamData);
+    if (scamData && scamData.transcript) {
+      handleTranscriptChange(scamData.transcript);
+    }
   };
 
   const handlePaymentBlocked = (blockedData) => {
@@ -122,6 +176,9 @@ export default function App() {
   };
 
   const handlePaymentSuccess = (amount) => {
+    // Payment cycle completed -> clear payment draft & active call transcript
+    clearPaymentDraft();
+
     setUser(prev => ({
       ...prev,
       guardian_points: (prev.guardian_points || 0) + 25
@@ -139,23 +196,23 @@ export default function App() {
   };
 
   const handleUpvoteScam = (scamId) => {
-    setScamList(prev => prev.map(scam => {
-      if (scam.id === scamId) {
-        return { ...scam, votes: scam.votes + 1 };
+    setScamList(prev => prev.map(s => {
+      if (s.id === scamId) {
+        return { ...s, votes: s.votes + 1 };
       }
-      return scam;
+      return s;
     }));
 
     setUser(prev => ({
       ...prev,
-      guardian_points: (prev.guardian_points || 0) + 25
+      guardian_points: (prev.guardian_points || 0) + 10
     }));
 
     setPointEvents(prev => [
       {
         id: `e_${Date.now()}`,
-        label: 'Upvoted Community Scam Report',
-        pts: 25,
+        label: 'Upvoted Community Scam Signal',
+        pts: 10,
         time: 'Just now'
       },
       ...prev
@@ -167,15 +224,14 @@ export default function App() {
 
     setUser(prev => ({
       ...prev,
-      cases_reported: (prev.cases_reported || 0) + 1,
-      guardian_points: (prev.guardian_points || 0) + 250
+      guardian_points: (prev.guardian_points || 0) + 50
     }));
 
     setPointEvents(prev => [
       {
         id: `e_${Date.now()}`,
-        label: `Reported Scam: ${newScam.title.slice(0, 30)}...`,
-        pts: 250,
+        label: 'Reported New Threat Vector',
+        pts: 50,
         time: 'Just now'
       },
       ...prev
@@ -223,6 +279,9 @@ export default function App() {
             onScamDetected={handleScamDetected}
             isListening={isListening}
             setIsListening={setIsListening}
+            currentTranscript={currentTranscript}
+            onTranscriptChange={handleTranscriptChange}
+            onClearTranscript={clearTranscript}
           />
         )}
 
@@ -233,6 +292,9 @@ export default function App() {
             detectedScamCall={detectedScamCall}
             onPaymentBlocked={handlePaymentBlocked}
             onPaymentSuccess={handlePaymentSuccess}
+            paymentDraft={paymentDraft}
+            onUpdatePaymentDraft={updatePaymentDraft}
+            onClearPaymentDraft={clearPaymentDraft}
           />
         )}
 
@@ -274,7 +336,7 @@ export default function App() {
         isOpen={isOnboardingOpen}
         onClose={() => setIsOnboardingOpen(false)}
         user={user}
-        onSaveUser={setUser}
+        setUser={setUser}
       />
     </div>
   );

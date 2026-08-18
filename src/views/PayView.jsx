@@ -7,7 +7,10 @@ export default function PayView({
   scamList = [],
   detectedScamCall,
   onPaymentBlocked,
-  onPaymentSuccess
+  onPaymentSuccess,
+  paymentDraft,
+  onUpdatePaymentDraft,
+  onClearPaymentDraft
 }) {
   // Safe user fallback defaults
   const safeUser = user || {
@@ -21,14 +24,32 @@ export default function PayView({
     is_new_device: true
   };
 
-  const [recipientUpi, setRecipientUpi] = useState('');
-  const [amount, setAmount] = useState('');
-  const [note, setNote] = useState('');
+  const [recipientUpi, setRecipientUpi] = useState(paymentDraft?.recipientUpi || '');
+  const [amount, setAmount] = useState(paymentDraft?.amount || '');
+  const [note, setNote] = useState(paymentDraft?.note || '');
 
   // Behavioral & Device Coercion signals
-  const [isPasted, setIsPasted] = useState(false);
+  const [isPasted, setIsPasted] = useState(paymentDraft?.isPasted || false);
   const [isOddHour, setIsOddHour] = useState(false);
   const [validationError, setValidationError] = useState('');
+
+  // Keep state synchronized with persistent paymentDraft prop
+  useEffect(() => {
+    if (paymentDraft) {
+      if (paymentDraft.recipientUpi !== undefined && paymentDraft.recipientUpi !== recipientUpi) {
+        setRecipientUpi(paymentDraft.recipientUpi);
+      }
+      if (paymentDraft.amount !== undefined && paymentDraft.amount !== amount) {
+        setAmount(paymentDraft.amount);
+      }
+      if (paymentDraft.note !== undefined && paymentDraft.note !== note) {
+        setNote(paymentDraft.note);
+      }
+      if (paymentDraft.isPasted !== undefined) {
+        setIsPasted(paymentDraft.isPasted);
+      }
+    }
+  }, [paymentDraft]);
 
   // Modals & Analysis
   const [riskScore, setRiskScore] = useState(0);
@@ -54,12 +75,47 @@ export default function PayView({
   }, []);
 
   const handleUpiChange = (e) => {
-    setRecipientUpi(e.target.value);
+    const val = e.target.value;
+    setRecipientUpi(val);
+    if (onUpdatePaymentDraft) {
+      onUpdatePaymentDraft({ recipientUpi: val, amount, note, isPasted });
+    }
     if (validationError) setValidationError('');
+  };
+
+  const handleAmountChange = (e) => {
+    const val = e.target.value;
+    setAmount(val);
+    if (onUpdatePaymentDraft) {
+      onUpdatePaymentDraft({ recipientUpi, amount: val, note, isPasted });
+    }
+    if (validationError) setValidationError('');
+  };
+
+  const handleNoteChange = (e) => {
+    const val = e.target.value;
+    setNote(val);
+    if (onUpdatePaymentDraft) {
+      onUpdatePaymentDraft({ recipientUpi, amount, note: val, isPasted });
+    }
   };
 
   const handleUpiPaste = () => {
     setIsPasted(true);
+    if (onUpdatePaymentDraft) {
+      onUpdatePaymentDraft({ recipientUpi, amount, note, isPasted: true });
+    }
+  };
+
+  const handleResetDraft = () => {
+    setRecipientUpi('');
+    setAmount('');
+    setNote('');
+    setIsPasted(false);
+    setValidationError('');
+    if (onClearPaymentDraft) {
+      onClearPaymentDraft();
+    }
   };
 
   // Quick Payee Selectors
@@ -68,6 +124,9 @@ export default function PayView({
     setAmount(String(amt));
     setNote(payNote);
     setIsPasted(pasted);
+    if (onUpdatePaymentDraft) {
+      onUpdatePaymentDraft({ recipientUpi: upi, amount: String(amt), note: payNote, isPasted: pasted });
+    }
     setValidationError('');
   };
 
@@ -419,10 +478,7 @@ export default function PayView({
             type="number"
             className="input-field mono"
             value={amount}
-            onChange={(e) => {
-              setAmount(e.target.value);
-              if (validationError) setValidationError('');
-            }}
+            onChange={handleAmountChange}
             placeholder="0.00"
             style={{ fontSize: 18, fontWeight: 800 }}
           />
@@ -434,7 +490,7 @@ export default function PayView({
             type="text"
             className="input-field"
             value={note}
-            onChange={(e) => setNote(e.target.value)}
+            onChange={handleNoteChange}
             placeholder="e.g. Rent, Clearance Fee, Shopping"
           />
         </div>
@@ -454,21 +510,42 @@ export default function PayView({
           </div>
         )}
 
-        <button
-          className="btn-primary"
-          onClick={runRiskAnalysis}
-          disabled={isAnalyzing}
-          style={{ marginTop: 8 }}
-        >
-          {isAnalyzing ? (
-            <span>Analyzing Zero-Knowledge Risk & Coercion Signals...</span>
-          ) : (
-            <>
-              <Send size={18} />
-              <span>Scan & Pay ₹{amount || '0'}</span>
-            </>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <button
+            className="btn-primary"
+            onClick={runRiskAnalysis}
+            disabled={isAnalyzing}
+            style={{ flex: 1, marginTop: 8 }}
+          >
+            {isAnalyzing ? (
+              <span>Analyzing Zero-Knowledge Risk & Coercion Signals...</span>
+            ) : (
+              <>
+                <Send size={18} />
+                <span>Scan & Pay ₹{amount || '0'}</span>
+              </>
+            )}
+          </button>
+
+          {(recipientUpi || amount || note) && (
+            <button
+              onClick={handleResetDraft}
+              style={{
+                background: 'rgba(255, 255, 255, 0.05)',
+                border: '1px solid var(--border)',
+                color: 'var(--sub)',
+                fontSize: 11,
+                fontWeight: 700,
+                padding: '6px 12px',
+                borderRadius: 10,
+                marginTop: 8,
+                cursor: 'pointer'
+              }}
+            >
+              Clear Form
+            </button>
           )}
-        </button>
+        </div>
       </div>
 
       {/* Live AI Risk & Behavioral Signals Output */}

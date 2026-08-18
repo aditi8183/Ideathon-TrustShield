@@ -8,7 +8,10 @@ export default function HomeView({
   onNavigate,
   onScamDetected,
   isListening,
-  setIsListening
+  setIsListening,
+  currentTranscript,
+  onTranscriptChange,
+  onClearTranscript
 }) {
   return (
     <div style={{ padding: 16 }}>
@@ -85,6 +88,9 @@ export default function HomeView({
         onScamDetected={onScamDetected}
         isListening={isListening}
         setIsListening={setIsListening}
+        externalTranscript={currentTranscript}
+        onTranscriptChange={onTranscriptChange}
+        onClearTranscript={onClearTranscript}
       />
 
       {/* Quick Action Buttons */}

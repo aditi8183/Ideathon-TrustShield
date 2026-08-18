@@ -2,8 +2,15 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Mic, MicOff, AlertTriangle, Play, ShieldAlert, Zap, PhoneCall, Package, Landmark, TrendingUp, Sparkles, CheckCircle2, Radar, Gift, Volume2, Activity, Globe, MessageSquare } from 'lucide-react';
 import { CHAKRAVYUH_SCAM_CATEGORIES, classifySpeechAutonomously } from '../data/scamKeywords';
 
-export default function VoiceDetector({ onScamDetected, isListening, setIsListening }) {
-  const [transcript, setTranscript] = useState('');
+export default function VoiceDetector({
+  onScamDetected,
+  isListening,
+  setIsListening,
+  externalTranscript,
+  onTranscriptChange,
+  onClearTranscript
+}) {
+  const [transcript, setTranscript] = useState(externalTranscript || '');
   const [classification, setClassification] = useState(null);
   const [isSimulating, setIsSimulating] = useState(false);
   const [micStatusText, setMicStatusText] = useState('Turn on Mic to speak — Speech gets typed live & flags issues automatically');
@@ -13,8 +20,21 @@ export default function VoiceDetector({ onScamDetected, isListening, setIsListen
   const audioContextRef = useRef(null);
   const mediaStreamRef = useRef(null);
   const animFrameRef = useRef(null);
-  const accumulatedTranscriptRef = useRef('');
+  const accumulatedTranscriptRef = useRef(externalTranscript || '');
   const lastSoundTimeRef = useRef(Date.now());
+
+  // Keep internal transcript state in sync with externalTranscript prop
+  useEffect(() => {
+    if (externalTranscript !== undefined && externalTranscript !== transcript) {
+      setTranscript(externalTranscript);
+      accumulatedTranscriptRef.current = externalTranscript;
+      if (externalTranscript) {
+        processAutonomousClassification(externalTranscript);
+      } else {
+        setClassification(null);
+      }
+    }
+  }, [externalTranscript]);
 
   // Universal Cross-Browser Speech Recognition Engine (AI4Bharat Indic & Web Speech ASR Integration)
   useEffect(() => {
@@ -58,6 +78,7 @@ export default function VoiceDetector({ onScamDetected, isListening, setIsListen
 
         if (combinedLiveSpeech) {
           setTranscript(combinedLiveSpeech);
+          if (onTranscriptChange) onTranscriptChange(combinedLiveSpeech);
           processAutonomousClassification(combinedLiveSpeech);
         }
       };
@@ -170,6 +191,14 @@ export default function VoiceDetector({ onScamDetected, isListening, setIsListen
     setAudioLevel(0);
   };
 
+  // Clear transcript explicitly
+  const handleClearTranscript = () => {
+    setTranscript('');
+    setClassification(null);
+    accumulatedTranscriptRef.current = '';
+    if (onClearTranscript) onClearTranscript();
+  };
+
   // Toggle Microphone
   const toggleListening = async () => {
     if (isListening) {
@@ -181,10 +210,6 @@ export default function VoiceDetector({ onScamDetected, isListening, setIsListen
       setIsSimulating(false);
       setMicStatusText('Turn on Mic to speak — Speech gets typed live & flags issues automatically');
     } else {
-      setTranscript('');
-      setClassification(null);
-      accumulatedTranscriptRef.current = '';
-
       await startAudioAnalyzer();
 
       if (recognitionRef.current) {
@@ -203,6 +228,7 @@ export default function VoiceDetector({ onScamDetected, isListening, setIsListen
   const handleTranscriptChange = (e) => {
     const val = e.target.value;
     setTranscript(val);
+    if (onTranscriptChange) onTranscriptChange(val);
     processAutonomousClassification(val);
   };
 
@@ -211,6 +237,7 @@ export default function VoiceDetector({ onScamDetected, isListening, setIsListen
     setIsListening(true);
     setIsSimulating(true);
     setTranscript('');
+    if (onTranscriptChange) onTranscriptChange('');
     setClassification(null);
     accumulatedTranscriptRef.current = '';
     setMicStatusText('Simulated Call Active... Parsing spoken Indic speech word-by-word');
@@ -234,6 +261,7 @@ export default function VoiceDetector({ onScamDetected, isListening, setIsListen
       if (wordIndex < words.length) {
         currentText += (wordIndex === 0 ? '' : ' ') + words[wordIndex];
         setTranscript(currentText);
+        if (onTranscriptChange) onTranscriptChange(currentText);
         processAutonomousClassification(currentText);
         wordIndex++;
       } else {
