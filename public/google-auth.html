@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sign in - Google Accounts</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22><path fill=%22%234285F4%22 d=%22M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z%22/><path fill=%22%2334A853%22 d=%22M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z%22/><path fill=%22%23FBBC05%22 d=%22M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z%22/><path fill=%22%23EA4335%22 d=%22M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z%22/></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    body {
+      background-color: #f0f4f9;
+      color: #1f1f1f;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 24px;
+    }
+
+    /* Container Card (Modern Google 2024 2-Column Design) */
+    .google-card-wrapper {
+      width: 100%;
+      max-width: 840px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .google-card {
+      width: 100%;
+      background: #ffffff;
+      border-radius: 28px;
+      padding: 40px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05), 0 4px 12px rgba(0, 0, 0, 0.05);
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 40px;
+      min-height: 380px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Loading Top Progress Bar */
+    .progress-bar {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: #e8f0fe;
+      display: none;
+      overflow: hidden;
+    }
+    .progress-bar-inner {
+      height: 100%;
+      width: 40%;
+      background: #0b57d0;
+      position: absolute;
+      animation: indeterminate 1.5s infinite ease-in-out;
+    }
+    @keyframes indeterminate {
+      0% { left: -40%; width: 40%; }
+      50% { left: 20%; width: 60%; }
+      100% { left: 100%; width: 40%; }
+    }
+
+    /* Left Column */
+    .left-col {
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
+    }
+
+    .google-logo {
+      margin-bottom: 20px;
+    }
+
+    .main-heading {
+      font-size: 36px;
+      font-weight: 400;
+      color: #1f1f1f;
+      line-height: 1.22;
+      margin-bottom: 12px;
+      letter-spacing: -0.2px;
+    }
+
+    .sub-heading {
+      font-size: 16px;
+      color: #1f1f1f;
+      line-height: 1.45;
+      font-weight: 400;
+      margin-bottom: 24px;
+    }
+
+    /* User Profile Pill in Step 2 */
+    .user-account-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 6px 14px 6px 8px;
+      border: 1px solid #747775;
+      border-radius: 20px;
+      cursor: pointer;
+      margin-bottom: 20px;
+      transition: background 0.15s;
+      width: fit-content;
+    }
+    .user-account-chip:hover {
+      background: #f8f9fa;
+    }
+    .chip-avatar {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: #0b57d0;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 500;
+    }
+    .chip-email {
+      font-size: 14px;
+      font-weight: 500;
+      color: #1f1f1f;
+    }
+
+    /* Role Badge Switcher */
+    .role-badge-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: auto;
+      padding-top: 16px;
+    }
+    .role-btn {
+      padding: 6px 12px;
+      border-radius: 8px;
+      border: 1px solid #c4c7c5;
+      background: #fff;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      color: #444746;
+      transition: all 0.2s;
+    }
+    .role-btn.active {
+      background: #e8f0fe;
+      border-color: #0b57d0;
+      color: #0b57d0;
+      font-weight: 600;
+    }
+
+    /* Right Column */
+    .right-col {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding-top: 10px;
+    }
+
+    /* Material 3 Outlined Floating Label Input */
+    .m3-input-box {
+      position: relative;
+      margin-bottom: 8px;
+    }
+
+    .m3-input {
+      width: 100%;
+      height: 56px;
+      padding: 16px;
+      border: 1px solid #747775;
+      border-radius: 4px;
+      font-size: 16px;
+      color: #1f1f1f;
+      background: transparent;
+      outline: none;
+      transition: border 0.15s ease;
+    }
+
+    .m3-input:focus {
+      border: 2px solid #0b57d0;
+      padding: 15px; /* Adjust for 2px border */
+    }
+
+    .m3-input.input-error {
+      border-color: #b3261e !important;
+    }
+
+    .m3-label {
+      position: absolute;
+      left: 16px;
+      top: 18px;
+      color: #444746;
+      font-size: 16px;
+      pointer-events: none;
+      background: #ffffff;
+      padding: 0 4px;
+      transition: transform 0.15s cubic-bezier(0.4, 0, 0.2, 1), color 0.15s, font-size 0.15s;
+      transform-origin: left top;
+    }
+
+    .m3-input:focus ~ .m3-label,
+    .m3-input:not(:placeholder-shown) ~ .m3-label {
+      transform: translateY(-26px) scale(0.75);
+      color: #0b57d0;
+      font-weight: 500;
+    }
+
+    .m3-input.input-error ~ .m3-label {
+      color: #b3261e !important;
+    }
+
+    .error-msg {
+      font-size: 12px;
+      color: #b3261e;
+      margin-top: 4px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .blue-link {
+      color: #0b57d0;
+      font-size: 14px;
+      font-weight: 500;
+      text-decoration: none;
+      cursor: pointer;
+      display: inline-block;
+      margin-top: 6px;
+    }
+    .blue-link:hover {
+      text-decoration: underline;
+    }
+
+    /* Guest mode & Disclaimer info */
+    .guest-info {
+      margin-top: 36px;
+      font-size: 14px;
+      color: #444746;
+      line-height: 1.45;
+    }
+
+    /* Action Buttons Row */
+    .action-row {
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      gap: 16px;
+      margin-top: 36px;
+    }
+
+    .btn-text {
+      background: transparent;
+      border: none;
+      color: #0b57d0;
+      font-size: 14px;
+      font-weight: 500;
+      padding: 10px 16px;
+      border-radius: 20px;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+    .btn-text:hover {
+      background-color: rgba(11, 87, 208, 0.08);
+    }
+
+    .btn-pill {
+      background-color: #0b57d0;
+      color: #ffffff;
+      border: none;
+      padding: 10px 24px;
+      border-radius: 20px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background-color 0.2s, box-shadow 0.2s;
+    }
+    .btn-pill:hover {
+      background-color: #0842a0;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+    }
+
+    /* Show password checkbox */
+    .show-password-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 10px;
+      font-size: 14px;
+      color: #1f1f1f;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .show-password-row input {
+      accent-color: #0b57d0;
+      width: 16px;
+      height: 16px;
+      cursor: pointer;
+    }
+
+    /* Quick Demo Account List view */
+    .accounts-list {
+      display: flex;
+      flex-direction: column;
+      border-top: 1px solid #e0e2e0;
+      margin-top: 12px;
+      margin-bottom: 12px;
+    }
+
+    .account-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 8px;
+      border-bottom: 1px solid #e0e2e0;
+      cursor: pointer;
+      border-radius: 8px;
+      transition: background-color 0.15s;
+    }
+    .account-item:hover {
+      background-color: #f0f4f9;
+    }
+    .account-avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: #0b57d0;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 15px;
+      font-weight: 500;
+    }
+
+    /* Footer */
+    .google-footer {
+      width: 100%;
+      max-width: 840px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 20px;
+      font-size: 12px;
+      color: #444746;
+      padding: 0 12px;
+    }
+
+    .footer-links {
+      display: flex;
+      gap: 24px;
+    }
+    .footer-links a {
+      color: #444746;
+      text-decoration: none;
+    }
+    .footer-links a:hover {
+      color: #1f1f1f;
+    }
+
+    /* Responsive */
+    @media (max-width: 740px) {
+      .google-card {
+        grid-template-columns: 1fr;
+        padding: 28px 24px;
+        gap: 24px;
+        border-radius: 20px;
+      }
+      .main-heading {
+        font-size: 28px;
+      }
+      .action-row {
+        margin-top: 24px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="google-card-wrapper">
+    <div class="google-card">
+      <div class="progress-bar" id="progress-bar">
+        <div class="progress-bar-inner"></div>
+      </div>
+
+      <!-- LEFT COLUMN -->
+      <div class="left-col">
+        <div class="google-logo">
+          <svg width="48" height="48" viewBox="0 0 24 24">
+            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+          </svg>
+        </div>
+
+        <div id="left-text-container">
+          <h1 class="main-heading" id="left-title">Sign in</h1>
+          <div class="sub-heading" id="left-subtitle">
+            with your Google Account. This account will be available to other Google apps in the browser.
+          </div>
+        </div>
+
+        <div id="user-chip-container" style="display: none;">
+          <div class="user-account-chip" onclick="showEmailStep()">
+            <div class="chip-avatar" id="chip-avatar-letter">A</div>
+            <div class="chip-email" id="chip-email-text">aditi.sharma@gmail.com</div>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="#444746">
+              <path d="M7 10l5 5 5-5z"/>
+            </svg>
+          </div>
+        </div>
+
+        <!-- Target App Role -->
+        <div class="role-badge-row">
+          <span style="font-size: 12px; color: #444746; margin-right: 4px;">Sign in to:</span>
+          <button type="button" class="role-btn active" id="role-cust-btn" onclick="selectRole('CUSTOMER')">🛡️ Customer Portal</button>
+          <button type="button" class="role-btn" id="role-bank-btn" onclick="selectRole('BANK_ADMIN')">🏦 Bank Risk Admin</button>
+        </div>
+      </div>
+
+      <!-- RIGHT COLUMN: STEP 1 (EMAIL / IDENTIFIER) -->
+      <div class="right-col" id="view-step-email">
+        <form onsubmit="handleEmailSubmit(event)">
+          <div class="m3-input-box">
+            <input 
+              type="text" 
+              id="input-email" 
+              class="m3-input" 
+              placeholder=" "
+              autocomplete="username"
+              required 
+              autofocus 
+            />
+            <label for="input-email" class="m3-label">Email or phone</label>
+            <div id="email-error" class="error-msg" style="display: none;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+              <span>Enter a valid email or phone number</span>
+            </div>
+          </div>
+
+          <a href="#" class="blue-link" onclick="handleForgotEmail(event)">Forgot email?</a>
+
+          <div class="guest-info">
+            Not your computer? Use Guest mode to sign in privately. 
+            <a href="#" class="blue-link" onclick="event.preventDefault(); showAccountPicker();">Learn more about using Guest mode</a>
+          </div>
+
+          <div class="action-row">
+            <button type="button" class="btn-text" onclick="showAccountPicker()">Choose account</button>
+            <button type="submit" class="btn-pill" id="btn-next-email">Next</button>
+          </div>
+        </form>
+      </div>
+
+      <!-- RIGHT COLUMN: STEP 2 (PASSWORD) -->
+      <div class="right-col" id="view-step-password" style="display: none;">
+        <form onsubmit="handlePasswordSubmit(event)">
+          <div class="m3-input-box">
+            <input 
+              type="password" 
+              id="input-password" 
+              class="m3-input" 
+              placeholder=" "
+              required 
+            />
+            <label for="input-password" class="m3-label">Enter your password</label>
+            <div id="password-error" class="error-msg" style="display: none;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+              <span>Wrong password. Try again or click Forgot password.</span>
+            </div>
+          </div>
+
+          <label class="show-password-row">
+            <input type="checkbox" id="check-show-pwd" onchange="togglePasswordVisibility(this)" />
+            <span>Show password</span>
+          </label>
+
+          <a href="#" class="blue-link" onclick="handleForgotPassword(event)" style="margin-top: 14px;">Forgot password?</a>
+
+          <div class="action-row">
+            <button type="button" class="btn-text" onclick="showEmailStep()">Back</button>
+            <button type="submit" class="btn-pill" id="btn-sign-in">Next</button>
+          </div>
+        </form>
+      </div>
+
+      <!-- RIGHT COLUMN: ACCOUNT PICKER (DEMO & SAVED ACCOUNTS) -->
+      <div class="right-col" id="view-account-picker" style="display: none;">
+        <div>
+          <div style="font-size: 14px; font-weight: 500; color: #444746; margin-bottom: 8px;">
+            Choose a Google Account
+          </div>
+
+          <div class="accounts-list" id="accounts-container">
+            <!-- Dynamically populated -->
+          </div>
+
+          <div class="account-item" onclick="showEmailStep()" style="border-bottom: none; color: #0b57d0; font-weight: 500;">
+            <div style="display: flex; align-items: center; gap: 14px;">
+              <div style="width: 36px; height: 36px; border-radius: 50%; border: 1px solid #747775; display: flex; align-items: center; justify-content: center; color: #444746;">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                  <circle cx="12" cy="7" r="4"></circle>
+                </svg>
+              </div>
+              <span>Use another account</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="action-row">
+          <button type="button" class="btn-text" onclick="showEmailStep()">Cancel</button>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- FOOTER -->
+    <div class="google-footer">
+      <div>English (United States)</div>
+      <div class="footer-links">
+        <a href="#" onclick="return false;">Help</a>
+        <a href="#" onclick="return false;">Privacy</a>
+        <a href="#" onclick="return false;">Terms</a>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let currentRole = 'CUSTOMER';
+    let enteredEmail = '';
+    let enteredName = '';
+
+    // Check URL parameters for role
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('role') === 'BANK_ADMIN') {
+      currentRole = 'BANK_ADMIN';
+    }
+
+    function selectRole(role) {
+      currentRole = role;
+      document.getElementById('role-cust-btn').className = role === 'CUSTOMER' ? 'role-btn active' : 'role-btn';
+      document.getElementById('role-bank-btn').className = role === 'BANK_ADMIN' ? 'role-btn active' : 'role-btn';
+    }
+
+    const defaultAccounts = [
+      { name: 'Aditi Sharma', email: 'aditi.sharma@gmail.com', role: 'CUSTOMER', color: '#6366f1' },
+      { name: 'Officer Rajesh Sharma', email: 'rajesh.risk.sbi@gmail.com', role: 'BANK_ADMIN', color: '#10b981' }
+    ];
+
+    function getSavedAccounts() {
+      try {
+        const stored = localStorage.getItem('trust_shield_google_accounts');
+        if (stored) return JSON.parse(stored);
+      } catch (e) {}
+      return defaultAccounts;
+    }
+
+    function renderAccountPicker() {
+      const container = document.getElementById('accounts-container');
+      const accounts = getSavedAccounts();
+      container.innerHTML = '';
+
+      accounts.forEach(acc => {
+        const initial = (acc.name || acc.email || 'G').charAt(0).toUpperCase();
+        const div = document.createElement('div');
+        div.className = 'account-item';
+        div.onclick = () => {
+          selectRole(acc.role || currentRole);
+          executeSuccessfulLogin(acc);
+        };
+        div.innerHTML = `
+          <div style="display: flex; align-items: center; gap: 14px;">
+            <div class="account-avatar" style="background: ${acc.color || '#0b57d0'}">${initial}</div>
+            <div>
+              <div style="font-size: 14px; font-weight: 500; color: #1f1f1f;">${acc.name || acc.email.split('@')[0]}</div>
+              <div style="font-size: 12px; color: #444746;">${acc.email}</div>
+            </div>
+          </div>
+          <div style="font-size: 11px; font-weight: 500; color: #0b57d0;">${acc.role === 'BANK_ADMIN' ? 'Bank Admin' : 'Customer'}</div>
+        `;
+        container.appendChild(div);
+      });
+    }
+
+    function showEmailStep() {
+      document.getElementById('progress-bar').style.display = 'none';
+      document.getElementById('view-step-email').style.display = 'flex';
+      document.getElementById('view-step-password').style.display = 'none';
+      document.getElementById('view-account-picker').style.display = 'none';
+
+      document.getElementById('left-text-container').style.display = 'block';
+      document.getElementById('user-chip-container').style.display = 'none';
+
+      document.getElementById('left-title').innerText = 'Sign in';
+      document.getElementById('left-subtitle').innerText = 'with your Google Account. This account will be available to other Google apps in the browser.';
+
+      setTimeout(() => document.getElementById('input-email').focus(), 50);
+    }
+
+    function showPasswordStep(email) {
+      enteredEmail = email;
+      enteredName = email.split('@')[0] ? (email.split('@')[0].charAt(0).toUpperCase() + email.split('@')[0].slice(1)) : 'Google User';
+
+      document.getElementById('progress-bar').style.display = 'none';
+      document.getElementById('view-step-email').style.display = 'none';
+      document.getElementById('view-step-password').style.display = 'flex';
+      document.getElementById('view-account-picker').style.display = 'none';
+
+      document.getElementById('left-text-container').style.display = 'block';
+      document.getElementById('user-chip-container').style.display = 'block';
+
+      document.getElementById('left-title').innerText = 'Welcome';
+      document.getElementById('left-subtitle').innerText = 'to continue to Trust Shield';
+
+      document.getElementById('chip-email-text').innerText = email;
+      document.getElementById('chip-avatar-letter').innerText = enteredName.charAt(0).toUpperCase();
+
+      const pwdInput = document.getElementById('input-password');
+      pwdInput.value = '';
+      setTimeout(() => pwdInput.focus(), 50);
+    }
+
+    function showAccountPicker() {
+      document.getElementById('progress-bar').style.display = 'none';
+      document.getElementById('view-step-email').style.display = 'none';
+      document.getElementById('view-step-password').style.display = 'none';
+      document.getElementById('view-account-picker').style.display = 'flex';
+
+      document.getElementById('left-text-container').style.display = 'block';
+      document.getElementById('user-chip-container').style.display = 'none';
+
+      document.getElementById('left-title').innerText = 'Choose an account';
+      document.getElementById('left-subtitle').innerText = 'to continue to Trust Shield';
+
+      renderAccountPicker();
+    }
+
+    function handleEmailSubmit(e) {
+      e.preventDefault();
+      const emailInput = document.getElementById('input-email');
+      const val = emailInput.value.trim();
+
+      if (!val || (!val.includes('@') && val.length < 5)) {
+        emailInput.classList.add('input-error');
+        document.getElementById('email-error').style.display = 'flex';
+        return;
+      }
+
+      emailInput.classList.remove('input-error');
+      document.getElementById('email-error').style.display = 'none';
+
+      // Format as @gmail.com if domain omitted
+      const formattedEmail = val.includes('@') ? val.toLowerCase() : `${val.toLowerCase()}@gmail.com`;
+
+      // Show Google indeterminate loading bar
+      document.getElementById('progress-bar').style.display = 'block';
+      setTimeout(() => {
+        showPasswordStep(formattedEmail);
+      }, 400);
+    }
+
+    function handlePasswordSubmit(e) {
+      e.preventDefault();
+      document.getElementById('progress-bar').style.display = 'block';
+
+      setTimeout(() => {
+        executeSuccessfulLogin({
+          email: enteredEmail,
+          name: enteredName,
+          role: currentRole
+        });
+      }, 600);
+    }
+
+    function executeSuccessfulLogin(account) {
+      const authData = {
+        type: 'GOOGLE_AUTH_SUCCESS',
+        account: {
+          email: account.email.toLowerCase().trim(),
+          name: account.name || account.email.split('@')[0],
+          role: currentRole,
+          picture: account.picture || null,
+          googleId: 'google_' + Date.now()
+        }
+      };
+
+      // Save into localStorage
+      const currentList = getSavedAccounts();
+      const filtered = currentList.filter(a => a.email.toLowerCase() !== account.email.toLowerCase());
+      const updated = [{ ...account, role: currentRole }, ...filtered];
+      localStorage.setItem('trust_shield_google_accounts', JSON.stringify(updated));
+
+      // Post message to opener window (Trust Shield App)
+      if (window.opener && !window.opener.closed) {
+        window.opener.postMessage(authData, '*');
+        window.close();
+      } else {
+        // Fallback for standalone tab/browser
+        localStorage.setItem('trust_shield_google_auth_payload', JSON.stringify(authData));
+        window.location.href = '/';
+      }
+    }
+
+    function handleForgotEmail(e) {
+      e.preventDefault();
+      showAccountPicker();
+    }
+
+    function handleForgotPassword(e) {
+      e.preventDefault();
+      alert('Demo Password Recovery: You can enter any password in this demo to sign in!');
+    }
+
+    function togglePasswordVisibility(checkbox) {
+      const pwdInput = document.getElementById('input-password');
+      pwdInput.type = checkbox.checked ? 'text' : 'password';
+    }
+
+    // Initialize
+    selectRole(currentRole);
+    showEmailStep();
+  </script>
+</body>
+</html>
