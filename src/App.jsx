@@ -16,9 +16,38 @@ import {
 } from './data/initialData';
 
 export default function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [user, setUser] = useState(null);
-  const [activeTab, setActiveTab] = useState('home');
+  const [user, setUser] = useState(() => {
+    try {
+      const stored = localStorage.getItem('trust_shield_active_user');
+      return stored ? JSON.parse(stored) : null;
+    } catch (e) {
+      return null;
+    }
+  });
+
+  const [isAuthenticated, setIsAuthenticated] = useState(() => {
+    try {
+      return !!localStorage.getItem('trust_shield_active_user');
+    } catch (e) {
+      return false;
+    }
+  });
+
+  const [activeTab, setActiveTabState] = useState(() => {
+    try {
+      const storedTab = localStorage.getItem('trust_shield_active_tab');
+      return storedTab || 'home';
+    } catch (e) {
+      return 'home';
+    }
+  });
+
+  const setActiveTab = (tab) => {
+    setActiveTabState(tab);
+    try {
+      localStorage.setItem('trust_shield_active_tab', tab);
+    } catch (e) {}
+  };
 
   const [scamList, setScamList] = useState(INITIAL_COMMUNITY_SCAMS);
   const [bankReviews, setBankReviews] = useState(INITIAL_BANK_REVIEWS);
@@ -32,18 +61,21 @@ export default function App() {
   const handleLoginSuccess = (authenticatedUser) => {
     setUser(authenticatedUser);
     setIsAuthenticated(true);
-    // Direct Bank Risk Admin to Bank Audit portal, Customers to Home
-    if (authenticatedUser.role === 'BANK_ADMIN') {
-      setActiveTab('bank');
-    } else {
-      setActiveTab('home');
-    }
+    const initialTab = authenticatedUser.role === 'BANK_ADMIN' ? 'bank' : 'home';
+    setActiveTab(initialTab);
+    try {
+      localStorage.setItem('trust_shield_active_user', JSON.stringify(authenticatedUser));
+    } catch (e) {}
   };
 
   const handleLogout = () => {
     setIsAuthenticated(false);
     setUser(null);
     setDetectedScamCall(null);
+    try {
+      localStorage.removeItem('trust_shield_active_user');
+      localStorage.removeItem('trust_shield_active_tab');
+    } catch (e) {}
   };
 
   const handleScamDetected = (scamData) => {
