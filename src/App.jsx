@@ -1,5 +1,4 @@
-import React, { useState } from 'react';
-import Header from './components/Header';
+import React, { useEffect, useState } from 'react';import Header from './components/Header';
 import Navigation from './components/Navigation';
 import AuthScreen from './components/AuthScreen';
 import HomeView from './views/HomeView';
@@ -24,6 +23,19 @@ export default function App() {
       return null;
     }
   });
+  // Keep user progress saved after every change
+useEffect(() => {
+  if (!user) return;
+
+  try {
+    localStorage.setItem(
+      'trust_shield_active_user',
+      JSON.stringify(user)
+    );
+  } catch (e) {
+    console.error('Could not save user progress:', e);
+  }
+}, [user]);
 
   const [isAuthenticated, setIsAuthenticated] = useState(() => {
     try {
