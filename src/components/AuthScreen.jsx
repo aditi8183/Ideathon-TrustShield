@@ -1,3 +1,5 @@
+import { auth } from '../firebase'; // verify path matches your setup
+import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 import React, { useState } from 'react';
 import { Shield, ShieldCheck, Lock, Mail, User, Building2, Phone, ArrowRight, Sparkles, CheckCircle2, KeyRound, Globe, ExternalLink, AlertTriangle, AlertOctagon } from 'lucide-react';
 
@@ -29,9 +31,6 @@ export default function AuthScreen({ onLoginSuccess }) {
   const [isVerifying, setIsVerifying] = useState(false);
   const [resendTimer, setResendTimer] = useState(30);
 
-  // Google OAuth Modal
-  const [isGoogleModalOpen, setIsGoogleModalOpen] = useState(false);
-
   const banksList = ['ICICI Bank', 'SBI Bank', 'HDFC Bank', 'Axis Bank', 'Bank of Baroda', 'Kotak Mahindra'];
 
   // Dynamic Registered Account Role Store
@@ -54,7 +53,7 @@ export default function AuthScreen({ onLoginSuccess }) {
     } catch (e) {}
   };
 
-  // Dynamic Role & Account Detector (No domain prefix/suffix restrictions)
+  // Dynamic Role & Account Detector
   const validateRoleEmailMatch = (targetEmail, targetRole) => {
     const e = (targetEmail || '').toLowerCase().trim();
     if (!e) return { valid: true };
@@ -62,7 +61,6 @@ export default function AuthScreen({ onLoginSuccess }) {
     const accounts = getRegisteredAccounts();
     const existingRole = accounts[e];
 
-    // If account has already been registered / signed in under a specific role
     if (existingRole && existingRole !== targetRole) {
       if (existingRole === 'CUSTOMER' && targetRole === 'BANK_ADMIN') {
         return {
@@ -100,7 +98,6 @@ export default function AuthScreen({ onLoginSuccess }) {
     setFormError('');
     setOtpError('');
 
-    // Strict Role Validation Check
     const roleCheck = validateRoleEmailMatch(email, role);
     if (!roleCheck.valid) {
       setFormError(roleCheck.error);
@@ -109,13 +106,11 @@ export default function AuthScreen({ onLoginSuccess }) {
 
     setIsOtpSending(true);
 
-    // Generate secret 6-digit OTP code
     const secretOtp = Math.floor(100000 + Math.random() * 900000).toString();
     setGeneratedOtp(secretOtp);
 
     try {
-      // Dispatch real email via Vercel Serverless / Vite Nodemailer endpoint
-      const response = await fetch('/api/send-otp', {
+      await fetch('/api/send-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, otp: secretOtp, role })
@@ -140,7 +135,6 @@ export default function AuthScreen({ onLoginSuccess }) {
       return;
     }
 
-    // Double check role match on verification step
     const roleCheck = validateRoleEmailMatch(email, role);
     if (!roleCheck.valid) {
       setOtpError(roleCheck.error);
@@ -156,7 +150,7 @@ export default function AuthScreen({ onLoginSuccess }) {
         const authenticatedUser = {
           id: role === 'CUSTOMER' ? `cust_${Date.now()}` : `admin_${Date.now()}`,
           role: role,
-          name: name || (role === 'CUSTOMER' ? (email.split('@')[0] || 'Aditi Sharma') : 'Officer Rajesh Sharma'),
+          name: name || (role === 'CUSTOMER' ? (email.split('@')[0] || 'User') : 'Officer Admin'),
           email: email,
           phone: phone || '+91 98765 43210',
           upi_id: upiId || (email.split('@')[0] + '@okicici'),
@@ -170,7 +164,7 @@ export default function AuthScreen({ onLoginSuccess }) {
           cases_verified: 12,
           total_saved: 48500,
           avg_transaction_amount: 2500,
-          current_device: 'Chrome on Windows 11',
+          current_device: 'Chrome Browser',
           is_new_device: true,
           joined_date: new Date().toISOString()
         };
@@ -183,43 +177,55 @@ export default function AuthScreen({ onLoginSuccess }) {
     }, 600);
   };
 
-  // Google OAuth Simulation
-  const handleGoogleSignIn = () => {
+  // Real Firebase Google OAuth Sign In
+  const handleGoogleSignIn = async () => {
     setFormError('');
-    setIsGoogleModalOpen(true);
-  };
-
-  const confirmGoogleSignIn = (googleAccount) => {
-    setIsGoogleModalOpen(false);
-    setEmail(googleAccount.email);
-    setName(googleAccount.name);
-
-    const roleCheck = validateRoleEmailMatch(googleAccount.email, role);
-    if (!roleCheck.valid) {
-      setFormError(roleCheck.error);
-      return;
-    }
-
-    handleInitiateAuthWithEmail(googleAccount.email);
-  };
-
-  const handleInitiateAuthWithEmail = async (userEmail) => {
-    setIsOtpSending(true);
-    const secretOtp = Math.floor(100000 + Math.random() * 900000).toString();
-    setGeneratedOtp(secretOtp);
-
+    const provider = new GoogleAuthProvider();
     try {
-      const response = await fetch('/api/send-otp', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: userEmail, otp: secretOtp, role })
-      });
-      await response.json();
-      setIsOtpSending(false);
-      setIsOtpSent(true);
-    } catch (e) {
-      setIsOtpSending(false);
-      setIsOtpSent(true);
+      const result = await signInWithPopup(auth, provider);
+      const user = result.user;
+
+      const userEmail = user.email;
+      const userName = user.displayName || userEmail.split('@')[0];
+
+      const roleCheck = validateRoleEmailMatch(userEmail, role);
+      if (!roleCheck.valid) {
+        setFormError(roleCheck.error);
+        return;
+      }
+
+      setEmail(userEmail);
+      setName(userName);
+
+      // Log user in directly upon successful Google authentication
+      const authenticatedUser = {
+        id: user.uid,
+        role: role,
+        name: userName,
+        email: userEmail,
+        photoURL: user.photoURL,
+        phone: user.phoneNumber || '+91 98765 43210',
+        upi_id: userEmail.split('@')[0] + '@okicici',
+        bank_name: bankName,
+        employee_id: role === 'BANK_ADMIN' ? 'EMP-9942' : null,
+        branch: role === 'BANK_ADMIN' ? branchLocation : null,
+        guardian_points: role === 'CUSTOMER' ? 1250 : 5000,
+        guardian_level: role === 'CUSTOMER' ? 'Level 3 Guardian' : 'Senior Risk Auditor',
+        streak: 14,
+        cases_reported: 5,
+        cases_verified: 12,
+        total_saved: 48500,
+        avg_transaction_amount: 2500,
+        current_device: 'Google OAuth Device',
+        is_new_device: false,
+        joined_date: new Date().toISOString()
+      };
+
+      registerUserRole(userEmail, role);
+      onLoginSuccess(authenticatedUser);
+    } catch (error) {
+      console.error('Google Auth Error:', error);
+      setFormError(error.message || 'Failed to sign in with Google.');
     }
   };
 
@@ -528,202 +534,3 @@ export default function AuthScreen({ onLoginSuccess }) {
                   {role === 'BANK_ADMIN' ? 'Official Bank Email' : 'Email Address'}
                 </label>
                 <input
-                  type="email"
-                  className="input-field mono"
-                  value={email}
-                  onChange={(e) => { setEmail(e.target.value); setFormError(''); }}
-                  placeholder={role === 'BANK_ADMIN' ? 'officer@sbi.co.in' : 'yourname@email.com'}
-                  required
-                />
-              </div>
-
-              <div className="input-group">
-                <label className="input-label">Password</label>
-                <input
-                  type="password"
-                  className="input-field"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••••••"
-                  required
-                />
-              </div>
-
-              <button type="submit" className="btn-primary" disabled={isOtpSending} style={{ marginTop: 12 }}>
-                {isOtpSending ? (
-                  <span>Dispatching Real-Time Email...</span>
-                ) : (
-                  <>
-                    <Mail size={18} />
-                    <span>Send Real-Time Email OTP</span>
-                  </>
-                )}
-              </button>
-            </form>
-          </div>
-        ) : (
-          /* STEP 2: REAL-TIME SECRET OTP VERIFICATION */
-          <div className="glass-card" style={{ padding: 24, textAlign: 'center' }}>
-            <div style={{
-              width: 52,
-              height: 52,
-              borderRadius: 16,
-              background: 'rgba(16, 185, 129, 0.15)',
-              border: '1px solid rgba(16, 185, 129, 0.35)',
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: 'var(--safe-light)',
-              marginBottom: 12
-            }}>
-              <Mail size={26} />
-            </div>
-
-            <h3 style={{ fontSize: 20, fontWeight: 900, marginBottom: 6 }}>Email Dispatched to Inbox</h3>
-            <p style={{ fontSize: 13, color: 'var(--sub)', marginBottom: 14 }}>
-              A 6-digit security code has been sent to <span className="mono" style={{ color: 'var(--indigo-light)' }}>{email}</span>.
-            </p>
-
-            <div style={{
-              background: 'rgba(255, 255, 255, 0.03)',
-              border: '1px solid var(--border)',
-              borderRadius: 12,
-              padding: 10,
-              fontSize: 12,
-              color: 'var(--sub)',
-              marginBottom: 20
-            }}>
-              🔒 <strong>Security Enforcement:</strong> Check your real email inbox and enter the 6-digit code below.
-            </div>
-
-            <form onSubmit={handleVerifyOtp}>
-              <div className="input-group" style={{ marginBottom: 20 }}>
-                <label className="input-label">Enter 6-Digit OTP Code</label>
-                <input
-                  type="text"
-                  className="input-field mono"
-                  maxLength={6}
-                  value={otpInput}
-                  onChange={(e) => setOtpInput(e.target.value.replace(/\D/g, ''))}
-                  placeholder="------"
-                  style={{
-                    fontSize: 24,
-                    fontWeight: 900,
-                    letterSpacing: 12,
-                    textAlign: 'center',
-                    padding: '14px 10px'
-                  }}
-                  autoFocus
-                />
-              </div>
-
-              {otpError && (
-                <div style={{
-                  color: 'var(--danger-light)',
-                  background: 'rgba(239, 68, 68, 0.12)',
-                  border: '1px solid rgba(239, 68, 68, 0.3)',
-                  borderRadius: 10,
-                  padding: 10,
-                  fontSize: 12,
-                  fontWeight: 700,
-                  marginBottom: 16,
-                  textAlign: 'left'
-                }}>
-                  ⚠️ {otpError}
-                </div>
-              )}
-
-              <button type="submit" className="btn-primary" disabled={isVerifying}>
-                {isVerifying ? (
-                  <span>Verifying Credentials...</span>
-                ) : (
-                  <>
-                    <KeyRound size={18} />
-                    <span>Verify OTP & Sign In</span>
-                  </>
-                )}
-              </button>
-            </form>
-
-            <div style={{ marginTop: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12 }}>
-              <button
-                onClick={() => setIsOtpSent(false)}
-                style={{ background: 'none', border: 'none', color: 'var(--sub)', cursor: 'pointer' }}
-              >
-                ← Change Email
-              </button>
-
-              <button
-                onClick={handleInitiateAuth}
-                disabled={resendTimer > 0}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  color: resendTimer > 0 ? 'var(--muted)' : 'var(--indigo-light)',
-                  fontWeight: 700,
-                  cursor: resendTimer > 0 ? 'not-allowed' : 'pointer'
-                }}
-              >
-                {resendTimer > 0 ? `Resend OTP in ${resendTimer}s` : 'Resend Email OTP'}
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Google Modal Simulation */}
-      {isGoogleModalOpen && (
-        <div className="modal-overlay">
-          <div className="modal-content" style={{ maxWidth: 360, textAlign: 'center' }}>
-            <h3 style={{ fontSize: 18, fontWeight: 900, marginBottom: 12 }}>Sign in with Google</h3>
-            <p style={{ fontSize: 12, color: 'var(--sub)', marginBottom: 16 }}>
-              Select an account to dispatch a real-time OTP
-            </p>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
-              <button
-                onClick={() => confirmGoogleSignIn({ name: 'Aditi Sharma', email: 'aditi.sharma@gmail.com' })}
-                style={{
-                  padding: 12,
-                  borderRadius: 12,
-                  border: '1px solid var(--border)',
-                  background: 'rgba(255, 255, 255, 0.04)',
-                  color: 'var(--text)',
-                  fontSize: 13,
-                  fontWeight: 700,
-                  textAlign: 'left',
-                  cursor: 'pointer'
-                }}
-              >
-                <div style={{ fontWeight: 800 }}>Aditi Sharma (Customer)</div>
-                <div style={{ fontSize: 11, color: 'var(--sub)' }}>aditi.sharma@gmail.com</div>
-              </button>
-
-              <button
-                onClick={() => confirmGoogleSignIn({ name: 'Officer Rajesh Sharma', email: 'rajesh.sbi@sbi.co.in' })}
-                style={{
-                  padding: 12,
-                  borderRadius: 12,
-                  border: '1px solid var(--border)',
-                  background: 'rgba(255, 255, 255, 0.04)',
-                  color: 'var(--text)',
-                  fontSize: 13,
-                  fontWeight: 700,
-                  textAlign: 'left',
-                  cursor: 'pointer'
-                }}
-              >
-                <div style={{ fontWeight: 800 }}>Officer Rajesh Sharma (Bank Admin)</div>
-                <div style={{ fontSize: 11, color: 'var(--sub)' }}>rajesh.sbi@sbi.co.in</div>
-              </button>
-            </div>
-
-            <button className="btn-secondary" onClick={() => setIsGoogleModalOpen(false)}>
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
