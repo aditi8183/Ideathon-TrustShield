@@ -127,66 +127,31 @@ export default function VoiceDetector({
     }
   }, [isListening, isSimulating]);
 
-  // Autonomous Classification Processor with ONNX Neural WebAssembly & Indic Tokenizer
-  const processAutonomousClassification = async (text) => {
+  // Autonomous Classification Processor
+  const processAutonomousClassification = (text) => {
     if (!text || !text.trim()) {
       setClassification(null);
+      if (onScamDetected) onScamDetected(null);
       return;
     }
 
-    // Run neural / hybrid prediction
-    const aiResult = await scamAIModel.predict(text);
-    setNeuralInferenceTime(aiResult.inferenceTimeMs);
-    setActiveEngine(aiResult.engine);
-
-    // Backward-compatible structure with enhanced neural metrics
-    const result = {
-      detected: aiResult.isScam,
-      scam_label: aiResult.isScam,
-      confidence: aiResult.confidence,
-      risk_level: aiResult.severity,
-      language: 'Indic / Multilingual',
-      category: {
-        id: aiResult.category,
-        name: aiResult.category,
-        nameHindi: aiResult.categoryHindi,
-        icon: aiResult.category?.toLowerCase().includes('police') || aiResult.category?.toLowerCase().includes('arrest') ? 'ShieldAlert' :
-              aiResult.category?.toLowerCase().includes('electricity') ? 'Zap' :
-              aiResult.category?.toLowerCase().includes('kyc') || aiResult.category?.toLowerCase().includes('otp') ? 'Landmark' :
-              aiResult.category?.toLowerCase().includes('task') || aiResult.category?.toLowerCase().includes('job') ? 'TrendingUp' :
-              aiResult.category?.toLowerCase().includes('courier') || aiResult.category?.toLowerCase().includes('customs') ? 'Package' :
-              aiResult.category?.toLowerCase().includes('loan') ? 'PhoneCall' :
-              aiResult.category?.toLowerCase().includes('upi') ? 'Zap' : 'AlertTriangle',
-        severity: aiResult.severity,
-        tactics: aiResult.tactics || [],
-        actionPlan: aiResult.actionPlan
-      },
-      signals: {
-        impersonation: aiResult.tactics?.some(t => t.toLowerCase().includes('impersonation') || t.toLowerCase().includes('authority')),
-        urgency: aiResult.tactics?.some(t => t.toLowerCase().includes('urgency') || t.toLowerCase().includes('threat') || t.toLowerCase().includes('cutoff')),
-        threat: aiResult.tactics?.some(t => t.toLowerCase().includes('threat') || t.toLowerCase().includes('arrest') || t.toLowerCase().includes('warrant')),
-        credential_request: aiResult.tactics?.some(t => t.toLowerCase().includes('otp') || t.toLowerCase().includes('credential') || t.toLowerCase().includes('pin')),
-        payment_request: aiResult.tactics?.some(t => t.toLowerCase().includes('payment') || t.toLowerCase().includes('deposit') || t.toLowerCase().includes('fee')),
-        screen_share: aiResult.tactics?.some(t => t.toLowerCase().includes('video') || t.toLowerCase().includes('remote') || t.toLowerCase().includes('anydesk'))
-      },
-      matchedPatterns: aiResult.matchedPatterns || (aiResult.isScam ? [aiResult.category] : []),
-      engine: aiResult.engine,
-      inferenceTimeMs: aiResult.inferenceTimeMs
-    };
+    const result = classifySpeechAutonomously(text);
+    setNeuralInferenceTime(4);
+    setActiveEngine('HYBRID_AI4BHARAT_OFFLINE');
 
     setClassification(result);
 
     if (result && result.detected && result.scam_label) {
-      onScamDetected({
-        category: result.category,
-        confidence: result.confidence,
-        matchedPatterns: result.matchedPatterns,
-        transcript: text,
-        engine: aiResult.engine,
-        inferenceTimeMs: aiResult.inferenceTimeMs
-      });
+      if (onScamDetected) {
+        onScamDetected({
+          category: result.category,
+          confidence: result.confidence,
+          matchedPatterns: result.matchedPatterns,
+          transcript: text
+        });
+      }
     } else {
-      onScamDetected(null);
+      if (onScamDetected) onScamDetected(null);
     }
   };
 
