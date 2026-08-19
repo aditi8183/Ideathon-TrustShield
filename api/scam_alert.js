@@ -19,12 +19,13 @@ export default async function handler(req, res) {
     });
   }
 
-  const {
-    email,
-    amount,
-    recipientUpi,
-    riskScore
-  } = req.body || {};
+ const {
+  email,
+  accountHolderName,
+  amount,
+  recipientUpi,
+  riskScore
+} = req.body || {};
 
   // Validate email
   if (!email || !email.trim()) {
