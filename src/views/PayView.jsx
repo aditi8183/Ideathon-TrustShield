@@ -780,13 +780,20 @@ export default function PayView({
               <AlertOctagon size={32} />
             </div>
 
-            <h3 style={{ fontSize: 22, fontWeight: 900, color: 'var(--danger-light)', marginBottom: 6 }}>
+            <h3 style={{ fontSize: 22, fontWeight: 900, color: 'var(--danger-light)', marginBottom: 4 }}>
               Transaction Blocked
             </h3>
+
+            {/* HINDI WARNING SUBTITLE FROM IMAGE 1 */}
+            <div style={{ fontSize: 12, color: 'var(--warn-light)', fontWeight: 800, marginBottom: 8 }}>
+              सावधान: इस भुगतान पर सुरक्षा चेतावनी जारी की गई है।
+            </div>
+
             <p style={{ fontSize: 13, color: 'var(--sub)', marginBottom: 14 }}>
               Trust Shield prevented transfer of ₹{amount} to <span className="mono">{recipientUpi}</span> to safeguard your bank account.
             </p>
 
+            {/* RISK SCORE & SIGNAL BREAKDOWN BOX FROM IMAGE 2 */}
             <div style={{
               background: 'rgba(239, 68, 68, 0.1)',
               border: '1px solid rgba(239, 68, 68, 0.25)',
@@ -795,11 +802,29 @@ export default function PayView({
               fontSize: 12,
               textAlign: 'left',
               color: 'var(--danger-light)',
-              marginBottom: 16
+              marginBottom: 12
             }}>
               <strong>Risk Score: {riskScore}/100</strong>
               <ul style={{ paddingLeft: 16, marginTop: 4 }}>
                 {riskFactors.map(f => <li key={f.id}>{f.label}</li>)}
+              </ul>
+            </div>
+
+            {/* BEFORE CONFIRMING CHECKLIST BOX FROM IMAGE 1 */}
+            <div style={{
+              background: 'rgba(0, 0, 0, 0.4)',
+              border: '1px solid var(--border)',
+              borderRadius: 12,
+              padding: 12,
+              textAlign: 'left',
+              fontSize: 12,
+              marginBottom: 16
+            }}>
+              <strong style={{ color: 'var(--text)' }}>Before taking action, check:</strong>
+              <ul style={{ paddingLeft: 16, marginTop: 6, color: 'var(--sub)' }}>
+                <li>Are you currently on a voice call asking you to transfer money?</li>
+                <li>Is someone pressuring you with an urgent deadline?</li>
+                <li>Legitimate banks & police NEVER demand UPI transfers over phone calls.</li>
               </ul>
             </div>
 
