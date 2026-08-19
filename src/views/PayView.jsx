@@ -19,7 +19,7 @@ export default function PayView({
     name: 'Aditi Sharma',
     bank_name: 'ICICI Bank',
     avg_transaction_amount: 2500,
-    total_saved: 48500,
+    total_saved: 0,
     guardian_points: 1250,
     current_device: 'Chrome on Windows 11',
     is_new_device: true
