@@ -2,154 +2,324 @@ import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import nodemailer from 'nodemailer';
 
-// Custom Vite plugin for Ultra-Resilient Real-Time Email OTP Dispatch
-function otpEmailPlugin(env) {
+function readBody(req) {
+  return new Promise((resolve, reject) => {
+    let body = '';
+
+    req.on('data', chunk => {
+      body += chunk.toString();
+    });
+
+    req.on('end', () => {
+      try {
+        resolve(JSON.parse(body || '{}'));
+      } catch (error) {
+        reject(error);
+      }
+    });
+
+    req.on('error', reject);
+  });
+}
+
+function emailPlugin(env) {
   return {
-    name: 'api-otp-email-sender',
+    name: 'trustshield-email-api',
+
     configureServer(server) {
-      server.middlewares.use('/api/send-otp', async (req, res) => {
-        if (req.method !== 'POST') {
-          res.statusCode = 405;
-          res.end(JSON.stringify({ error: 'Method not allowed' }));
+
+      // ==============================
+      // TRUSTED NOMINEE SCAM ALERT
+      // ==============================
+      server.middlewares.use('/api/scam_alert', async (req, res) => {
+
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+        res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+        if (req.method === 'OPTIONS') {
+          res.statusCode = 200;
+          res.end();
           return;
         }
 
-        let body = '';
-        req.on('data', chunk => { body += chunk.toString(); });
-        req.on('end', async () => {
-          try {
-            const { email, otp, role } = JSON.parse(body || '{}');
+        if (req.method !== 'POST') {
+          res.statusCode = 405;
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify({
+            success: false,
+            error: 'Method not allowed'
+          }));
+          return;
+        }
 
-            if (!email || !otp) {
-              res.statusCode = 400;
-              res.setHeader('Content-Type', 'application/json');
-              res.end(JSON.stringify({ error: 'Missing email or otp parameter' }));
-              return;
-            }
+        try {
+          const {
+            email,
+            amount,
+            recipientUpi,
+            riskScore
+          } = await readBody(req);
 
-            console.log(`\n📧 Sending Real-Time OTP Email to: ${email} [OTP: Secret]`);
-
-            // Load environment variables from .env
-            const smtpHost = env.SMTP_HOST || process.env.SMTP_HOST;
-            const smtpPort = env.SMTP_PORT || process.env.SMTP_PORT || '465';
-            const smtpUser = env.SMTP_USER || process.env.SMTP_USER;
-            const smtpPass = env.SMTP_PASS || process.env.SMTP_PASS;
-
-            let emailSent = false;
-            let previewUrl = null;
-            let deliveryMethod = 'Direct HTTPS API';
-
-            // Method 1: Check if Custom Gmail/SMTP credentials exist in .env
-            if (smtpHost && smtpUser && smtpPass) {
-              try {
-                const transporter = nodemailer.createTransport({
-                  host: smtpHost,
-                  port: parseInt(smtpPort),
-                  secure: smtpPort === '465',
-                  auth: {
-                    user: smtpUser,
-                    pass: smtpPass
-                  },
-                  connectionTimeout: 5000
-                });
-
-                const info = await transporter.sendMail({
-                  from: `"Trust Shield Security" <${smtpUser}>`,
-                  to: email,
-                  subject: `🛡️ Trust Shield - Security OTP: ${otp}`,
-                  html: buildHtmlTemplate(email, otp, role)
-                });
-                emailSent = true;
-                deliveryMethod = `Direct Gmail SMTP (${smtpHost})`;
-                console.log(`✅ Sent via ${smtpHost} to ${email} (Message ID: ${info.messageId})`);
-              } catch (smtpErr) {
-                console.warn('⚠️ Custom SMTP failed, trying webmail gateway fallback:', smtpErr.message);
-              }
-            }
-
-            // Method 2: Try Ethereal SMTP with timeout fallback (handles network block ECONNREFUSED gracefully)
-            if (!emailSent) {
-              try {
-                const transporter = nodemailer.createTransport({
-                  host: 'smtp.ethereal.email',
-                  port: 587,
-                  secure: false,
-                  auth: {
-                    user: 'm2sngg247uhq2lrh@ethereal.email',
-                    pass: 'n8mE7bZ25jG8z1Q61v'
-                  },
-                  connectionTimeout: 3000
-                });
-
-                const info = await transporter.sendMail({
-                  from: '"Trust Shield Security" <no-reply@trustshield.auth>',
-                  to: email,
-                  subject: `🛡️ Trust Shield - Your Security OTP is ${otp}`,
-                  html: buildHtmlTemplate(email, otp, role)
-                });
-
-                emailSent = true;
-                previewUrl = nodemailer.getTestMessageUrl(info);
-                deliveryMethod = 'Ethereal Mail Gateway';
-                console.log(`✅ Sent via Ethereal Mail Gateway! Preview: ${previewUrl}`);
-              } catch (etherealErr) {
-                console.warn('⚠️ Port 587 blocked by local ISP firewall. Activating Instant HTTPS Webmail Dispatch...');
-              }
-            }
-
-            // Method 3: Instant HTTPS Webmail Sandbox Link (Guarantees zero blocking on restricted ISPs)
-            if (!previewUrl) {
-              previewUrl = `https://ethereal.email/messages`;
-            }
-
-            res.statusCode = 200;
+          if (!email || !email.trim()) {
+            res.statusCode = 400;
             res.setHeader('Content-Type', 'application/json');
             res.end(JSON.stringify({
-              success: true,
-              message: `Real-time Security OTP generated & dispatched for ${email}`,
-              deliveryMethod,
-              previewUrl: previewUrl || null
+              success: false,
+              error: 'Trusted nominee email is required'
             }));
-
-          } catch (err) {
-            console.error('❌ Endpoint error:', err);
-            res.statusCode = 200;
-            res.setHeader('Content-Type', 'application/json');
-            res.end(JSON.stringify({
-              success: true,
-              message: 'OTP dispatched via fallback security protocol'
-            }));
+            return;
           }
-        });
+
+          const smtpHost = env.SMTP_HOST || process.env.SMTP_HOST || 'smtp.gmail.com';
+          const smtpPort = Number(env.SMTP_PORT || process.env.SMTP_PORT || 465);
+          const smtpUser = env.SMTP_USER || process.env.SMTP_USER;
+          const smtpPass = env.SMTP_PASS || process.env.SMTP_PASS;
+
+          if (!smtpUser || !smtpPass) {
+            res.statusCode = 500;
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({
+              success: false,
+              error: 'SMTP credentials are not configured in .env.local'
+            }));
+            return;
+          }
+
+          console.log(`Sending Trust Shield scam alert to ${email}`);
+
+          const transporter = nodemailer.createTransport({
+            host: smtpHost,
+            port: smtpPort,
+            secure: smtpPort === 465,
+            auth: {
+              user: smtpUser,
+              pass: smtpPass
+            }
+          });
+
+          await transporter.sendMail({
+            from: `"Trust Shield Security" <${smtpUser}>`,
+            to: email,
+            subject: 'Trust Shield - Suspicious Payment Alert',
+
+            html: `
+              <div style="
+                font-family:Arial,sans-serif;
+                max-width:520px;
+                margin:auto;
+                padding:24px;
+                background:#0c1220;
+                color:#fff;
+                border-radius:12px;
+              ">
+
+                <h2 style="color:#6366f1;text-align:center;">
+                  🛡️ Trust Shield
+                </h2>
+
+                <p style="text-align:center;color:#94a3b8;">
+                  Trusted Nominee Security Alert
+                </p>
+
+                <div style="
+                  margin-top:20px;
+                  padding:18px;
+                  background:#35151a;
+                  border:1px solid #ef4444;
+                  border-radius:10px;
+                ">
+
+                  <h3 style="color:#f87171;">
+                    ⚠️ Suspicious Payment Detected
+                  </h3>
+
+                  <p>
+                    Trust Shield detected a potentially fraudulent
+                    payment attempt.
+                  </p>
+
+                  <p>
+                    <strong>Amount:</strong>
+                    ₹${amount || 'Unknown'}
+                  </p>
+
+                  <p>
+                    <strong>Recipient UPI:</strong>
+                    ${recipientUpi || 'Unknown'}
+                  </p>
+
+                  <p>
+                    <strong>Risk Score:</strong>
+                    ${riskScore ?? 'Unknown'}/100
+                  </p>
+
+                </div>
+
+                <div style="
+                  margin-top:16px;
+                  padding:14px;
+                  background:#332b12;
+                  border:1px solid #f59e0b;
+                  border-radius:8px;
+                  color:#fbbf24;
+                ">
+                  <strong>Security Warning</strong><br/>
+                  Please contact the account holder and verify this
+                  transaction before allowing the payment to proceed.
+                </div>
+
+                <p style="
+                  margin-top:20px;
+                  text-align:center;
+                  color:#64748b;
+                  font-size:11px;
+                ">
+                  Automatically generated by Trust Shield.
+                </p>
+
+              </div>
+            `
+          });
+
+          console.log(`✅ Scam alert email sent to ${email}`);
+
+          res.statusCode = 200;
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify({
+            success: true,
+            message: 'Scam alert sent successfully'
+          }));
+
+        } catch (error) {
+
+          console.error('❌ Scam alert email error:', error);
+
+          res.statusCode = 500;
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify({
+            success: false,
+            error: error.message || 'Failed to send scam alert'
+          }));
+        }
+      });
+
+
+      // ==============================
+      // EMAIL OTP
+      // ==============================
+      server.middlewares.use('/api/send-otp', async (req, res) => {
+
+        if (req.method !== 'POST') {
+          res.statusCode = 405;
+          res.end(JSON.stringify({
+            error: 'Method not allowed'
+          }));
+          return;
+        }
+
+        try {
+
+          const { email, otp, role } = await readBody(req);
+
+          if (!email || !otp) {
+            res.statusCode = 400;
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({
+              error: 'Missing email or otp parameter'
+            }));
+            return;
+          }
+
+          const smtpHost = env.SMTP_HOST || process.env.SMTP_HOST;
+          const smtpPort = Number(
+            env.SMTP_PORT || process.env.SMTP_PORT || 465
+          );
+          const smtpUser = env.SMTP_USER || process.env.SMTP_USER;
+          const smtpPass = env.SMTP_PASS || process.env.SMTP_PASS;
+
+          if (!smtpHost || !smtpUser || !smtpPass) {
+            res.statusCode = 500;
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({
+              success: false,
+              error: 'SMTP credentials are not configured'
+            }));
+            return;
+          }
+
+          const transporter = nodemailer.createTransport({
+            host: smtpHost,
+            port: smtpPort,
+            secure: smtpPort === 465,
+            auth: {
+              user: smtpUser,
+              pass: smtpPass
+            }
+          });
+
+          await transporter.sendMail({
+            from: `"Trust Shield Security" <${smtpUser}>`,
+            to: email,
+            subject: `Trust Shield - Security OTP: ${otp}`,
+
+            html: `
+              <div style="
+                font-family:Arial,sans-serif;
+                max-width:500px;
+                margin:auto;
+                padding:24px;
+              ">
+
+                <h2>🛡️ Trust Shield</h2>
+
+                <p>
+                  Your Trust Shield verification code is:
+                </p>
+
+                <h1 style="letter-spacing:8px;">
+                  ${otp}
+                </h1>
+
+                <p>
+                  This code is valid for 10 minutes.
+                </p>
+
+              </div>
+            `
+          });
+
+          res.statusCode = 200;
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify({
+            success: true,
+            message: 'OTP email sent successfully'
+          }));
+
+        } catch (error) {
+
+          console.error('OTP email error:', error);
+
+          res.statusCode = 500;
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify({
+            success: false,
+            error: error.message || 'Failed to send OTP'
+          }));
+        }
       });
     }
   };
 }
 
-function buildHtmlTemplate(email, otp, role) {
-  return `
-    <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto; background: #080d17; color: #f1f5f9; padding: 24px; border-radius: 16px; border: 1px solid #1e293b;">
-      <div style="text-align: center; margin-bottom: 20px;">
-        <h2 style="color: #6366f1; margin: 0;">🛡️ Trust Shield</h2>
-        <p style="color: #94a3b8; font-size: 13px; margin-top: 4px;">Zero-Knowledge Payment Fraud & Security System</p>
-      </div>
-      <div style="background: #0c1220; padding: 20px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.08); text-align: center;">
-        <p style="margin: 0 0 10px; font-size: 14px; color: #94a3b8;">Your 6-Digit Email Verification Code for ${role === 'BANK_ADMIN' ? 'Bank Officer Portal' : 'Customer Account'}:</p>
-        <div style="font-size: 32px; font-weight: bold; letter-spacing: 8px; color: #818cf8; background: #04080f; padding: 14px; border-radius: 8px; border: 1px dashed #6366f1; display: inline-block;">
-          ${otp}
-        </div>
-        <p style="margin: 14px 0 0; font-size: 12px; color: #ef4444;">Valid for 10 minutes. Do NOT share this security code with anyone.</p>
-      </div>
-      <p style="font-size: 11px; color: #475569; text-align: center; margin-top: 20px;">
-        This is an automated real-time security alert dispatched to ${email}.
-      </p>
-    </div>
-  `;
-}
-
 export default defineConfig(({ mode }) => {
+
   const env = loadEnv(mode, process.cwd(), '');
+
   return {
-    plugins: [react(), otpEmailPlugin(env)],
+    plugins: [
+      react(),
+      emailPlugin(env)
+    ]
   };
 });

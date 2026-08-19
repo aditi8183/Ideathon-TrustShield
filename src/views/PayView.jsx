@@ -389,8 +389,7 @@ export default function PayView({
     setScamAlertError('');
 
     try {
-      const response = await fetch('/api/send_scam_alert', {
-        method: 'POST',
+const response = await fetch('/api/scam_alert', {        method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
