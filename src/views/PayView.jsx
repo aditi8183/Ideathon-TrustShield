@@ -40,10 +40,7 @@ export default function PayView({
   const [isOddHour, setIsOddHour] = useState(false);
   const [validationError, setValidationError] = useState('');
   // Behavioral & Device Coercion signals
-  const [isPasted, setIsPasted] = useState(paymentDraft?.isPasted || false);
-  const [isOddHour, setIsOddHour] = useState(false);
-  const [validationError, setValidationError] = useState('');
-
+ 
   // Keep state synchronized with persistent paymentDraft prop
   useEffect(() => {
     if (paymentDraft) {
