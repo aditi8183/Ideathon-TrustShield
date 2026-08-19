@@ -6,15 +6,17 @@
  * Handles Indic languages (Hindi, Hinglish, English, Tamil, Telugu, Bengali, Marathi, etc.)
  */
 
-import * as ort from 'onnxruntime-web';
-import { classifySpeechAutonomously, CHAKRAVYUH_SCAM_CATEGORIES } from '../data/scamKeywords';
+// Optional ONNX WASM runtime engine (falls back cleanly to autonomous engine if ONNX is unbundled)
+const ort = typeof window !== 'undefined' ? (window.ort || null) : null;
 
 // Configure ONNX WebAssembly execution environment
-try {
-  ort.env.wasm.numThreads = 1;
-  ort.env.wasm.simd = true;
-} catch (e) {
-  console.warn('[ONNX] Environment setup warning:', e);
+if (ort && ort.env && ort.env.wasm) {
+  try {
+    ort.env.wasm.numThreads = 1;
+    ort.env.wasm.simd = true;
+  } catch (e) {
+    console.warn('[ONNX] Environment setup warning:', e);
+  }
 }
 
 // 8 Primary Scam Categories mapped to neural output logits
