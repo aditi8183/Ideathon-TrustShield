@@ -176,7 +176,7 @@ export default function VoiceDetector({
 
     setClassification(result);
 
-    if (result.detected) {
+    if (result && result.detected && result.scam_label) {
       onScamDetected({
         category: result.category,
         confidence: result.confidence,
@@ -185,6 +185,8 @@ export default function VoiceDetector({
         engine: aiResult.engine,
         inferenceTimeMs: aiResult.inferenceTimeMs
       });
+    } else {
+      onScamDetected(null);
     }
   };
 
@@ -259,6 +261,7 @@ export default function VoiceDetector({
     setTranscript('');
     setClassification(null);
     accumulatedTranscriptRef.current = '';
+    onScamDetected(null);
     if (onClearTranscript) onClearTranscript();
   };
 
