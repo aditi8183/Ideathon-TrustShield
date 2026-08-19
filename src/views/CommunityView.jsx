@@ -87,8 +87,11 @@ export default function CommunityView({ scamList = [], onUpvoteScam, onAddScam }
         filteredScams.map((scam) => {
           const categoryDisplay = scam.category || scam.scam_type || 'Scam Report';
           const severityDisplay = scam.severity || scam.urgency || 'HIGH';
-          const targetedAmt = scam.targeted_amount ? scam.targeted_amount.toLocaleString('en-IN') : '25,000';
-          const victimCount = scam.victim_count || 14;
+         const targetedAmt = scam.targeted_amount
+  ? scam.targeted_amount.toLocaleString('en-IN')
+  : 'Not disclosed';
+
+const victimCount = scam.victim_count || 1;
           const reporterName = scam.reporter_name || scam.reported_by || 'Community Guardian';
           const upiList = scam.upi_ids || [];
 
