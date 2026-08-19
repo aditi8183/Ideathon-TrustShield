@@ -77,8 +77,7 @@ export default function HomeView({
             <div style={{ fontSize: 10, color: 'var(--sub)', fontWeight: 700 }}>LEVEL</div>
             <div style={{ fontSize: 15, fontWeight: 900, color: 'var(--gold)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
               <Award size={14} />
-              <span>Lvl 3</span>
-            </div>
+<span>Lvl {user.level || 1}</span>            </div>
           </div>
         </div>
       </div>

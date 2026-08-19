@@ -28,11 +28,17 @@ export default function PayView({
   const [recipientUpi, setRecipientUpi] = useState(paymentDraft?.recipientUpi || '');
   const [amount, setAmount] = useState(paymentDraft?.amount || '');
   const [note, setNote] = useState(paymentDraft?.note || '');
-
   // Payment Method Selection ('online' = Launch UPI App | 'in_app' = In-App PIN Keypad)
   const [paymentMethod, setPaymentMethod] = useState('online');
   const [selectedUpiApp, setSelectedUpiApp] = useState('all'); // 'all' | 'gpay' | 'phonepe' | 'paytm' | 'bhim' | 'cred'
 
+  // Frequent Payees
+  const [frequentPayees, setFrequentPayees] = useState([]);
+
+  // Behavioral & Device Coercion signals
+  const [isPasted, setIsPasted] = useState(paymentDraft?.isPasted || false);
+  const [isOddHour, setIsOddHour] = useState(false);
+  const [validationError, setValidationError] = useState('');
   // Behavioral & Device Coercion signals
   const [isPasted, setIsPasted] = useState(paymentDraft?.isPasted || false);
   const [isOddHour, setIsOddHour] = useState(false);
@@ -94,6 +100,42 @@ export default function PayView({
     const currentHour = new Date().getHours();
     setIsOddHour(currentHour >= 22 || currentHour < 6);
   }, []);
+  useEffect(() => {
+  try {
+    const history = JSON.parse(
+      localStorage.getItem('trustshield_payment_history') || '[]'
+    );
+
+    const counts = {};
+
+    history.forEach((payment) => {
+      if (!payment.recipientUpi) return;
+
+      const upiKey = payment.recipientUpi.toLowerCase();
+
+      if (!counts[upiKey]) {
+        counts[upiKey] = {
+          upi: payment.recipientUpi,
+          count: 0,
+          lastAmount: payment.amount || 0,
+          note: payment.note || ''
+        };
+      }
+
+      counts[upiKey].count += 1;
+      counts[upiKey].lastAmount = payment.amount || 0;
+      counts[upiKey].note = payment.note || '';
+    });
+
+    const sortedPayees = Object.values(counts)
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5);
+
+    setFrequentPayees(sortedPayees);
+  } catch (error) {
+    console.error('Unable to load payment history:', error);
+  }
+}, []);
 
   const handleUpiChange = (e) => {
     const val = e.target.value;
@@ -475,62 +517,69 @@ export default function PayView({
           </button>
         </div>
 
-        {/* Quick Payee Selection Bar */}
-        <div style={{ marginBottom: 14 }}>
-          <div style={{ fontSize: 11, color: 'var(--sub)', fontWeight: 700, marginBottom: 6 }}>
-            QUICK TAP DEMO PAYEES:
-          </div>
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-            <button
-              onClick={() => fillQuickPayee('starbucks.coffee@icici', 350, 'Coffee Payment', false)}
-              style={{
-                background: 'rgba(16, 185, 129, 0.1)',
-                border: '1px solid rgba(16, 185, 129, 0.25)',
-                color: 'var(--safe-light)',
-                borderRadius: 20,
-                padding: '4px 10px',
-                fontSize: 11,
-                fontWeight: 700,
-                cursor: 'pointer'
-              }}
-            >
-              ☕ Cafe Coffee (Safe)
-            </button>
+       {/* Quick Send - Frequent Payees */}
+<div style={{ marginBottom: 14 }}>
+  <div style={{
+    fontSize: 11,
+    color: 'var(--sub)',
+    fontWeight: 700,
+    marginBottom: 6
+  }}>
+    QUICK SEND — FREQUENT PAYEES
+  </div>
 
-            <button
-              onClick={() => fillQuickPayee('landlord.rent@hdfc', 15000, 'House Rent', false)}
-              style={{
-                background: 'rgba(99, 102, 241, 0.1)',
-                border: '1px solid rgba(99, 102, 241, 0.25)',
-                color: 'var(--indigo-light)',
-                borderRadius: 20,
-                padding: '4px 10px',
-                fontSize: 11,
-                fontWeight: 700,
-                cursor: 'pointer'
-              }}
-            >
-              🏠 Rent Transfer (Safe)
-            </button>
+  {frequentPayees.length > 0 ? (
+    <div style={{
+      display: 'flex',
+      gap: 6,
+      flexWrap: 'wrap'
+    }}>
+      {frequentPayees.map((payee) => (
+        <button
+          key={payee.upi}
+          onClick={() =>
+            fillQuickPayee(
+              payee.upi,
+              payee.lastAmount,
+              payee.note || 'Quick Send',
+              false
+            )
+          }
+          style={{
+            background: 'rgba(16, 185, 129, 0.1)',
+            border: '1px solid rgba(16, 185, 129, 0.25)',
+            color: 'var(--safe-light)',
+            borderRadius: 20,
+            padding: '6px 11px',
+            fontSize: 11,
+            fontWeight: 700,
+            cursor: 'pointer'
+          }}
+        >
+          👤 {payee.upi}
 
-            <button
-              onClick={() => fillQuickPayee('trai.verify@fraudster', 18500, 'Customs Fee Clearance', true)}
-              style={{
-                background: 'rgba(239, 68, 68, 0.12)',
-                border: '1px solid rgba(239, 68, 68, 0.3)',
-                color: 'var(--danger-light)',
-                borderRadius: 20,
-                padding: '4px 10px',
-                fontSize: 11,
-                fontWeight: 700,
-                cursor: 'pointer'
-              }}
-            >
-              🚨 TRAI Scam (Fraud)
-            </button>
-          </div>
-        </div>
-
+          <span style={{
+            marginLeft: 5,
+            opacity: 0.7
+          }}>
+            ×{payee.count}
+          </span>
+        </button>
+      ))}
+    </div>
+  ) : (
+    <div style={{
+      padding: 10,
+      borderRadius: 10,
+      background: 'rgba(255,255,255,0.03)',
+      border: '1px solid var(--border)',
+      color: 'var(--sub)',
+      fontSize: 11
+    }}>
+      No frequent payees yet. They will appear here after successful payments.
+    </div>
+  )}
+</div>
         {/* Input Form */}
         <div className="input-group">
           <label className="input-label">Recipient UPI ID</label>
