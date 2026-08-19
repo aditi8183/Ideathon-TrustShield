@@ -14,6 +14,15 @@ import {
   INITIAL_POINT_EVENTS
 } from './data/initialData';
 
+const calculateLevel = (pts) => {
+  const points = Number(pts) || 0;
+  if (points >= 2500) return 5;
+  if (points >= 1500) return 4;
+  if (points >= 800) return 3;
+  if (points >= 300) return 2;
+  return 1;
+};
+
 export default function App() {
   const [user, setUser] = useState(() => {
     try {
