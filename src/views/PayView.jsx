@@ -1,6 +1,11 @@
 import React, { useState, useEffect } from 'react';
+<<<<<<< HEAD
 import { Send, ShieldAlert, AlertOctagon, CheckCircle2, QrCode, Camera, AlertTriangle, ArrowRight, Sparkles, X, UserCheck, Smartphone, Clock, Copy, ShieldCheck, HelpCircle, FileCheck2 } from 'lucide-react';
+=======
+import { Send, ShieldAlert, AlertOctagon, CheckCircle2, QrCode, Camera, AlertTriangle, ArrowRight, Sparkles, X, UserCheck, Smartphone, Clock, Copy, ShieldCheck, HelpCircle, Lock, Zap } from 'lucide-react';
+>>>>>>> 628892d (Add Pay Online method with automatic UPI app opening and intent modal)
 import PINModal from '../components/PINModal';
+import UpiModal from '../components/UpiModal';
 
 export default function PayView({
   user,
@@ -27,6 +32,10 @@ export default function PayView({
   const [recipientUpi, setRecipientUpi] = useState(paymentDraft?.recipientUpi || '');
   const [amount, setAmount] = useState(paymentDraft?.amount || '');
   const [note, setNote] = useState(paymentDraft?.note || '');
+
+  // Payment Method Selection ('online' = Launch UPI App | 'in_app' = In-App PIN Keypad)
+  const [paymentMethod, setPaymentMethod] = useState('online');
+  const [selectedUpiApp, setSelectedUpiApp] = useState('all'); // 'all' | 'gpay' | 'phonepe' | 'paytm' | 'bhim' | 'cred'
 
   // Behavioral & Device Coercion signals
   const [isPasted, setIsPasted] = useState(paymentDraft?.isPasted || false);
@@ -61,6 +70,7 @@ export default function PayView({
   const [isBlockedModalOpen, setIsBlockedModalOpen] = useState(false);
   const [isUrgentWarningOpen, setIsUrgentWarningOpen] = useState(false);
   const [isPinModalOpen, setIsPinModalOpen] = useState(false);
+  const [isUpiModalOpen, setIsUpiModalOpen] = useState(false);
   const [isQrScannerOpen, setIsQrScannerOpen] = useState(false);
   const [isScanningQr, setIsScanningQr] = useState(false);
 
@@ -70,7 +80,19 @@ export default function PayView({
   // False Positive Override Request State
   const [userOverrideNote, setUserOverrideNote] = useState('');
   const [isOverrideSubmitted, setIsOverrideSubmitted] = useState(false);
+  const [trustedNomineeEmail, setTrustedNomineeEmail] = useState('');
+  const [isSendingScamAlert, setIsSendingScamAlert] = useState(false);
+  const [scamAlertError, setScamAlertError] = useState('');
+  const [fraudAcknowledged, setFraudAcknowledged] = useState(false);
+  const [scamAlertSent, setScamAlertSent] = useState(false);
 
+  const proceedToPayment = () => {
+    if (paymentMethod === 'online') {
+      setIsUpiModalOpen(true);
+    } else {
+      setIsPinModalOpen(true);
+    }
+  };
   useEffect(() => {
     // Check current hour for odd-hour transaction warning (10 PM to 6 AM)
     const currentHour = new Date().getHours();
@@ -294,15 +316,16 @@ export default function PayView({
         // Moderate Risk: Show Security Warning Confirmation Modal
         setIsUrgentWarningOpen(true);
       } else {
-        // Safe: Open Interactive PIN Modal
-        setIsPinModalOpen(true);
+        // Safe: Proceed to selected payment method (UPI App or PIN)
+        proceedToPayment();
       }
     }, 600);
   };
 
-  // Safe Payment Successful PIN Handler
+  // Safe Payment Successful PIN / UPI Handler
   const handlePinSuccess = () => {
     setIsPinModalOpen(false);
+    setIsUpiModalOpen(false);
     const amtNum = parseFloat(amount) || 0;
     const payeeUpi = recipientUpi || 'merchant@upi';
     const payNote = note || 'Verified Safe Payment';
@@ -322,6 +345,46 @@ export default function PayView({
     }
 
     handleResetDraft();
+  };
+
+  const handleSendScamAlert = async () => {
+    const email = trustedNomineeEmail.trim();
+
+    if (!email) return;
+
+    setIsSendingScamAlert(true);
+    setScamAlertSent(false);
+    setScamAlertError('');
+
+    try {
+      const response = await fetch('/api/send_scam_alert', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          email,
+          amount,
+          recipientUpi,
+          riskScore
+        })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || 'Failed to send scam alert');
+      }
+
+      setScamAlertSent(true);
+    } catch (error) {
+      console.error('Scam alert error:', error);
+      setScamAlertError(
+        error.message || 'Unable to send scam alert'
+      );
+    } finally {
+      setIsSendingScamAlert(false);
+    }
   };
 
   // Submit False Positive Request to Bank Risk Officer Console
@@ -528,6 +591,140 @@ export default function PayView({
           />
         </div>
 
+        {/* Payment Method Selector */}
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ fontSize: 11, color: 'var(--sub)', fontWeight: 700, marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+            SELECT PAYMENT METHOD:
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            <button
+              type="button"
+              onClick={() => setPaymentMethod('online')}
+              style={{
+                padding: '10px 12px',
+                borderRadius: 12,
+                border: paymentMethod === 'online' ? '1.5px solid var(--indigo-light)' : '1px solid var(--border)',
+                background: paymentMethod === 'online' ? 'rgba(99, 102, 241, 0.18)' : 'rgba(255, 255, 255, 0.03)',
+                color: paymentMethod === 'online' ? '#fff' : 'var(--sub)',
+                cursor: 'pointer',
+                textAlign: 'left',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                transition: 'all 0.2s',
+                boxShadow: paymentMethod === 'online' ? '0 0 14px rgba(99, 102, 241, 0.25)' : 'none'
+              }}
+            >
+              <div style={{
+                width: 32,
+                height: 32,
+                borderRadius: 8,
+                background: paymentMethod === 'online' ? 'var(--indigo)' : 'rgba(255, 255, 255, 0.06)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#fff',
+                flexShrink: 0
+              }}>
+                <Zap size={16} />
+              </div>
+              <div>
+                <div style={{ fontWeight: 800, fontSize: 13 }}>Pay Online</div>
+                <div style={{ fontSize: 10, color: 'var(--sub)' }}>Open UPI App (GPay/PhonePe)</div>
+              </div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setPaymentMethod('in_app')}
+              style={{
+                padding: '10px 12px',
+                borderRadius: 12,
+                border: paymentMethod === 'in_app' ? '1.5px solid var(--indigo-light)' : '1px solid var(--border)',
+                background: paymentMethod === 'in_app' ? 'rgba(99, 102, 241, 0.18)' : 'rgba(255, 255, 255, 0.03)',
+                color: paymentMethod === 'in_app' ? '#fff' : 'var(--sub)',
+                cursor: 'pointer',
+                textAlign: 'left',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                transition: 'all 0.2s',
+                boxShadow: paymentMethod === 'in_app' ? '0 0 14px rgba(99, 102, 241, 0.25)' : 'none'
+              }}
+            >
+              <div style={{
+                width: 32,
+                height: 32,
+                borderRadius: 8,
+                background: paymentMethod === 'in_app' ? 'var(--indigo)' : 'rgba(255, 255, 255, 0.06)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#fff',
+                flexShrink: 0
+              }}>
+                <Lock size={16} />
+              </div>
+              <div>
+                <div style={{ fontWeight: 800, fontSize: 13 }}>In-App PIN</div>
+                <div style={{ fontSize: 10, color: 'var(--sub)' }}>Protected PIN Gateway</div>
+              </div>
+            </button>
+          </div>
+        </div>
+
+        {/* Preferred UPI App Selector (Shown when Pay Online is selected) */}
+        {paymentMethod === 'online' && (
+          <div style={{
+            background: 'rgba(99, 102, 241, 0.06)',
+            border: '1px solid rgba(99, 102, 241, 0.2)',
+            borderRadius: 12,
+            padding: '10px 12px',
+            marginBottom: 16
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+              <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--indigo-light)' }}>
+                TARGET UPI APP:
+              </span>
+              <span style={{ fontSize: 10, color: 'var(--sub)' }}>
+                Opens directly on Pay Now
+              </span>
+            </div>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              {[
+                { id: 'all', name: 'Auto / Default', icon: '⚡' },
+                { id: 'gpay', name: 'Google Pay', icon: '🌐' },
+                { id: 'phonepe', name: 'PhonePe', icon: '🟣' },
+                { id: 'paytm', name: 'Paytm', icon: '🔵' },
+                { id: 'bhim', name: 'BHIM', icon: '🇮🇳' },
+                { id: 'cred', name: 'CRED', icon: '💳' }
+              ].map(app => (
+                <button
+                  key={app.id}
+                  type="button"
+                  onClick={() => setSelectedUpiApp(app.id)}
+                  style={{
+                    padding: '4px 10px',
+                    borderRadius: 16,
+                    border: selectedUpiApp === app.id ? '1px solid var(--indigo-light)' : '1px solid var(--border)',
+                    background: selectedUpiApp === app.id ? 'rgba(99, 102, 241, 0.25)' : 'rgba(255, 255, 255, 0.04)',
+                    color: selectedUpiApp === app.id ? '#fff' : 'var(--sub)',
+                    fontSize: 11,
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 4
+                  }}
+                >
+                  <span>{app.icon}</span>
+                  <span>{app.name}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {validationError && (
           <div style={{
             background: 'rgba(239, 68, 68, 0.12)',
@@ -552,6 +749,11 @@ export default function PayView({
           >
             {isAnalyzing ? (
               <span>Analyzing Zero-Knowledge Risk & Coercion Signals...</span>
+            ) : paymentMethod === 'online' ? (
+              <>
+                <Zap size={18} />
+                <span>Pay Now ₹{amount || '0'}</span>
+              </>
             ) : (
               <>
                 <Send size={18} />
@@ -750,7 +952,7 @@ export default function PayView({
                 className="btn-primary"
                 onClick={() => {
                   setIsUrgentWarningOpen(false);
-                  setIsPinModalOpen(true);
+                  proceedToPayment();
                 }}
                 style={{ background: 'var(--indigo)' }}
               >
@@ -809,7 +1011,6 @@ export default function PayView({
                 {riskFactors.map(f => <li key={f.id}>{f.label}</li>)}
               </ul>
             </div>
-
             {/* BEFORE CONFIRMING CHECKLIST BOX FROM IMAGE 1 */}
             <div style={{
               background: 'rgba(0, 0, 0, 0.4)',
@@ -826,6 +1027,170 @@ export default function PayView({
                 <li>Is someone pressuring you with an urgent deadline?</li>
                 <li>Legitimate banks & police NEVER demand UPI transfers over phone calls.</li>
               </ul>
+            </div>
+
+            {/* TRUSTED NOMINEE ALERT SECTION */}
+            <div style={{
+              background: 'rgba(99, 102, 241, 0.08)',
+              border: '1px solid rgba(99, 102, 241, 0.3)',
+              borderRadius: 12,
+              padding: 12,
+              textAlign: 'left',
+              marginBottom: 16
+            }}>
+              <div style={{
+                fontSize: 12,
+                fontWeight: 800,
+                color: 'var(--indigo-light)',
+                marginBottom: 6,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6
+              }}>
+                <UserCheck size={15} />
+                <span>Trusted Nominee Alert</span>
+              </div>
+
+              <p style={{
+                fontSize: 11,
+                color: 'var(--sub)',
+                marginBottom: 10
+              }}>
+                Notify your trusted nominee about this suspicious payment attempt.
+              </p>
+
+              <div style={{
+                display: 'flex',
+                gap: 6,
+                marginBottom: 10
+              }}>
+                <input
+                  type="email"
+                  className="input-field"
+                  value={trustedNomineeEmail}
+                  onChange={(e) => setTrustedNomineeEmail(e.target.value)}
+                  placeholder="Trusted nominee email"
+                  style={{
+                    fontSize: 11,
+                    padding: '7px 10px',
+                    flex: 1
+                  }}
+                />
+
+                <button
+                  onClick={handleSendScamAlert}
+                  disabled={
+                    !trustedNomineeEmail.trim() || isSendingScamAlert
+                  } style={{
+                    background: 'var(--indigo)',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: 8,
+                    padding: '7px 10px',
+                    fontSize: 11,
+                    fontWeight: 800,
+                    whiteSpace: 'nowrap',
+                    cursor: trustedNomineeEmail.trim() ? 'pointer' : 'not-allowed',
+                    opacity: trustedNomineeEmail.trim() ? 1 : 0.5
+                  }}
+                >
+                  {isSendingScamAlert ? 'Sending...' : 'Send Scam Alert'}    </button>
+              </div>
+
+              {scamAlertSent && (
+                <div style={{
+                  background: 'rgba(16, 185, 129, 0.12)',
+                  border: '1px solid rgba(16, 185, 129, 0.3)',
+                  color: 'var(--safe-light)',
+                  padding: 8,
+                  borderRadius: 8,
+                  fontSize: 11,
+                  fontWeight: 700,
+                  marginBottom: 10
+                }}>
+                  <CheckCircle2
+                    size={14}
+                    style={{
+                      display: 'inline',
+                      marginRight: 5,
+                      verticalAlign: 'middle'
+                    }}
+                  />
+                  Scam alert sent to the trusted nominee.
+                </div>
+              )}
+              {scamAlertError && (
+                <div
+                  style={{
+                    background: 'rgba(239, 68, 68, 0.12)',
+                    border: '1px solid rgba(239, 68, 68, 0.3)',
+                    color: 'var(--danger-light)',
+                    padding: 8,
+                    borderRadius: 8,
+                    fontSize: 11,
+                    fontWeight: 700,
+                    marginBottom: 10
+                  }}
+                >
+                  ⚠️ {scamAlertError}
+                </div>
+              )}
+
+              <div style={{
+                background: 'rgba(239, 68, 68, 0.1)',
+                border: '1px solid rgba(239, 68, 68, 0.25)',
+                borderRadius: 8,
+                padding: 10,
+                marginBottom: 10,
+                fontSize: 11,
+                color: 'var(--danger-light)',
+                lineHeight: 1.5
+              }}>
+                ⚠️ WARNING suspicious activity was detected.
+
+              </div>
+
+              <label style={{
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: 8,
+                fontSize: 11,
+                color: 'var(--sub)',
+                cursor: 'pointer',
+                marginBottom: 12
+              }}>
+                <input
+                  type="checkbox"
+                  checked={fraudAcknowledged}
+                  onChange={(e) => setFraudAcknowledged(e.target.checked)}
+                  style={{
+                    marginTop: 2,
+                    cursor: 'pointer'
+                  }}
+                />
+
+                <span>
+                  I understand the fraud warning and all the terms and conditions.
+                  I still want to continue with this payment.
+                </span>
+              </label>
+
+              <button
+                className="btn-primary"
+                disabled={!fraudAcknowledged}
+                onClick={() => {
+                  setIsBlockedModalOpen(false);
+                  proceedToPayment();
+                }}
+                style={{
+                  width: '100%',
+                  opacity: fraudAcknowledged ? 1 : 0.45,
+                  cursor: fraudAcknowledged ? 'pointer' : 'not-allowed',
+                  marginBottom: 8
+                }}
+              >
+                Proceed
+              </button>
             </div>
 
             {/* FALSE POSITIVE / INSTITUTIONAL OVERRIDE SECTION */}
@@ -984,6 +1349,18 @@ export default function PayView({
           </div>
         </div>
       )}
+
+      {/* UPI Intent Launcher Modal */}
+      <UpiModal
+        isOpen={isUpiModalOpen}
+        onClose={() => setIsUpiModalOpen(false)}
+        amount={amount}
+        recipientUpi={recipientUpi}
+        note={note}
+        userName={safeUser.name}
+        selectedApp={selectedUpiApp}
+        onSuccess={handlePinSuccess}
+      />
 
       {/* PIN Entry Modal */}
       <PINModal
