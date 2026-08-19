@@ -304,21 +304,22 @@ export default function PayView({
   const handlePinSuccess = () => {
     setIsPinModalOpen(false);
     const amtNum = parseFloat(amount) || 0;
+    const payeeUpi = recipientUpi || 'merchant@upi';
+    const payNote = note || 'Verified Safe Payment';
     const txnId = `TS-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
+
+    setCompletedTxnReceipt({
+      txnId,
+      amount: amtNum,
+      recipientUpi: payeeUpi,
+      note: payNote,
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      date: new Date().toLocaleDateString()
+    });
 
     if (onPaymentSuccess) {
       onPaymentSuccess(amtNum);
     }
-
-    // Show Beautiful Safe Payment Receipt Modal
-    setCompletedTxnReceipt({
-      txnId,
-      amount: amtNum,
-      recipientUpi,
-      note: note || 'Verified Safe Payment',
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      date: new Date().toLocaleDateString()
-    });
 
     handleResetDraft();
   };
