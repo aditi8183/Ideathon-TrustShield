@@ -395,6 +395,7 @@ const response = await fetch('/api/scam_alert', {        method: 'POST',
         },
         body: JSON.stringify({
           email,
+          accountHolderName: safeUser.name,
           amount,
           recipientUpi,
           riskScore
