@@ -1,9 +1,5 @@
 import React, { useState, useEffect } from 'react';
-<<<<<<< HEAD
-import { Send, ShieldAlert, AlertOctagon, CheckCircle2, QrCode, Camera, AlertTriangle, ArrowRight, Sparkles, X, UserCheck, Smartphone, Clock, Copy, ShieldCheck, HelpCircle, FileCheck2 } from 'lucide-react';
-=======
-import { Send, ShieldAlert, AlertOctagon, CheckCircle2, QrCode, Camera, AlertTriangle, ArrowRight, Sparkles, X, UserCheck, Smartphone, Clock, Copy, ShieldCheck, HelpCircle, Lock, Zap } from 'lucide-react';
->>>>>>> 628892d (Add Pay Online method with automatic UPI app opening and intent modal)
+import { Send, ShieldAlert, AlertOctagon, CheckCircle2, QrCode, Camera, AlertTriangle, ArrowRight, Sparkles, X, UserCheck, Smartphone, Clock, Copy, ShieldCheck, HelpCircle, FileCheck2, Lock, Zap } from 'lucide-react';
 import PINModal from '../components/PINModal';
 import UpiModal from '../components/UpiModal';
 
