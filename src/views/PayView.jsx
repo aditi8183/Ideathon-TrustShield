@@ -297,8 +297,8 @@ export default function PayView({
       setCoerciveSignals(cSignals);
       setIsAnalyzing(false);
 
-      if (finalScore >= 70) {
-        // High Risk: Block Payment & Show Full Risk Explanation Modal
+      if (finalScore >= 40) {
+        // Flagged Transaction (Moderate or High Risk): Show Unified All-In-One Explainability Modal
         setIsBlockedModalOpen(true);
         if (onPaymentBlocked) {
           onPaymentBlocked({
@@ -308,9 +308,6 @@ export default function PayView({
             blocked_reason: factors.map(f => f.label).join(' + ')
           });
         }
-      } else if (finalScore >= 40) {
-        // Moderate Risk: Show Security Warning Confirmation Modal
-        setIsUrgentWarningOpen(true);
       } else {
         // Safe: Proceed to selected payment method (UPI App or PIN)
         proceedToPayment();
