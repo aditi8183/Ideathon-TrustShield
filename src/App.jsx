@@ -69,7 +69,15 @@ useEffect(() => {
       localStorage.setItem('trust_shield_active_tab', tab);
     } catch (e) {}
   };
-const [scamList, setScamList] = useState([]);
+const [scamList, setScamList] = useState(() => {
+  try {
+    return JSON.parse(
+      localStorage.getItem('trustshield_community_scams') || '[]'
+    );
+  } catch (e) {
+    return [];
+  }
+});
   const [bankReviews, setBankReviews] = useState(INITIAL_BANK_REVIEWS);
   const [pointEvents, setPointEvents] = useState(INITIAL_POINT_EVENTS);
 
@@ -238,58 +246,84 @@ const handleTranscriptChange = (text) => {
     ]);
   };
 
-  const handleUpvoteScam = (scamId) => {
-    setScamList(prev => prev.map(s => {
+ const handleUpvoteScam = (scamId) => {
+  setScamList(prev => {
+    const updatedScams = prev.map(s => {
       if (s.id === scamId) {
-        return { ...s, votes: s.votes + 1 };
+        return { ...s, votes: (s.votes || 0) + 1 };
       }
       return s;
-    }));
+    });
 
-    setUser(prev => {
-  const newPoints = (prev.guardian_points || 0) + 10;
+    try {
+      localStorage.setItem(
+        'trustshield_community_scams',
+        JSON.stringify(updatedScams)
+      );
+    } catch (e) {
+      console.error('Unable to save community upvote:', e);
+    }
 
-  return {
-    ...prev,
-    guardian_points: newPoints,
-    level: calculateLevel(newPoints)
-  };
-});
-    setPointEvents(prev => [
-      {
-        id: `e_${Date.now()}`,
-        label: 'Upvoted Community Scam Signal',
-        pts: 10,
-        time: 'Just now'
-      },
-      ...prev
-    ]);
-  };
+    return updatedScams;
+  });
 
-  const handleAddScam = (newScam) => {
-    setScamList(prev => [newScam, ...prev]);
+  setUser(prev => {
+    const newPoints = (prev.guardian_points || 0) + 10;
 
-    setUser(prev => {
-  const newPoints = (prev.guardian_points || 0) + 50;
+    return {
+      ...prev,
+      guardian_points: newPoints,
+      level: calculateLevel(newPoints)
+    };
+  });
 
-  return {
-    ...prev,
-    guardian_points: newPoints,
-    level: calculateLevel(newPoints)
-  };
-});
+  setPointEvents(prev => [
+    {
+      id: `e_${Date.now()}`,
+      label: 'Upvoted Community Scam Signal',
+      pts: 10,
+      time: 'Just now'
+    },
+    ...prev
+  ]);
+};
 
-    setPointEvents(prev => [
-      {
-        id: `e_${Date.now()}`,
-        label: 'Reported New Threat Vector',
-        pts: 50,
-        time: 'Just now'
-      },
-      ...prev
-    ]);
-  };
+ const handleAddScam = (newScam) => {
+  setScamList(prev => {
+    const updatedScams = [newScam, ...prev];
 
+    try {
+      localStorage.setItem(
+        'trustshield_community_scams',
+        JSON.stringify(updatedScams)
+      );
+    } catch (e) {
+      console.error('Unable to save community scam:', e);
+    }
+
+    return updatedScams;
+  });
+
+  setUser(prev => {
+    const newPoints = (prev.guardian_points || 0) + 50;
+
+    return {
+      ...prev,
+      guardian_points: newPoints,
+      level: calculateLevel(newPoints)
+    };
+  });
+
+  setPointEvents(prev => [
+    {
+      id: `e_${Date.now()}`,
+      label: 'Reported New Threat Vector',
+      pts: 50,
+      time: 'Just now'
+    },
+    ...prev
+  ]);
+};
   const handleResolveBankReview = (reviewId, newStatus, note) => {
     setBankReviews(prev => prev.map(rev => {
       if (rev.id === reviewId) {
