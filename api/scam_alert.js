@@ -116,7 +116,7 @@ export default async function handler(req, res) {
               Trust Shield detected a potentially fraudulent
               payment attempt.
             </p>
-
+<p><strong>Account Holder:</strong> ${accountHolderName || 'Account Holder'}</p>
             <p>
               <strong>Amount:</strong>
               ₹${amount || 'Unknown'}
