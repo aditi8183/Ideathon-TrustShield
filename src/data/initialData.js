@@ -13,7 +13,7 @@ export const INITIAL_USER = {
   streak: 14,
   cases_reported: 5,
   cases_verified: 12,
-  total_saved: 48500,
+  total_saved: 0,
   avg_transaction_amount: 2500,
   primary_device: 'POCO X7 Pro (Android 14)',
   current_device: 'Chrome on Windows 11',
