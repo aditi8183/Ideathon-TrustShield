@@ -69,8 +69,7 @@ useEffect(() => {
       localStorage.setItem('trust_shield_active_tab', tab);
     } catch (e) {}
   };
-
-  const [scamList, setScamList] = useState(INITIAL_COMMUNITY_SCAMS);
+const [scamList, setScamList] = useState([]);
   const [bankReviews, setBankReviews] = useState(INITIAL_BANK_REVIEWS);
   const [pointEvents, setPointEvents] = useState(INITIAL_POINT_EVENTS);
 
