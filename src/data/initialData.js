@@ -21,48 +21,7 @@ export const INITIAL_USER = {
   joined_date: '2025-11-10T08:30:00.000Z'
 };
 
-export const INITIAL_COMMUNITY_SCAMS = [
-  {
-    id: 'scam_101',
-    title: 'Customs Courier Contraband Extortion',
-    category: 'Customs / Courier Drug Seizure',
-    description: 'Fake FedEx call alleging a parcel sent to Taiwan contains 5 passports and 140g MDMA drugs. Demands Rs 25,000 clearance fee via personal UPI.',
-    upi_ids: ['fedex.customs@icici', 'trai.verify@fraudster'],
-    phone_numbers: ['+91 91234 56789'],
-    reporter_name: 'Rahul V.',
-    date: '2 hours ago',
-    votes: 142,
-    severity: 'HIGH',
-    status: 'VERIFIED'
-  },
-  {
-    id: 'scam_102',
-    title: 'CBI Virtual Arrest & House Vault Transfer',
-    category: 'Digital Arrest Scam',
-    description: 'Call impersonating CBI Cyber Cell Officer demanding user to stay on video call for 6 hours under digital arrest and transfer savings to RBI Safety Vault.',
-    upi_ids: ['cbi.vault.safety@hdfc', 'rbi.verify@ybl'],
-    phone_numbers: ['+91 98877 66554'],
-    reporter_name: 'Priya K.',
-    date: 'Yesterday',
-    votes: 389,
-    severity: 'CRITICAL',
-    status: 'VERIFIED'
-  },
-  {
-    id: 'scam_103',
-    title: 'Late Night DISCOM Electricity Power Cut',
-    category: 'Electricity Power Cut Scam',
-    description: 'SMS threatening power disconnection at 9:30 PM tonight due to unpaid bill. Asks victim to call a personal mobile number and pay Rs 1,850 immediately.',
-    upi_ids: ['discom.bill.pay@paytm'],
-    phone_numbers: ['+91 97112 33445'],
-    reporter_name: 'Amit S.',
-    date: '3 days ago',
-    votes: 94,
-    severity: 'MEDIUM',
-    status: 'VERIFIED'
-  }
-];
-
+export const INITIAL_COMMUNITY_SCAMS = [];
 export const INITIAL_BANK_REVIEWS = [
   {
     id: 'br_901',
