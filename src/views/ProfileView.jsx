@@ -1,9 +1,29 @@
-import React from 'react';
-import { User, ShieldCheck, Award, Flame, Sparkles, FileText, Download, Edit3, Check, Mail, CheckCircle2 } from 'lucide-react';
+import React, { useState } from 'react';
+import { User, ShieldCheck, Award, Flame, Sparkles, FileText, Download, Edit3, Check, Mail, CheckCircle2, Phone, Bell, ShieldAlert } from 'lucide-react';
 
-export default function ProfileView({ user, pointEvents, onOpenOnboarding }) {
+export default function ProfileView({ user, pointEvents, onOpenOnboarding, onUpdateUser }) {
   const isGoogleUser = user?.auth_provider === 'GOOGLE_ACCOUNT' || user?.email?.includes('@gmail.com');
   const userInitial = (user?.name || user?.email || 'U').charAt(0).toUpperCase();
+
+  // Trusted Nominee Emergency Guardian State
+  const [nomineeName, setNomineeName] = useState(user?.trusted_nominee?.name || 'Papa (Rajesh Sharma)');
+  const [nomineePhone, setNomineePhone] = useState(user?.trusted_nominee?.phone || '+91 98765 43210');
+  const [isNomineeEnabled, setIsNomineeEnabled] = useState(user?.trusted_nominee?.enabled ?? true);
+  const [savedSuccess, setSavedSuccess] = useState(false);
+
+  const handleSaveNominee = () => {
+    const updatedUser = {
+      ...user,
+      trusted_nominee: {
+        name: nomineeName,
+        phone: nomineePhone,
+        enabled: isNomineeEnabled
+      }
+    };
+    if (onUpdateUser) onUpdateUser(updatedUser);
+    setSavedSuccess(true);
+    setTimeout(() => setSavedSuccess(false), 2500);
+  };
 
   return (
     <div style={{ padding: 16 }}>
@@ -147,6 +167,87 @@ export default function ProfileView({ user, pointEvents, onOpenOnboarding }) {
             <span>{user.bank_name}</span>
           </div>
         </div>
+      </div>
+
+      {/* Trusted Nominee Emergency Guardian Card */}
+      <div className="glass-card">
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Phone size={20} color="var(--indigo-light)" />
+            <h3 style={{ fontSize: 16, fontWeight: 900 }}>Trusted Nominee Emergency Guardian</h3>
+          </div>
+          <span style={{
+            background: isNomineeEnabled ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+            color: isNomineeEnabled ? 'var(--safe-light)' : 'var(--danger-light)',
+            border: `1px solid ${isNomineeEnabled ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`,
+            padding: '2px 8px',
+            borderRadius: 12,
+            fontSize: 10,
+            fontWeight: 800
+          }}>
+            {isNomineeEnabled ? 'SMS ALERTS ACTIVE' : 'ALERTS PAUSED'}
+          </span>
+        </div>
+
+        <p style={{ fontSize: 12, color: 'var(--sub)', marginBottom: 14 }}>
+          If a high-risk cyber fraud payment or coercion call is detected on your account, Trust Shield sends an instant <strong>Emergency SMS Alert</strong> to your trusted family member.
+        </p>
+
+        <div className="input-group">
+          <label className="input-label">Nominee Name / Relation</label>
+          <input
+            type="text"
+            className="input-field"
+            value={nomineeName}
+            onChange={(e) => setNomineeName(e.target.value)}
+            placeholder="e.g. Papa (Rajesh Sharma)"
+          />
+        </div>
+
+        <div className="input-group">
+          <label className="input-label">Nominee Mobile Phone Number (+91)</label>
+          <input
+            type="tel"
+            className="input-field mono"
+            value={nomineePhone}
+            onChange={(e) => setNomineePhone(e.target.value)}
+            placeholder="+91 98765 43210"
+          />
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 10, marginBottom: 14 }}>
+          <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--sub)' }}>Enable Real-Time Emergency SMS Alerts:</span>
+          <button
+            type="button"
+            onClick={() => setIsNomineeEnabled(!isNomineeEnabled)}
+            style={{
+              background: isNomineeEnabled ? 'var(--indigo)' : 'rgba(255, 255, 255, 0.1)',
+              color: '#fff',
+              border: 'none',
+              borderRadius: 20,
+              padding: '6px 14px',
+              fontSize: 11,
+              fontWeight: 800,
+              cursor: 'pointer'
+            }}
+          >
+            {isNomineeEnabled ? 'ON (Active)' : 'OFF (Paused)'}
+          </button>
+        </div>
+
+        <button
+          className="btn-primary"
+          onClick={handleSaveNominee}
+          style={{ width: '100%', fontSize: 13 }}
+        >
+          {savedSuccess ? (
+            <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+              <CheckCircle2 size={16} /> Saved Trusted Nominee Successfully!
+            </span>
+          ) : (
+            <span>Save Trusted Nominee Settings</span>
+          )}
+        </button>
       </div>
 
       {/* Gamification Stats Grid */}

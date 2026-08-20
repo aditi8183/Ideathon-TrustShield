@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Send, ShieldAlert, AlertOctagon, CheckCircle2, QrCode, Camera, AlertTriangle, ArrowRight, Sparkles, X, UserCheck, Smartphone, Clock, Copy, ShieldCheck, HelpCircle } from 'lucide-react';
 import PINModal from '../components/PINModal';
-import { Html5Qrcode } from 'html5-qrcode';
+import { sendNomineeScamAlert } from '../utils/smsService';
+const Html5Qrcode = typeof window !== 'undefined' ? window.Html5Qrcode : null;
 
 export default function PayView({
   user,
