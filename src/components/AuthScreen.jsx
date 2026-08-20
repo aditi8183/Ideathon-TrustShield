@@ -133,6 +133,89 @@ export default function AuthScreen({ onLoginSuccess }) {
       localStorage.setItem('trust_shield_user_roles', JSON.stringify(accounts));
     } catch (e) {}
   };
+  // Persistent Trust Shield user profiles
+const getStoredUserProfiles = () => {
+  try {
+    const stored = localStorage.getItem('trust_shield_user_profiles');
+    return stored ? JSON.parse(stored) : {};
+  } catch (e) {
+    return {};
+  }
+};
+
+const saveStoredUserProfile = (user) => {
+  if (!user?.email) return;
+
+  try {
+    const profiles = getStoredUserProfiles();
+
+    profiles[user.email.toLowerCase().trim()] = user;
+
+    localStorage.setItem(
+      'trust_shield_user_profiles',
+      JSON.stringify(profiles)
+    );
+  } catch (e) {
+    console.error('Unable to save Trust Shield user profile:', e);
+  }
+};
+
+const getStoredUserProfile = (email) => {
+  if (!email) return null;
+
+  const profiles = getStoredUserProfiles();
+
+  return profiles[email.toLowerCase().trim()] || null;
+};
+  const createFreshUserProfile = ({
+  id,
+  role,
+  name,
+  email,
+  phone,
+  upi_id,
+  bank_name,
+  employee_id,
+  branch,
+  picture,
+  auth_provider
+}) => {
+  return {
+    id,
+    role,
+    name,
+    email,
+    phone,
+    upi_id,
+    bank_name,
+    employee_id: employee_id || null,
+    branch: branch || null,
+    picture: picture || null,
+
+    // Real dynamic progress starts here
+    guardian_points: 0,
+    level: 1,
+    guardian_level:
+      role === 'BANK_ADMIN'
+        ? 'Senior Risk Auditor'
+        : 'Level 1 Guardian',
+
+    streak: 1,
+    cases_reported: 0,
+    cases_verified: 0,
+    total_saved: 0,
+    avg_transaction_amount: 2500,
+
+    current_device:
+      navigator.userAgent.includes('Windows')
+        ? 'Chrome on Windows 11'
+        : 'Mobile Device',
+
+    is_new_device: true,
+    auth_provider,
+    joined_date: new Date().toISOString()
+  };
+};
 
   // Dynamic Role & Account Detector
   const validateRoleEmailMatch = (targetEmail, targetRole) => {
@@ -284,64 +367,144 @@ export default function AuthScreen({ onLoginSuccess }) {
   };
 
   // Verify User Entered OTP
-  const handleVerifyOtp = (e) => {
-    e?.preventDefault();
-    if (otpInput.length < 6) {
-      setOtpError('Please enter all 6 digits of your email OTP.');
-      return;
-    }
+const handleVerifyOtp = (e) => {
+  e?.preventDefault();
 
-    const roleCheck = validateRoleEmailMatch(email, role);
-    if (!roleCheck.valid) {
-      setOtpError(roleCheck.error);
-      return;
-    }
+  if (otpInput.length < 6) {
+    setOtpError('Please enter all 6 digits of your email OTP.');
+    return;
+  }
 
-    setIsVerifying(true);
-    setOtpError('');
+  const roleCheck = validateRoleEmailMatch(email, role);
 
-    setTimeout(() => {
-      setIsVerifying(false);
-      if (otpInput === generatedOtp || otpInput === '123456') {
-        const authenticatedUser = {
-          id: role === 'CUSTOMER' ? `cust_${Date.now()}` : `admin_${Date.now()}`,
-          role: role,
-          name: name || (role === 'CUSTOMER' ? (email.split('@')[0] || 'Aditi Sharma') : 'Officer Rajesh Sharma'),
-          email: email,
-          phone: phone || '+91 98765 43210',
-          upi_id: upiId || (email.split('@')[0].replace(/[^a-zA-Z0-9]/g, '') + '@okicici'),
-          bank_name: bankName,
-          employee_id: role === 'BANK_ADMIN' ? (employeeId || 'EMP-9942') : null,
-          branch: role === 'BANK_ADMIN' ? branchLocation : null,
-          guardian_points: role === 'CUSTOMER' ? 1250 : 5000,
-          guardian_level: role === 'CUSTOMER' ? 'Level 3 Guardian' : 'Senior Risk Auditor',
-          streak: 14,
-          cases_reported: 5,
-          cases_verified: 12,
-          total_saved: 0,
-          avg_transaction_amount: 2500,
-          current_device: navigator.userAgent.includes('Windows') ? 'Chrome on Windows 11' : 'Mobile Device',
-          is_new_device: true,
-          auth_provider: 'EMAIL_OTP',
-          joined_date: new Date().toISOString()
+  if (!roleCheck.valid) {
+    setOtpError(roleCheck.error);
+    return;
+  }
+
+  setIsVerifying(true);
+  setOtpError('');
+
+  setTimeout(() => {
+    setIsVerifying(false);
+
+    if (otpInput === generatedOtp || otpInput === '123456') {
+      const cleanEmail = email.toLowerCase().trim();
+
+      const existingProfile = getStoredUserProfile(cleanEmail);
+
+      let authenticatedUser;
+
+      if (existingProfile) {
+        authenticatedUser = {
+          ...existingProfile,
+          role,
+          name: name || existingProfile.name,
+          phone: phone || existingProfile.phone,
+          upi_id: upiId || existingProfile.upi_id,
+          bank_name: bankName || existingProfile.bank_name,
+          current_device:
+            navigator.userAgent.includes('Windows')
+              ? 'Chrome on Windows 11'
+              : 'Mobile Device',
+          is_new_device: false,
+          auth_provider: 'EMAIL_OTP'
         };
-
-        registerUserRole(email, role);
-        onLoginSuccess(authenticatedUser);
       } else {
-        setOtpError('Invalid OTP code. Please check your email inbox and try again.');
+        authenticatedUser = createFreshUserProfile({
+          id:
+            role === 'CUSTOMER'
+              ? `cust_${Date.now()}`
+              : `admin_${Date.now()}`,
+          role,
+          name:
+            name ||
+            (role === 'CUSTOMER'
+              ? email.split('@')[0] || 'Customer'
+              : 'Bank Risk Officer'),
+          email: cleanEmail,
+          phone: phone || '+91 98765 43210',
+          upi_id:
+            upiId ||
+            `${email
+              .split('@')[0]
+              .replace(/[^a-zA-Z0-9]/g, '')}@okicici`,
+          bank_name: bankName,
+          employee_id:
+            role === 'BANK_ADMIN'
+              ? employeeId || 'EMP-9942'
+              : null,
+          branch:
+            role === 'BANK_ADMIN'
+              ? branchLocation
+              : null,
+          auth_provider: 'EMAIL_OTP'
+        });
       }
-    }, 600);
-  };
 
-  // Complete Google Authentication & Session Setup
-  const completeGoogleLogin = ({ email: userEmail, name: userName, picture: userPic, googleId, roleOverride }) => {
-    const activeRole = roleOverride || role;
-    const cleanEmail = userEmail.toLowerCase().trim();
-    const cleanUpi = cleanEmail.split('@')[0].replace(/[^a-zA-Z0-9]/g, '') + '@okicici';
-    const computedName = userName || (cleanEmail.split('@')[0] ? cleanEmail.split('@')[0].charAt(0).toUpperCase() + cleanEmail.split('@')[0].slice(1) : 'Google User');
+      registerUserRole(cleanEmail, role);
+      saveStoredUserProfile(authenticatedUser);
 
-    const authenticatedUser = {
+      onLoginSuccess(authenticatedUser);
+    } else {
+      setOtpError(
+        'Invalid OTP code. Please check your email inbox and try again.'
+      );
+    }
+  }, 600);
+};
+
+// Complete Google Authentication & Session Setup
+const completeGoogleLogin = ({
+  email: userEmail,
+  name: userName,
+  picture: userPic,
+  googleId,
+  roleOverride
+}) => {
+  const activeRole = roleOverride || role;
+  const cleanEmail = userEmail.toLowerCase().trim();
+
+  const cleanUpi =
+    cleanEmail.split('@')[0].replace(/[^a-zA-Z0-9]/g, '') +
+    '@okicici';
+
+  const computedName =
+    userName ||
+    (
+      cleanEmail.split('@')[0]
+        ? cleanEmail.split('@')[0].charAt(0).toUpperCase() +
+          cleanEmail.split('@')[0].slice(1)
+        : 'Google User'
+    );
+
+  // Check for an existing Trust Shield profile
+  const existingProfile = getStoredUserProfile(cleanEmail);
+
+  let authenticatedUser;
+
+  if (existingProfile) {
+    // Returning Google user → preserve progress
+    authenticatedUser = {
+      ...existingProfile,
+      role: activeRole,
+      name: computedName || existingProfile.name,
+      picture: userPic || existingProfile.picture || null,
+      phone: phone || existingProfile.phone,
+      upi_id: upiId || existingProfile.upi_id || cleanUpi,
+      bank_name: bankName || existingProfile.bank_name || 'ICICI Bank',
+
+      current_device:
+        navigator.userAgent.includes('Windows')
+          ? 'Chrome on Windows 11'
+          : 'Mobile Device',
+
+      is_new_device: false,
+      auth_provider: 'GOOGLE_ACCOUNT'
+    };
+  } else {
+    // Brand-new Google account → start from zero
+    authenticatedUser = createFreshUserProfile({
       id: `google_${googleId || Date.now()}`,
       role: activeRole,
       name: computedName,
@@ -350,33 +513,34 @@ export default function AuthScreen({ onLoginSuccess }) {
       phone: phone || '+91 98765 43210',
       upi_id: upiId || cleanUpi,
       bank_name: bankName || 'ICICI Bank',
-      employee_id: activeRole === 'BANK_ADMIN' ? (employeeId || 'EMP-9942') : null,
-      branch: activeRole === 'BANK_ADMIN' ? branchLocation : null,
-      guardian_points: activeRole === 'CUSTOMER' ? 1250 : 5000,
-      guardian_level: activeRole === 'CUSTOMER' ? 'Level 3 Guardian' : 'Senior Risk Auditor',
-      streak: 14,
-      cases_reported: 5,
-      cases_verified: 12,
-      total_saved: 0,
-      avg_transaction_amount: 2500,
-      current_device: navigator.userAgent.includes('Windows') ? 'Chrome on Windows 11' : 'Mobile Device',
-      is_new_device: true,
-      auth_provider: 'GOOGLE_ACCOUNT',
-      joined_date: new Date().toISOString()
-    };
-
-    persistGoogleAccount({
-      name: computedName,
-      email: cleanEmail,
-      role: activeRole,
-      picture: userPic || null,
-      color: activeRole === 'BANK_ADMIN' ? 'linear-gradient(135deg, #10b981, #059669)' : 'linear-gradient(135deg, #6366f1, #818cf8)'
+      employee_id:
+        activeRole === 'BANK_ADMIN'
+          ? employeeId || 'EMP-9942'
+          : null,
+      branch:
+        activeRole === 'BANK_ADMIN'
+          ? branchLocation
+          : null,
+      auth_provider: 'GOOGLE_ACCOUNT'
     });
+  }
 
-    registerUserRole(cleanEmail, activeRole);
-    onLoginSuccess(authenticatedUser);
-  };
+  persistGoogleAccount({
+    name: computedName,
+    email: cleanEmail,
+    role: activeRole,
+    picture: userPic || null,
+    color:
+      activeRole === 'BANK_ADMIN'
+        ? 'linear-gradient(135deg, #10b981, #059669)'
+        : 'linear-gradient(135deg, #6366f1, #818cf8)'
+  });
 
+  registerUserRole(cleanEmail, activeRole);
+  saveStoredUserProfile(authenticatedUser);
+
+  onLoginSuccess(authenticatedUser);
+};
   // Google OAuth Popup Click Handler
   const handleGoogleSignInClick = () => {
     setFormError('');
