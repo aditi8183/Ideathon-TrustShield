@@ -8,6 +8,7 @@ import CommunityView from './views/CommunityView';
 import BankView from './views/BankView';
 import ProfileView from './views/ProfileView';
 import OnboardingModal from './components/OnboardingModal';
+import MLTest from './components/MLTest';
 
 import {
   INITIAL_COMMUNITY_SCAMS,
