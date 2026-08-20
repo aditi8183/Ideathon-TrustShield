@@ -1,8 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, ShieldAlert, AlertOctagon, CheckCircle2, QrCode, Camera, AlertTriangle, ArrowRight, Sparkles, X, UserCheck, Smartphone, Clock, Copy, ShieldCheck, HelpCircle } from 'lucide-react';
+import { Send, ShieldAlert, AlertOctagon, CheckCircle2, QrCode, Camera, AlertTriangle, ArrowRight, Sparkles, X, UserCheck, Smartphone, Clock, Copy, ShieldCheck, HelpCircle, Bell, Lock, Zap } from 'lucide-react';
 import PINModal from '../components/PINModal';
+import UpiModal from '../components/UpiModal';
 import { sendNomineeScamAlert } from '../utils/smsService';
+
 const Html5Qrcode = typeof window !== 'undefined' ? window.Html5Qrcode : null;
+
 export default function PayView({
   user,
   scamList = [],
@@ -29,45 +32,60 @@ export default function PayView({
   const [amount, setAmount] = useState(paymentDraft?.amount || '');
   const [note, setNote] = useState(paymentDraft?.note || '');
   const [frequentPayees, setFrequentPayees] = useState([]);
-  // Behavioral & Device Coercion signals
   const [isPasted, setIsPasted] = useState(paymentDraft?.isPasted || false);
-  // Load most frequently paid UPI IDs
-useEffect(() => {
-  try {
-    const history = JSON.parse(
-      localStorage.getItem('trustshield_payment_history') || '[]'
-    );
-
-    const counts = {};
-
-    history.forEach((payment) => {
-      const upi =
-        payment.recipient_upi ||
-        payment.recipientUpi ||
-        payment.upi;
-
-      if (upi) {
-        counts[upi] = (counts[upi] || 0) + 1;
-      }
-    });
-
-    const topPayees = Object.entries(counts)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 5)
-      .map(([upi, count]) => ({
-        upi,
-        count
-      }));
-
-    setFrequentPayees(topPayees);
-  } catch (error) {
-    console.warn('Unable to load payment history:', error);
-  }
-}, []);
   const [isOddHour, setIsOddHour] = useState(false);
   const [validationError, setValidationError] = useState('');
 
-  // Keep state synchronized with persistent paymentDraft prop
+  // Payment App Selection State
+  const [selectedPaymentApp, setSelectedPaymentApp] = useState('all');
+  const [isUpiModalOpen, setIsUpiModalOpen] = useState(false);
+
+  // False Positive Override & Nominee State
+  const [userOverrideNote, setUserOverrideNote] = useState('');
+  const [isOverrideSubmitted, setIsOverrideSubmitted] = useState(false);
+  const [isSendingScamAlert, setIsSendingScamAlert] = useState(false);
+  const [scamAlertSent, setScamAlertSent] = useState(false);
+  const [scamAlertError, setScamAlertError] = useState('');
+
+  // Modals & Analysis State
+  const [riskScore, setRiskScore] = useState(0);
+  const [riskFactors, setRiskFactors] = useState([]);
+  const [coerciveSignals, setCoerciveSignals] = useState([]);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [isBlockedModalOpen, setIsBlockedModalOpen] = useState(false);
+  const [isPinModalOpen, setIsPinModalOpen] = useState(false);
+  const [completedTxnReceipt, setCompletedTxnReceipt] = useState(null);
+
+  // QR Scanner State
+  const [isQrScannerOpen, setIsQrScannerOpen] = useState(false);
+  const [isScanningQr, setIsScanningQr] = useState(false);
+  const qrScannerRef = useRef(null);
+
+  // Load frequent payees from local storage
+  useEffect(() => {
+    try {
+      const history = JSON.parse(localStorage.getItem('trustshield_payment_history') || '[]');
+      const counts = {};
+      history.forEach((payment) => {
+        const upi = payment.recipient_upi || payment.recipientUpi || payment.upi;
+        if (upi) counts[upi] = (counts[upi] || 0) + 1;
+      });
+      const topPayees = Object.entries(counts)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5)
+        .map(([upi, count]) => ({ upi, count }));
+      setFrequentPayees(topPayees);
+    } catch (error) {
+      console.warn('Unable to load payment history:', error);
+    }
+  }, []);
+
+  useEffect(() => {
+    const currentHour = new Date().getHours();
+    setIsOddHour(currentHour >= 22 || currentHour < 6);
+  }, []);
+
+  // Sync state with persistent paymentDraft prop
   useEffect(() => {
     if (paymentDraft) {
       if (paymentDraft.recipientUpi !== undefined && paymentDraft.recipientUpi !== recipientUpi) {
@@ -84,46 +102,6 @@ useEffect(() => {
       }
     }
   }, [paymentDraft]);
-
-  // Modals & Analysis
-  const [riskScore, setRiskScore] = useState(0);
-  const [riskFactors, setRiskFactors] = useState([]);
-  const [coerciveSignals, setCoerciveSignals] = useState([]);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-
-  // Modal Visibility States
-  const [isBlockedModalOpen, setIsBlockedModalOpen] = useState(false);
-  const [isUrgentWarningOpen, setIsUrgentWarningOpen] = useState(false);
-  const [isPinModalOpen, setIsPinModalOpen] = useState(false);
-  const [isQrScannerOpen, setIsQrScannerOpen] = useState(false);
-  const [isScanningQr, setIsScanningQr] = useState(false);
-  const qrScannerRef = useRef(null);
-
-  // Payment App Selection State
-  const [selectedPaymentApp, setSelectedPaymentApp] = useState('all');
-  const [isUpiModalOpen, setIsUpiModalOpen] = useState(false);
-
-  // False Positive Override Request State
-  const [userOverrideNote, setUserOverrideNote] = useState('');
-  const [isOverrideSubmitted, setIsOverrideSubmitted] = useState(false);
-  const [trustedNomineeEmail, setTrustedNomineeEmail] = useState('');
-  const [isSendingScamAlert, setIsSendingScamAlert] = useState(false);
-  const [scamAlertError, setScamAlertError] = useState('');
-  const [fraudAcknowledged, setFraudAcknowledged] = useState(false);
-  const [scamAlertSent, setScamAlertSent] = useState(false);
-
-  const proceedToPayment = () => {
-    if (selectedPaymentApp === 'all') {
-      setIsPinModalOpen(true);
-    } else {
-      setIsUpiModalOpen(true);
-    }
-  };
-  useEffect(() => {
-    // Check current hour for odd-hour transaction warning (10 PM to 6 AM)
-    const currentHour = new Date().getHours();
-    setIsOddHour(currentHour >= 22 || currentHour < 6);
-  }, []);
 
   const handleUpiChange = (e) => {
     const val = e.target.value;
@@ -169,7 +147,6 @@ useEffect(() => {
     }
   };
 
-  // Quick Payee Selectors
   const fillQuickPayee = (upi, amt, payNote, pasted = false) => {
     setRecipientUpi(upi);
     setAmount(String(amt));
@@ -181,217 +158,82 @@ useEffect(() => {
     setValidationError('');
   };
 
-  // ============================================
-  // REAL-TIME UPI QR CODE SCANNER
-  // ============================================
-
-  const stopQrScanner = async () => {
-    const scanner = qrScannerRef.current;
-
-    if (!scanner) {
-      setIsScanningQr(false);
-      return;
+  const proceedToPayment = () => {
+    if (selectedPaymentApp === 'all') {
+      setIsPinModalOpen(true);
+    } else {
+      setIsUpiModalOpen(true);
     }
-
-    try {
-      if (scanner.isScanning) {
-        await scanner.stop();
-      }
-    } catch (error) {
-      console.warn('QR scanner stop:', error);
-    }
-
-    try {
-      scanner.clear();
-    } catch (error) {
-      console.warn('QR scanner clear:', error);
-    }
-
-    qrScannerRef.current = null;
-    setIsScanningQr(false);
   };
 
-  const parseUpiQr = (decodedText) => {
-    const qrData = (decodedText || '').trim();
-
-    if (!qrData.toLowerCase().startsWith('upi://pay')) {
-      throw new Error('This QR code is not a valid UPI payment QR.');
-    }
-
-    let upiUrl;
-
-    try {
-      upiUrl = new URL(qrData);
-    } catch {
-      throw new Error('Unable to read the UPI QR code.');
-    }
-
-    const upiId = upiUrl.searchParams.get('pa')?.trim();
-    const qrAmount = upiUrl.searchParams.get('am')?.trim() || '';
-    const merchantName = upiUrl.searchParams.get('pn')?.trim() || '';
-    const currency = upiUrl.searchParams.get('cu')?.trim() || 'INR';
-
-    if (!upiId || !upiId.includes('@')) {
-      throw new Error('No valid UPI ID was found in this QR code.');
-    }
-
-    if (
-      qrAmount &&
-      (!Number.isFinite(Number(qrAmount)) || Number(qrAmount) <= 0)
-    ) {
-      throw new Error('The QR code contains an invalid amount.');
-    }
-
-    if (currency.toUpperCase() !== 'INR') {
-      throw new Error('This QR code is not an INR payment QR.');
-    }
-
-    return {
-      upiId,
-      amount: qrAmount,
-      merchantName
-    };
-  };
-
-  const handleScanQrCode = () => {
-    setValidationError('');
-    setIsQrScannerOpen(true);
-    setIsScanningQr(true);
-
-    // Let React render the camera container first.
-    setTimeout(async () => {
-      try {
-        await stopQrScanner();
-
-        const scanner = new Html5Qrcode('trustshield-qr-reader');
-        qrScannerRef.current = scanner;
-
-        await scanner.start(
-          { facingMode: 'environment' },
-          {
-            fps: 10,
-            qrbox: { width: 250, height: 250 },
-            aspectRatio: 1
-          },
-          async (decodedText) => {
-            try {
-              const payment = parseUpiQr(decodedText);
-
-              await stopQrScanner();
-
-              fillQuickPayee(
-                payment.upiId,
-                payment.amount,
-                payment.merchantName
-                  ? `QR Payment - ${payment.merchantName}`
-                  : 'QR Code Payment',
-                false
-              );
-
-              setIsQrScannerOpen(false);
-              setValidationError('');
-            } catch (error) {
-              console.warn('QR detected but not usable:', error);
-              setValidationError(error.message);
-            }
-          },
-          () => {
-            // Expected while the camera is searching.
-          }
-        );
-      } catch (error) {
-        console.error('Unable to start QR camera:', error);
-
-        qrScannerRef.current = null;
-        setIsScanningQr(false);
-        setValidationError(
-          'Camera could not be opened. Please allow camera access in your browser and try again.'
-        );
-      }
-    }, 300);
-  };
-
-  // Stop the camera when leaving the payment screen.
-  useEffect(() => {
-    return () => {
-      const scanner = qrScannerRef.current;
-
-      if (scanner) {
-        scanner.stop().catch(() => {});
-        qrScannerRef.current = null;
-      }
-    };
-  }, []);
-
-  // Run Zero-Knowledge AI Risk & Coercion Engine
+  // Zero-Knowledge Risk & Coercion Scanner
   const runRiskAnalysis = () => {
-    if (!recipientUpi.trim()) {
-      setValidationError('Please enter a Recipient UPI ID or tap a Quick Payee.');
+    setValidationError('');
+    setIsOverrideSubmitted(false);
+    setScamAlertSent(false);
+
+    if (!recipientUpi || !recipientUpi.trim()) {
+      setValidationError('Please enter a valid recipient UPI ID (e.g. name@oksbi).');
       return;
     }
-    if (!amount || parseFloat(amount) <= 0) {
-      setValidationError('Please enter a valid amount in ₹.');
+    if (!recipientUpi.includes('@')) {
+      setValidationError('UPI ID must contain "@" (e.g. aditi@icici).');
+      return;
+    }
+    const amtNum = parseFloat(amount);
+    if (isNaN(amtNum) || amtNum <= 0) {
+      setValidationError('Please enter a valid payment amount greater than ₹0.');
       return;
     }
 
-    setValidationError('');
     setIsAnalyzing(true);
-    setIsOverrideSubmitted(false);
 
     setTimeout(() => {
       let score = 0;
       const factors = [];
       const cSignals = [];
-      const amtNum = parseFloat(amount) || 0;
-      const userAvg = safeUser.avg_transaction_amount || 2500;
 
-      // 1. Live Call Coercion Pattern (Vishing Call Active)
+      // 1. Live Voice Call Coercion Signal
       if (detectedScamCall && detectedScamCall.category) {
-        const cat = detectedScamCall.category;
-        score += 45;
-        cSignals.push('Live Active Call');
+        score += 85;
+        cSignals.push('Live Voice Call Active');
         factors.push({
-          id: 'voice_scam_category',
-          label: `Coercive Voice Call Active: ${cat.name || 'Phishing Scam'}`,
-          labelHindi: `सक्रिय वॉयस कॉल दबाव: ${cat.nameHindi || 'धोखाधड़ी चेतावनी'}`,
+          id: 'vishing_active',
+          label: `Coercive Voice Call Active: ${detectedScamCall.category.name}`,
+          labelHindi: `सक्रिय वॉयस कॉल घोटाला: ${detectedScamCall.category.name}`,
           severity: 'danger',
-          score: 45
+          score: 85
         });
       }
 
-      // 2. Blacklist Check against community fraud DB
-      const safeScamList = scamList || [];
-      const isBlacklisted = safeScamList.some(s =>
-        (s.upi_ids || []).some(u => u.toLowerCase() === recipientUpi.toLowerCase())
-      ) || recipientUpi.toLowerCase().includes('fraud') || recipientUpi.toLowerCase().includes('trai');
-
-      if (isBlacklisted) {
-        score += 55;
-        cSignals.push('Blacklisted Fraud Payee');
+      // 2. Blacklisted Fraud Database Match
+      const matchedScam = (scamList || []).find(s => s.upi_id && s.upi_id.toLowerCase() === recipientUpi.toLowerCase().trim());
+      if (matchedScam || recipientUpi.toLowerCase().includes('fraud') || recipientUpi.toLowerCase().includes('trai')) {
+        score += 90;
+        cSignals.push('Fraud Database Match');
         factors.push({
-          id: 'blacklisted_upi',
-          label: 'Matches community fraud database',
-          labelHindi: 'सक्रिय धोखाधड़ी UPI डेटाबेस से मेल खाता है',
+          id: 'blacklist_match',
+          label: `Matches Community Fraud Database (${matchedScam ? matchedScam.scam_type : 'Reported UPI'})`,
+          labelHindi: `सामुदायिक फ्रॉड डेटाबेस से मेल खाता है`,
           severity: 'danger',
-          score: 55
+          score: 90
         });
       }
 
-      // 3. Amount Anomaly & Coercive Spike Signal
-      const isHighAmount = amtNum > 50000 || amtNum > (userAvg * 5);
-      if (isHighAmount) {
+      // 3. Amount Anomaly
+      if (amtNum > (safeUser.avg_transaction_amount || 2500) * 4) {
         score += 25;
-        cSignals.push('Amount Spike Escalation');
+        cSignals.push('High Amount Anomaly');
         factors.push({
           id: 'amount_anomaly',
-          label: `Coercive Amount Spike (₹${amtNum.toLocaleString('en-IN')} vs avg ₹${userAvg})`,
-          labelHindi: `असामान्य रूप से बड़ी राशि (औसत ₹${userAvg} से अधिक)`,
-          severity: 'danger',
+          label: `Coercive Amount Spike (₹${amtNum.toLocaleString('en-IN')} vs average ₹${(safeUser.avg_transaction_amount || 2500).toLocaleString('en-IN')})`,
+          labelHindi: `असामान्य रूप से बड़ी राशि का स्थानांतरण`,
+          severity: 'warn',
           score: 25
         });
       }
 
-      // 4. Device Fingerprint Change Signal
+      // 4. New Device Fingerprint Signal
       if (safeUser.is_new_device) {
         score += 15;
         cSignals.push('New Device Anomaly');
@@ -404,7 +246,7 @@ useEffect(() => {
         });
       }
 
-      // 5. Interaction Clipboard Pattern (Pasted UPI)
+      // 5. Clipboard Paste Signal
       if (isPasted) {
         score += 15;
         cSignals.push('Clipboard Paste Interaction');
@@ -417,8 +259,8 @@ useEffect(() => {
         });
       }
 
-      // 6. First-time Transfer Warning
-      if (recipientUpi && !recipientUpi.includes('aditi')) {
+      // 6. First-time Transfer
+      if (recipientUpi && !recipientUpi.toLowerCase().includes('aditi')) {
         score += 10;
         cSignals.push('First-Time Transfer');
         factors.push({
@@ -430,7 +272,7 @@ useEffect(() => {
         });
       }
 
-      // 7. Late Night Panic Hours
+      // 7. Late Night Hours
       if (isOddHour) {
         score += 10;
         cSignals.push('Late Night Hours');
@@ -449,9 +291,24 @@ useEffect(() => {
       setCoerciveSignals(cSignals);
       setIsAnalyzing(false);
 
-      if (finalScore >= 70) {
-        // High Risk: Block Payment
+      if (finalScore >= 40) {
         setIsBlockedModalOpen(true);
+
+        // Auto-dispatch emergency SMS to trusted nominee if set
+        const nominee = safeUser?.trusted_nominee || { name: 'Papa (Rajesh Sharma)', phone: '+91 98765 43210', enabled: true };
+        if (nominee.enabled && nominee.phone) {
+          sendNomineeScamAlert({
+            nomineeName: nominee.name,
+            nomineePhone: nominee.phone,
+            userName: safeUser.name || 'Aditi Sharma',
+            scamCategory: detectedScamCall?.category?.name || (factors[0] ? factors[0].label : 'High Risk Cyber Fraud'),
+            blockedAmount: amtNum,
+            recipientUpi: recipientUpi,
+            riskScore: finalScore
+          });
+          setScamAlertSent(true);
+        }
+
         if (onPaymentBlocked) {
           onPaymentBlocked({
             amount: amtNum,
@@ -460,65 +317,58 @@ useEffect(() => {
             blocked_reason: factors.map(f => f.label).join(' + ')
           });
         }
-      } else if (finalScore >= 40) {
-        // Moderate Risk: Deliver Understandable Warning & Support User Confirmation for Urgent Payments
-        setIsUrgentWarningOpen(true);
       } else {
-        // Safe: Open PIN Modal directly
-        setIsPinModalOpen(true);
+        proceedToPayment();
       }
     }, 600);
   };
- const handleSendScamAlert = async () => {
-  const email = trustedNomineeEmail.trim();
 
-  if (!email) return;
-
-  setIsSendingScamAlert(true);
-  setScamAlertSent(false);
-  setScamAlertError('');
-
-  try {
-    const response = await fetch('/api/send_scam_alert', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        email,
-        amount,
-        recipientUpi,
-        riskScore
-      })
-    });
-
-    const data = await response.json();
-
-    if (!response.ok || !data.success) {
-      throw new Error(data.error || 'Failed to send scam alert');
-    }
-
-    setScamAlertSent(true);
-  } catch (error) {
-    console.error('Scam alert error:', error);
-    setScamAlertError(
-      error.message || 'Unable to send scam alert'
-    );
-  } finally {
-    setIsSendingScamAlert(false);
-  }
-};
-
-  // Submit False Positive Request to Bank Risk Officer Console
   const handleSubmitFalsePositive = () => {
     if (!userOverrideNote.trim()) return;
     setIsOverrideSubmitted(true);
   };
 
-  const getRiskColor = (score) => {
-    if (score >= 70) return 'var(--danger-light)';
-    if (score >= 40) return 'var(--warn-light)';
-    return 'var(--safe-light)';
+  const handlePinSuccess = () => {
+    setIsPinModalOpen(false);
+    setIsUpiModalOpen(false);
+
+    const amtNum = parseFloat(amount) || 0;
+
+    // Record transaction receipt before reset
+    const receiptData = {
+      txnId: `TXN${Math.floor(10000000 + Math.random() * 90000000)}`,
+      amount: amtNum,
+      recipientUpi: recipientUpi.trim(),
+      note: note.trim() || 'Verified Safe Payment',
+      date: new Date().toLocaleDateString('en-IN'),
+      time: new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })
+    };
+
+    setCompletedTxnReceipt(receiptData);
+
+    try {
+      const history = JSON.parse(localStorage.getItem('trustshield_payment_history') || '[]');
+      const newPayment = { recipient_upi: recipientUpi.trim(), amount: amtNum, timestamp: new Date().toISOString() };
+      const updatedHistory = [newPayment, ...history].slice(0, 100);
+      localStorage.setItem('trustshield_payment_history', JSON.stringify(updatedHistory));
+
+      const counts = {};
+      updatedHistory.forEach((p) => {
+        const u = p.recipient_upi || p.recipientUpi || p.upi;
+        if (u) counts[u] = (counts[u] || 0) + 1;
+      });
+      const topPayees = Object.entries(counts)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5)
+        .map(([u, count]) => ({ upi: u, count }));
+      setFrequentPayees(topPayees);
+    } catch (e) {}
+
+    if (onPaymentSuccess) {
+      onPaymentSuccess(amtNum);
+    }
+
+    handleResetDraft();
   };
 
   return (
@@ -537,7 +387,7 @@ useEffect(() => {
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--sub)' }}>
           <Smartphone size={14} color="var(--indigo-light)" />
-          <span>Device: <strong>{safeUser.current_device || 'Chrome on Windows'}</strong></span>
+          <span>Device: <strong>{safeUser.current_device || 'Chrome on Windows 11'}</strong></span>
         </div>
         {safeUser.is_new_device && (
           <span style={{
@@ -553,7 +403,7 @@ useEffect(() => {
         )}
       </div>
 
-      {/* Live Voice Phishing Banner Alert (If Active Call Flagged) */}
+      {/* Live Voice Phishing Banner Alert */}
       {detectedScamCall && detectedScamCall.category && (
         <div style={{
           background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgba(12, 18, 32, 0.95))',
@@ -581,151 +431,94 @@ useEffect(() => {
       <div className="glass-card">
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
           <h2 style={{ fontSize: 20, fontWeight: 900 }}>UPI Payment Scanner</h2>
-
-          {/* QR Code Scanner Button */}
-          <button
-            onClick={handleScanQrCode}
-            style={{
-              background: 'rgba(99, 102, 241, 0.15)',
-              border: '1px solid rgba(99, 102, 241, 0.35)',
-              color: 'var(--indigo-light)',
-              borderRadius: 10,
-              padding: '6px 12px',
-              fontSize: 12,
-              fontWeight: 700,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6
-            }}
-          >
-            <QrCode size={16} />
-            <span>Scan QR Code</span>
-          </button>
         </div>
-{/* Quick Payee Selection Bar */}
-<div style={{ marginBottom: 14 }}>
-  <div style={{
-    fontSize: 11,
-    color: 'var(--sub)',
-    fontWeight: 700,
-    marginBottom: 6
-  }}>
-    QUICK PAYEES:
-  </div>
 
-  <div style={{
-    display: 'flex',
-    gap: 6,
-    flexWrap: 'wrap'
-  }}>
-    {frequentPayees.length > 0 ? (
-      frequentPayees.map((payee) => (
-        <button
-          key={payee.upi}
-          onClick={() =>
-            fillQuickPayee(
-              payee.upi,
-              '',
-              'Quick Payment',
-              false
-            )
-          }
-          style={{
-            background: 'rgba(99, 102, 241, 0.1)',
-            border: '1px solid rgba(99, 102, 241, 0.25)',
-            color: 'var(--indigo-light)',
-            borderRadius: 20,
-            padding: '4px 10px',
-            fontSize: 11,
-            fontWeight: 700,
-            cursor: 'pointer',
-            maxWidth: '100%',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap'
-          }}
-          title={`${payee.upi} — ${payee.count} previous payments`}
-        >
-          <Smartphone size={11} style={{ verticalAlign: 'middle', marginRight: 4 }} />
-          {payee.upi}
-        </button>
-      ))
-    ) : (
-      <>
-        <button
-          onClick={() =>
-            fillQuickPayee(
-              'starbucks.coffee@icici',
-              350,
-              'Coffee Payment',
-              false
-            )
-          }
-          style={{
-            background: 'rgba(16, 185, 129, 0.1)',
-            border: '1px solid rgba(16, 185, 129, 0.25)',
-            color: 'var(--safe-light)',
-            borderRadius: 20,
-            padding: '4px 10px',
-            fontSize: 11,
-            fontWeight: 700,
-            cursor: 'pointer'
-          }}
-        >
-          ☕ Cafe Coffee
-        </button>
+        {/* Quick Payee Selection Bar */}
+        <div style={{ marginBottom: 14 }}>
+          <div style={{ fontSize: 11, color: 'var(--sub)', fontWeight: 700, marginBottom: 6 }}>
+            QUICK PAYEES:
+          </div>
 
-        <button
-          onClick={() =>
-            fillQuickPayee(
-              'landlord.rent@hdfc',
-              15000,
-              'House Rent',
-              false
-            )
-          }
-          style={{
-            background: 'rgba(99, 102, 241, 0.1)',
-            border: '1px solid rgba(99, 102, 241, 0.25)',
-            color: 'var(--indigo-light)',
-            borderRadius: 20,
-            padding: '4px 10px',
-            fontSize: 11,
-            fontWeight: 700,
-            cursor: 'pointer'
-          }}
-        >
-          🏠 Rent Transfer
-        </button>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            {frequentPayees.length > 0 ? (
+              frequentPayees.map((payee) => (
+                <button
+                  key={payee.upi}
+                  type="button"
+                  onClick={() => fillQuickPayee(payee.upi, '', 'Quick Payment', false)}
+                  style={{
+                    background: 'rgba(99, 102, 241, 0.1)',
+                    border: '1px solid rgba(99, 102, 241, 0.25)',
+                    color: 'var(--indigo-light)',
+                    borderRadius: 20,
+                    padding: '4px 10px',
+                    fontSize: 11,
+                    fontWeight: 700,
+                    cursor: 'pointer'
+                  }}
+                  title={`${payee.upi} — ${payee.count} previous payments`}
+                >
+                  <Smartphone size={11} style={{ verticalAlign: 'middle', marginRight: 4 }} />
+                  {payee.upi}
+                </button>
+              ))
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={() => fillQuickPayee('starbucks.coffee@icici', 350, 'Coffee Payment', false)}
+                  style={{
+                    background: 'rgba(16, 185, 129, 0.1)',
+                    border: '1px solid rgba(16, 185, 129, 0.25)',
+                    color: 'var(--safe-light)',
+                    borderRadius: 20,
+                    padding: '4px 10px',
+                    fontSize: 11,
+                    fontWeight: 700,
+                    cursor: 'pointer'
+                  }}
+                >
+                  ☕ Cafe Coffee
+                </button>
 
-        <button
-          onClick={() =>
-            fillQuickPayee(
-              'trai.verify@fraudster',
-              18500,
-              'Customs Fee Clearance',
-              true
-            )
-          }
-          style={{
-            background: 'rgba(239, 68, 68, 0.12)',
-            border: '1px solid rgba(239, 68, 68, 0.3)',
-            color: 'var(--danger-light)',
-            borderRadius: 20,
-            padding: '4px 10px',
-            fontSize: 11,
-            fontWeight: 700,
-            cursor: 'pointer'
-          }}
-        >
-          🚨 TRAI Scam
-        </button>
-      </>
-    )}
-  </div>
-</div>
-      
+                <button
+                  type="button"
+                  onClick={() => fillQuickPayee('landlord.rent@hdfc', 15000, 'House Rent', false)}
+                  style={{
+                    background: 'rgba(99, 102, 241, 0.1)',
+                    border: '1px solid rgba(99, 102, 241, 0.25)',
+                    color: 'var(--indigo-light)',
+                    borderRadius: 20,
+                    padding: '4px 10px',
+                    fontSize: 11,
+                    fontWeight: 700,
+                    cursor: 'pointer'
+                  }}
+                >
+                  🏠 Rent Transfer
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => fillQuickPayee('trai.verify@fraudster', 18500, 'Customs Fee Clearance', true)}
+                  style={{
+                    background: 'rgba(239, 68, 68, 0.12)',
+                    border: '1px solid rgba(239, 68, 68, 0.3)',
+                    color: 'var(--danger-light)',
+                    borderRadius: 20,
+                    padding: '4px 10px',
+                    fontSize: 11,
+                    fontWeight: 700,
+                    cursor: 'pointer'
+                  }}
+                >
+                  🚨 TRAI Scam
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+
         {/* Input Form */}
         <div className="input-group">
           <label className="input-label">Recipient UPI ID</label>
@@ -870,252 +663,7 @@ useEffect(() => {
         </div>
       </div>
 
-      {/* Live AI Risk & Behavioral Signals Output */}
-      {riskFactors.length > 0 && (
-        <div className="glass-card">
-          <div className="risk-meter" style={{ background: 'rgba(0, 0, 0, 0.4)' }}>
-            <div>
-              <div style={{ fontSize: 11, color: 'var(--sub)', fontWeight: 700 }}>ZERO-KNOWLEDGE AI RISK SCORE</div>
-              <div className="risk-score-display" style={{ color: getRiskColor(riskScore) }}>
-                {riskScore}/100
-              </div>
-            </div>
-            <div className="risk-level-tag" style={{
-              background: riskScore >= 70 ? 'rgba(239, 68, 68, 0.2)' : riskScore >= 40 ? 'rgba(245, 158, 11, 0.2)' : 'rgba(16, 185, 129, 0.2)',
-              color: getRiskColor(riskScore),
-              border: `1px solid ${getRiskColor(riskScore)}`
-            }}>
-              {riskScore >= 70 ? 'HIGH RISK (BLOCKED)' : riskScore >= 40 ? 'MODERATE RISK (CONFIRMATION)' : 'SAFE'}
-            </div>
-          </div>
-
-          <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--sub)', marginBottom: 10 }}>
-            COERCIVE & BEHAVIORAL INTERACTION SIGNALS:
-          </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {riskFactors.map((factor) => (
-              <div
-                key={factor.id}
-                style={{
-                  background: 'rgba(255, 255, 255, 0.03)',
-                  border: '1px solid var(--border)',
-                  borderRadius: 12,
-                  padding: 10,
-                  display: 'flex',
-                  alignItems: 'flex-start',
-                  gap: 10
-                }}
-              >
-                <AlertTriangle
-                  size={16}
-                  color={factor.severity === 'danger' ? 'var(--danger-light)' : 'var(--warn-light)'}
-                  style={{ marginTop: 2, flexShrink: 0 }}
-                />
-                <div>
-                  <div style={{ fontSize: 13, fontWeight: 700 }}>{factor.label}</div>
-                  <div style={{ fontSize: 11, color: 'var(--sub)' }}>{factor.labelHindi}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* ============================================
-          REAL-TIME UPI QR CAMERA SCANNER
-      ============================================ */}
-      {isQrScannerOpen && (
-        <div className="modal-overlay">
-          <div
-            className="modal-content"
-            style={{
-              textAlign: 'center',
-              maxWidth: 400,
-              width: '95%'
-            }}
-          >
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                marginBottom: 16
-              }}
-            >
-              <div style={{ fontSize: 16, fontWeight: 900 }}>
-                Scan UPI QR Code
-              </div>
-
-              <button
-                onClick={async () => {
-                  await stopQrScanner();
-                  setIsQrScannerOpen(false);
-                  setValidationError('');
-                }}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  color: 'var(--sub)',
-                  cursor: 'pointer'
-                }}
-                aria-label="Close QR scanner"
-              >
-                <X size={20} />
-              </button>
-            </div>
-
-            <div
-              style={{
-                width: '100%',
-                minHeight: 300,
-                background: '#000',
-                borderRadius: 16,
-                overflow: 'hidden',
-                position: 'relative',
-                marginBottom: 16
-              }}
-            >
-              <div
-                id="trustshield-qr-reader"
-                style={{
-                  width: '100%',
-                  minHeight: 300
-                }}
-              />
-
-              <div
-                style={{
-                  position: 'absolute',
-                  top: '50%',
-                  left: '50%',
-                  width: 240,
-                  height: 240,
-                  transform: 'translate(-50%, -50%)',
-                  border: '2px solid #22c55e',
-                  borderRadius: 14,
-                  pointerEvents: 'none',
-                  boxShadow: '0 0 20px rgba(34,197,94,0.4)'
-                }}
-              />
-            </div>
-
-            <div
-              style={{
-                fontSize: 13,
-                fontWeight: 700,
-                color: 'var(--indigo-light)'
-              }}
-            >
-              {isScanningQr
-                ? 'Point the rear camera at a UPI QR code'
-                : 'QR Code Detected'}
-            </div>
-
-            <div
-              style={{
-                marginTop: 8,
-                fontSize: 11,
-                color: 'var(--sub)',
-                lineHeight: 1.5
-              }}
-            >
-              The scanner reads the UPI ID and amount from the QR code.
-              It does not use a fixed merchant or demo amount.
-            </div>
-
-            {validationError && (
-              <div
-                style={{
-                  marginTop: 12,
-                  padding: 10,
-                  borderRadius: 8,
-                  background: 'rgba(239,68,68,0.12)',
-                  border: '1px solid rgba(239,68,68,0.3)',
-                  color: 'var(--danger-light)',
-                  fontSize: 12,
-                  fontWeight: 700
-                }}
-              >
-                ⚠️ {validationError}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* MODERATE RISK: Understandable Warning & Urgent Payment Confirmation Modal */}
-      {isUrgentWarningOpen && (
-        <div className="modal-overlay">
-          <div className="modal-content" style={{ textAlign: 'center', maxWidth: 420 }}>
-            <div style={{
-              width: 56,
-              height: 56,
-              borderRadius: 18,
-              background: 'rgba(245, 158, 11, 0.2)',
-              border: '1px solid rgba(245, 158, 11, 0.4)',
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: 'var(--warn-light)',
-              marginBottom: 14
-            }}>
-              <AlertTriangle size={30} />
-            </div>
-
-            <h3 style={{ fontSize: 20, fontWeight: 900, color: 'var(--warn-light)', marginBottom: 6 }}>
-              Security Warning: Confirm Payment
-            </h3>
-            <div style={{ fontSize: 12, color: 'var(--warn-light)', fontWeight: 700, marginBottom: 12 }}>
-              सावधान: इस भुगतान पर सुरक्षा चेतावनी जारी की गई है।
-            </div>
-
-            <p style={{ fontSize: 13, color: 'var(--sub)', marginBottom: 16, lineHeight: '1.4' }}>
-              This transfer of ₹{amount} to <span className="mono">{recipientUpi}</span> triggered security flags (First-time transfer / New Device / Odd Hours).
-            </p>
-
-            {/* Understandable Warning Points */}
-            <div style={{
-              background: 'rgba(0, 0, 0, 0.4)',
-              border: '1px solid var(--border)',
-              borderRadius: 12,
-              padding: 12,
-              textAlign: 'left',
-              fontSize: 12,
-              marginBottom: 20
-            }}>
-              <strong style={{ color: 'var(--text)' }}>Before confirming, check:</strong>
-              <ul style={{ paddingLeft: 16, marginTop: 6, color: 'var(--sub)' }}>
-                <li>Are you currently on a voice call asking you to transfer money?</li>
-                <li>Is someone pressuring you with an urgent deadline?</li>
-                <li>Legitimate banks & police NEVER demand UPI transfers over phone calls.</li>
-              </ul>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-              <button
-                className="btn-secondary"
-                onClick={() => setIsUrgentWarningOpen(false)}
-              >
-                Cancel Payment
-              </button>
-
-              <button
-                className="btn-primary"
-                onClick={() => {
-                  setIsUrgentWarningOpen(false);
-                  setIsPinModalOpen(true);
-                }}
-                style={{ background: 'var(--indigo)' }}
-              >
-                Confirm Urgent Payment →
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* HIGH RISK: Transaction Blocked & Bank False Positive Override Review Modal */}
+      {/* UNIFIED ALL-IN-ONE EXPLAINABILITY MODAL */}
       {isBlockedModalOpen && (
         <div className="modal-overlay">
           <div className="modal-content" style={{ textAlign: 'center', maxWidth: 440 }}>
@@ -1134,13 +682,46 @@ useEffect(() => {
               <AlertOctagon size={32} />
             </div>
 
-            <h3 style={{ fontSize: 22, fontWeight: 900, color: 'var(--danger-light)', marginBottom: 6 }}>
+            <h3 style={{ fontSize: 22, fontWeight: 900, color: 'var(--danger-light)', marginBottom: 4 }}>
               Transaction Blocked
             </h3>
+
+            {/* HINDI WARNING SUBTITLE */}
+            <div style={{ fontSize: 12, color: 'var(--warn-light)', fontWeight: 800, marginBottom: 8 }}>
+              सावधान: इस भुगतान पर सुरक्षा चेतावनी जारी की गई है।
+            </div>
+
             <p style={{ fontSize: 13, color: 'var(--sub)', marginBottom: 14 }}>
               Trust Shield prevented transfer of ₹{amount} to <span className="mono">{recipientUpi}</span> to safeguard your bank account.
             </p>
 
+            {/* REAL-TIME EMERGENCY NOMINEE SMS ALERT BADGE */}
+            {scamAlertSent && (
+              <div style={{
+                background: 'rgba(16, 185, 129, 0.12)',
+                border: '1px solid rgba(16, 185, 129, 0.3)',
+                color: 'var(--safe-light)',
+                padding: '8px 12px',
+                borderRadius: 10,
+                fontSize: 11,
+                fontWeight: 800,
+                marginBottom: 14,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                textAlign: 'left'
+              }}>
+                <Bell size={16} color="var(--safe-light)" style={{ flexShrink: 0 }} />
+                <div>
+                  <div>Real-Time Emergency SMS Alert Sent!</div>
+                  <div style={{ fontSize: 10, fontWeight: 500, opacity: 0.85 }}>
+                    Sent to: {safeUser?.trusted_nominee?.name || 'Papa (Rajesh Sharma)'} ({safeUser?.trusted_nominee?.phone || '+91 98765 43210'})
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* RISK SCORE & SIGNAL BREAKDOWN BOX */}
             <div style={{
               background: 'rgba(239, 68, 68, 0.1)',
               border: '1px solid rgba(239, 68, 68, 0.25)',
@@ -1149,176 +730,31 @@ useEffect(() => {
               fontSize: 12,
               textAlign: 'left',
               color: 'var(--danger-light)',
-              marginBottom: 16
+              marginBottom: 12
             }}>
               <strong>Risk Score: {riskScore}/100</strong>
               <ul style={{ paddingLeft: 16, marginTop: 4 }}>
                 {riskFactors.map(f => <li key={f.id}>{f.label}</li>)}
               </ul>
             </div>
-            {/* TRUSTED NOMINEE ALERT SECTION */}
-<div style={{
-  background: 'rgba(99, 102, 241, 0.08)',
-  border: '1px solid rgba(99, 102, 241, 0.3)',
-  borderRadius: 12,
-  padding: 12,
-  textAlign: 'left',
-  marginBottom: 16
-}}>
-  <div style={{
-    fontSize: 12,
-    fontWeight: 800,
-    color: 'var(--indigo-light)',
-    marginBottom: 6,
-    display: 'flex',
-    alignItems: 'center',
-    gap: 6
-  }}>
-    <UserCheck size={15} />
-    <span>Trusted Nominee Alert</span>
-  </div>
 
-  <p style={{
-    fontSize: 11,
-    color: 'var(--sub)',
-    marginBottom: 10
-  }}>
-    Notify your trusted nominee about this suspicious payment attempt.
-  </p>
-
-  <div style={{
-    display: 'flex',
-    gap: 6,
-    marginBottom: 10
-  }}>
-    <input
-      type="email"
-      className="input-field"
-      value={trustedNomineeEmail}
-      onChange={(e) => setTrustedNomineeEmail(e.target.value)}
-      placeholder="Trusted nominee email"
-      style={{
-        fontSize: 11,
-        padding: '7px 10px',
-        flex: 1
-      }}
-    />
-
-    <button
-      onClick={handleSendScamAlert}
-disabled={
-  !trustedNomineeEmail.trim() || isSendingScamAlert
-}      style={{
-        background: 'var(--indigo)',
-        color: '#fff',
-        border: 'none',
-        borderRadius: 8,
-        padding: '7px 10px',
-        fontSize: 11,
-        fontWeight: 800,
-        whiteSpace: 'nowrap',
-        cursor: trustedNomineeEmail.trim() ? 'pointer' : 'not-allowed',
-        opacity: trustedNomineeEmail.trim() ? 1 : 0.5
-      }}
-    >
-{isSendingScamAlert ? 'Sending...' : 'Send Scam Alert'}    </button>
-  </div>
-
-  {scamAlertSent && (
-    <div style={{
-      background: 'rgba(16, 185, 129, 0.12)',
-      border: '1px solid rgba(16, 185, 129, 0.3)',
-      color: 'var(--safe-light)',
-      padding: 8,
-      borderRadius: 8,
-      fontSize: 11,
-      fontWeight: 700,
-      marginBottom: 10
-    }}>
-      <CheckCircle2
-        size={14}
-        style={{
-          display: 'inline',
-          marginRight: 5,
-          verticalAlign: 'middle'
-        }}
-      />
-      Scam alert sent to the trusted nominee.
-    </div>
-  )}
-  {scamAlertError && (
-  <div
-    style={{
-      background: 'rgba(239, 68, 68, 0.12)',
-      border: '1px solid rgba(239, 68, 68, 0.3)',
-      color: 'var(--danger-light)',
-      padding: 8,
-      borderRadius: 8,
-      fontSize: 11,
-      fontWeight: 700,
-      marginBottom: 10
-    }}
-  >
-    ⚠️ {scamAlertError}
-  </div>
-)}
-
-  <div style={{
-    background: 'rgba(239, 68, 68, 0.1)',
-    border: '1px solid rgba(239, 68, 68, 0.25)',
-    borderRadius: 8,
-    padding: 10,
-    marginBottom: 10,
-    fontSize: 11,
-    color: 'var(--danger-light)',
-    lineHeight: 1.5
-  }}>
-    ⚠️ WARNING suspicious activity was detected.
-    
-  </div>
-
-  <label style={{
-    display: 'flex',
-    alignItems: 'flex-start',
-    gap: 8,
-    fontSize: 11,
-    color: 'var(--sub)',
-    cursor: 'pointer',
-    marginBottom: 12
-  }}>
-    <input
-      type="checkbox"
-      checked={fraudAcknowledged}
-      onChange={(e) => setFraudAcknowledged(e.target.checked)}
-      style={{
-        marginTop: 2,
-        cursor: 'pointer'
-      }}
-    />
-
-    <span>
-      I understand the fraud warning and all the terms and conditions.
-      I still want to continue with this payment.
-    </span>
-  </label>
-
-  <button
-    className="btn-primary"
-    disabled={!fraudAcknowledged}
-    onClick={() => {
-      setIsBlockedModalOpen(false);
-      setIsPinModalOpen(true);
-    }}
-    style={{
-      width: '100%',
-      opacity: fraudAcknowledged ? 1 : 0.45,
-      cursor: fraudAcknowledged ? 'pointer' : 'not-allowed',
-      marginBottom: 8
-    }}
-  >
-    Proceed
-  </button>
-</div>
+            {/* BEFORE CONFIRMING CHECKLIST BOX */}
+            <div style={{
+              background: 'rgba(0, 0, 0, 0.4)',
+              border: '1px solid var(--border)',
+              borderRadius: 12,
+              padding: 12,
+              textAlign: 'left',
+              fontSize: 12,
+              marginBottom: 16
+            }}>
+              <strong style={{ color: 'var(--text)' }}>Before taking action, check:</strong>
+              <ul style={{ paddingLeft: 16, marginTop: 6, color: 'var(--sub)' }}>
+                <li>Are you currently on a voice call asking you to transfer money?</li>
+                <li>Is someone pressuring you with an urgent deadline?</li>
+                <li>Legitimate banks & police NEVER demand UPI transfers over phone calls.</li>
+              </ul>
+            </div>
 
             {/* FALSE POSITIVE / INSTITUTIONAL OVERRIDE SECTION */}
             <div style={{
@@ -1406,65 +842,93 @@ disabled={
         onClose={() => setIsPinModalOpen(false)}
         amount={amount}
         recipientUpi={recipientUpi}
-       onSuccess={() => {
-  const amountNum = parseFloat(amount) || 0;
-
-  // Save successful payment for Quick Payees
-  try {
-    const history = JSON.parse(
-      localStorage.getItem('trustshield_payment_history') || '[]'
-    );
-
-    const newPayment = {
-      recipient_upi: recipientUpi,
-      amount: amountNum,
-      timestamp: new Date().toISOString()
-    };
-
-    const updatedHistory = [newPayment, ...history].slice(0, 100);
-
-    localStorage.setItem(
-      'trustshield_payment_history',
-      JSON.stringify(updatedHistory)
-    );
-
-    // Immediately update Quick Payees
-    const counts = {};
-
-    updatedHistory.forEach((payment) => {
-      const upi =
-        payment.recipient_upi ||
-        payment.recipientUpi ||
-        payment.upi;
-
-      if (upi) {
-        counts[upi] = (counts[upi] || 0) + 1;
-      }
-    });
-
-    const topPayees = Object.entries(counts)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 5)
-      .map(([upi, count]) => ({
-        upi,
-        count
-      }));
-
-    setFrequentPayees(topPayees);
-  } catch (error) {
-    console.warn('Unable to save payment history:', error);
-  }
-
-  if (onPaymentSuccess) {
-    onPaymentSuccess(amountNum);
-  }
-
-  setAmount('');
-  setRecipientUpi('');
-  setNote('');
-  setRiskFactors([]);
-}}
+        onSuccess={handlePinSuccess}
       />
+
+      {/* COMPLETED SAFE PAYMENT RECEIPT MODAL */}
+      {completedTxnReceipt && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ textAlign: 'center', maxWidth: 400 }}>
+            <div style={{
+              width: 60,
+              height: 60,
+              borderRadius: 20,
+              background: 'rgba(16, 185, 129, 0.2)',
+              border: '1px solid rgba(16, 185, 129, 0.4)',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'var(--safe-light)',
+              marginBottom: 14
+            }}>
+              <CheckCircle2 size={36} />
+            </div>
+
+            <h3 style={{ fontSize: 22, fontWeight: 900, color: 'var(--safe-light)', marginBottom: 4 }}>
+              Payment Successful!
+            </h3>
+            <div style={{ fontSize: 12, color: 'var(--sub)', marginBottom: 16 }}>
+              Verified Safe Transaction via Trust Shield Zero-Knowledge Engine
+            </div>
+
+            <div style={{
+              background: 'rgba(0, 0, 0, 0.4)',
+              border: '1px solid var(--border)',
+              borderRadius: 14,
+              padding: 14,
+              marginBottom: 18,
+              textAlign: 'left'
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                <span style={{ fontSize: 12, color: 'var(--sub)' }}>Amount Paid</span>
+                <span style={{ fontSize: 18, fontWeight: 900, color: 'var(--safe-light)' }} className="mono">
+                  ₹{completedTxnReceipt.amount.toLocaleString('en-IN')}
+                </span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                <span style={{ fontSize: 12, color: 'var(--sub)' }}>Paid To</span>
+                <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)' }} className="mono">
+                  {completedTxnReceipt.recipientUpi}
+                </span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                <span style={{ fontSize: 12, color: 'var(--sub)' }}>Txn Reference</span>
+                <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--indigo-light)' }} className="mono">
+                  {completedTxnReceipt.txnId}
+                </span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: 12, color: 'var(--sub)' }}>Time</span>
+                <span style={{ fontSize: 11, color: 'var(--muted)' }}>
+                  {completedTxnReceipt.date} at {completedTxnReceipt.time}
+                </span>
+              </div>
+            </div>
+
+            <div style={{
+              background: 'rgba(245, 158, 11, 0.12)',
+              border: '1px solid rgba(245, 158, 11, 0.3)',
+              color: 'var(--gold)',
+              padding: 10,
+              borderRadius: 10,
+              fontSize: 12,
+              fontWeight: 800,
+              marginBottom: 16,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 6
+            }}>
+              <Sparkles size={16} />
+              <span>+25 Guardian Points Awarded!</span>
+            </div>
+
+            <button className="btn-primary" onClick={() => setCompletedTxnReceipt(null)}>
+              Done
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
