@@ -1,10 +1,30 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, ShieldAlert, AlertOctagon, CheckCircle2, QrCode, Camera, AlertTriangle, ArrowRight, Sparkles, X, UserCheck, Smartphone, Clock, Copy, ShieldCheck, HelpCircle, Bell, Lock, Zap } from 'lucide-react';
+import { Html5Qrcode } from 'html5-qrcode';
+import {
+  Send,
+  ShieldAlert,
+  AlertOctagon,
+  CheckCircle2,
+  QrCode,
+  Camera,
+  AlertTriangle,
+  ArrowRight,
+  Sparkles,
+  X,
+  UserCheck,
+  Smartphone,
+  Clock,
+  Copy,
+  ShieldCheck,
+  HelpCircle,
+  Bell,
+  Lock,
+  Zap
+} from 'lucide-react';
+
 import PINModal from '../components/PINModal';
 import UpiModal from '../components/UpiModal';
 import { sendNomineeScamAlert } from '../utils/smsService';
-
-const Html5Qrcode = typeof window !== 'undefined' ? window.Html5Qrcode : null;
 
 export default function PayView({
   user,
@@ -43,9 +63,7 @@ export default function PayView({
   // False Positive Override & Nominee State
   const [userOverrideNote, setUserOverrideNote] = useState('');
   const [isOverrideSubmitted, setIsOverrideSubmitted] = useState(false);
-  const [isSendingScamAlert, setIsSendingScamAlert] = useState(false);
   const [scamAlertSent, setScamAlertSent] = useState(false);
-  const [scamAlertError, setScamAlertError] = useState('');
 
   // Modals & Analysis State
   const [riskScore, setRiskScore] = useState(0);
@@ -60,7 +78,7 @@ export default function PayView({
   // QR Scanner State
   const [isQrScannerOpen, setIsQrScannerOpen] = useState(false);
   const [isScanningQr, setIsScanningQr] = useState(false);
-  const qrScannerRef = useRef(null);
+  const html5QrCodeRef = useRef(null);
 
   // Load frequent payees from local storage
   useEffect(() => {
@@ -103,6 +121,68 @@ export default function PayView({
       }
     }
   }, [paymentDraft]);
+
+  // QR Scanner Handlers
+  const stopQrScanner = async () => {
+    if (html5QrCodeRef.current) {
+      try {
+        if (html5QrCodeRef.current.isScanning) {
+          await html5QrCodeRef.current.stop();
+        }
+        await html5QrCodeRef.current.clear();
+      } catch (err) {
+        console.error('Error stopping QR scanner:', err);
+      }
+      html5QrCodeRef.current = null;
+    }
+    setIsScanningQr(false);
+    setIsQrScannerOpen(false);
+  };
+
+  const handleScanQrCode = async () => {
+    setIsQrScannerOpen(true);
+    setIsScanningQr(true);
+
+    setTimeout(async () => {
+      try {
+        const html5QrCode = new Html5Qrcode('qr-reader');
+        html5QrCodeRef.current = html5QrCode;
+
+        await html5QrCode.start(
+          { facingMode: 'environment' },
+          { fps: 10, qrbox: { width: 250, height: 250 } },
+          (decodedText) => {
+            let extractedUpi = decodedText;
+            let extractedAmount = '';
+            let extractedNote = '';
+
+            // Real parsing of standard UPI URI schemes: upi://pay?pa=address@bank&am=100&tn=note
+            if (decodedText.startsWith('upi://pay') || decodedText.includes('pa=')) {
+              try {
+                const urlString = decodedText.startsWith('upi://') 
+                  ? decodedText 
+                  : `upi://pay?${decodedText}`;
+                const url = new URL(urlString);
+                
+                extractedUpi = url.searchParams.get('pa') || extractedUpi;
+                extractedAmount = url.searchParams.get('am') || '';
+                extractedNote = url.searchParams.get('tn') || url.searchParams.get('pn') || '';
+              } catch (e) {
+                console.warn('Malformed UPI string parsed, using raw text:', e);
+              }
+            }
+
+            fillQuickPayee(extractedUpi, extractedAmount, extractedNote, false);
+            stopQrScanner();
+          },
+          () => {}
+        );
+      } catch (err) {
+        console.error('Failed to start QR camera scanner:', err);
+        setIsScanningQr(false);
+      }
+    }, 300);
+  };
 
   const handleUpiChange = (e) => {
     const val = e.target.value;
@@ -295,7 +375,6 @@ export default function PayView({
       if (finalScore >= 40) {
         setIsBlockedModalOpen(true);
 
-        // Auto-dispatch emergency SMS to trusted nominee if set
         const nominee = safeUser?.trusted_nominee || { name: 'Papa (Rajesh Sharma)', phone: '+91 98765 43210', enabled: true };
         if (nominee.enabled && nominee.phone) {
           sendNomineeScamAlert({
@@ -378,10 +457,10 @@ export default function PayView({
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
           <h2 style={{ fontSize: 20, fontWeight: 900 }}>UPI Payment Scanner</h2>
 
-          {/* QR Code Scanner Button */}
+          {/* Camera QR Code Scanner Button */}
           <button
             type="button"
-            onClick={() => alert('QR Code Scanner active!')}
+            onClick={handleScanQrCode}
             style={{
               background: 'rgba(99, 102, 241, 0.15)',
               border: '1px solid rgba(99, 102, 241, 0.35)',
@@ -396,8 +475,8 @@ export default function PayView({
               gap: 6
             }}
           >
-            <QrCode size={16} />
-            <span>Scan QR Code</span>
+            <Camera size={16} />
+            <span>Scan Camera QR</span>
           </button>
         </div>
 
@@ -460,23 +539,6 @@ export default function PayView({
 
                 <button
                   type="button"
-                  onClick={() => fillQuickPayee('starbucks.coffee@icici', 350, 'Coffee Payment', false)}
-                  style={{
-                    background: 'rgba(99, 102, 241, 0.1)',
-                    border: '1px solid rgba(99, 102, 241, 0.25)',
-                    color: 'var(--indigo-light)',
-                    borderRadius: 20,
-                    padding: '4px 10px',
-                    fontSize: 11,
-                    fontWeight: 700,
-                    cursor: 'pointer'
-                  }}
-                >
-                  ☕ Cafe Coffee
-                </button>
-
-                <button
-                  type="button"
                   onClick={() => fillQuickPayee('trai.verify@fraudster', 18500, 'Customs Fee Clearance', true)}
                   style={{
                     background: 'rgba(239, 68, 68, 0.12)',
@@ -489,7 +551,7 @@ export default function PayView({
                     cursor: 'pointer'
                   }}
                 >
-                  🚨 TRAI Scam
+                  🚨 TRAI Scam Test
                 </button>
               </>
             )}
@@ -647,7 +709,7 @@ export default function PayView({
           </div>
         </div>
 
-        {/* TARGET UPI APP SECTION (Shown when Pay Online is selected) */}
+        {/* TARGET UPI APP SECTION */}
         {paymentMethod === 'online' && (
           <div style={{
             background: 'rgba(99, 102, 241, 0.06)',
@@ -761,7 +823,6 @@ export default function PayView({
               Transaction Blocked
             </h3>
 
-            {/* HINDI WARNING SUBTITLE */}
             <div style={{ fontSize: 12, color: 'var(--warn-light)', fontWeight: 800, marginBottom: 8 }}>
               सावधान: इस भुगतान पर सुरक्षा चेतावनी जारी की गई है।
             </div>
@@ -770,7 +831,6 @@ export default function PayView({
               Trust Shield prevented transfer of ₹{amount} to <span className="mono">{recipientUpi}</span> to safeguard your bank account.
             </p>
 
-            {/* REAL-TIME EMERGENCY NOMINEE SMS ALERT BADGE */}
             {scamAlertSent && (
               <div style={{
                 background: 'rgba(16, 185, 129, 0.12)',
@@ -796,7 +856,6 @@ export default function PayView({
               </div>
             )}
 
-            {/* RISK SCORE & SIGNAL BREAKDOWN BOX */}
             <div style={{
               background: 'rgba(239, 68, 68, 0.1)',
               border: '1px solid rgba(239, 68, 68, 0.25)',
@@ -813,7 +872,6 @@ export default function PayView({
               </ul>
             </div>
 
-            {/* BEFORE CONFIRMING CHECKLIST BOX */}
             <div style={{
               background: 'rgba(0, 0, 0, 0.4)',
               border: '1px solid var(--border)',
@@ -831,7 +889,6 @@ export default function PayView({
               </ul>
             </div>
 
-            {/* FALSE POSITIVE / INSTITUTIONAL OVERRIDE SECTION */}
             <div style={{
               background: 'rgba(255, 255, 255, 0.03)',
               border: '1px solid var(--border)',
@@ -867,10 +924,10 @@ export default function PayView({
                   <input
                     type="text"
                     className="input-field"
+                    style={{ fontSize: 12, padding: '6px 10px' }}
+                    placeholder="Provide context (e.g., Hospital payment)"
                     value={userOverrideNote}
                     onChange={(e) => setUserOverrideNote(e.target.value)}
-                    placeholder="e.g. Legitimate hospital deposit for brother"
-                    style={{ fontSize: 11, padding: '6px 10px' }}
                   />
                   <button
                     onClick={handleSubmitFalsePositive}
@@ -882,127 +939,98 @@ export default function PayView({
                       padding: '6px 12px',
                       fontSize: 11,
                       fontWeight: 800,
-                      whiteSpace: 'nowrap',
-                      cursor: 'pointer'
+                      cursor: 'pointer',
+                      whiteSpace: 'nowrap'
                     }}
                   >
-                    Submit Review
+                    Submit
                   </button>
                 </div>
               )}
             </div>
 
-            <button className="btn-primary" onClick={() => setIsBlockedModalOpen(false)}>
-              Acknowledge & Close
+            <button
+              className="btn-primary"
+              style={{ width: '100%', background: 'rgba(255, 255, 255, 0.1)', color: '#fff', border: '1px solid var(--border)' }}
+              onClick={() => setIsBlockedModalOpen(false)}
+            >
+              Cancel Payment & Stay Safe
             </button>
           </div>
         </div>
       )}
 
-      {/* REAL UPI PAYMENT APP INTENT MODAL */}
-      <UpiModal
-        isOpen={isUpiModalOpen}
-        onClose={() => setIsUpiModalOpen(false)}
-        amount={amount}
-        recipientUpi={recipientUpi}
-        note={note}
-        userName={safeUser.name}
-        selectedApp={selectedUpiApp}
-        onSuccess={handlePinSuccess}
-      />
-
-      {/* PIN Entry Modal */}
-      <PINModal
-        isOpen={isPinModalOpen}
-        onClose={() => setIsPinModalOpen(false)}
-        amount={amount}
-        recipientUpi={recipientUpi}
-        onSuccess={handlePinSuccess}
-      />
-
-      {/* COMPLETED SAFE PAYMENT RECEIPT MODAL */}
-      {completedTxnReceipt && (
+      {/* ACTUAL CAMERA SCANNER MODAL */}
+      {isQrScannerOpen && (
         <div className="modal-overlay">
-          <div className="modal-content" style={{ textAlign: 'center', maxWidth: 400 }}>
-            <div style={{
-              width: 60,
-              height: 60,
-              borderRadius: 20,
-              background: 'rgba(16, 185, 129, 0.2)',
-              border: '1px solid rgba(16, 185, 129, 0.4)',
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: 'var(--safe-light)',
-              marginBottom: 14
-            }}>
-              <CheckCircle2 size={36} />
+          <div className="modal-content" style={{ maxWidth: 360, textAlign: 'center' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <h3 style={{ fontSize: 16, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Camera size={18} />
+                <span>Scan UPI QR Code</span>
+              </h3>
+              <button
+                onClick={stopQrScanner}
+                style={{ background: 'none', border: 'none', color: 'var(--sub)', cursor: 'pointer' }}
+              >
+                <X size={20} />
+              </button>
             </div>
 
-            <h3 style={{ fontSize: 22, fontWeight: 900, color: 'var(--safe-light)', marginBottom: 4 }}>
-              Payment Successful!
-            </h3>
-            <div style={{ fontSize: 12, color: 'var(--sub)', marginBottom: 16 }}>
-              Verified Safe Transaction via Trust Shield Zero-Knowledge Engine
-            </div>
+            <div
+              id="qr-reader"
+              style={{
+                width: '100%',
+                borderRadius: 12,
+                overflow: 'hidden',
+                background: '#000',
+                minHeight: 250
+              }}
+            />
 
-            <div style={{
-              background: 'rgba(0, 0, 0, 0.4)',
-              border: '1px solid var(--border)',
-              borderRadius: 14,
-              padding: 14,
-              marginBottom: 18,
-              textAlign: 'left'
-            }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                <span style={{ fontSize: 12, color: 'var(--sub)' }}>Amount Paid</span>
-                <span style={{ fontSize: 18, fontWeight: 900, color: 'var(--safe-light)' }} className="mono">
-                  ₹{completedTxnReceipt.amount.toLocaleString('en-IN')}
-                </span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                <span style={{ fontSize: 12, color: 'var(--sub)' }}>Paid To</span>
-                <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)' }} className="mono">
-                  {completedTxnReceipt.recipientUpi}
-                </span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                <span style={{ fontSize: 12, color: 'var(--sub)' }}>Txn Reference</span>
-                <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--indigo-light)' }} className="mono">
-                  {completedTxnReceipt.txnId}
-                </span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: 12, color: 'var(--sub)' }}>Time</span>
-                <span style={{ fontSize: 11, color: 'var(--muted)' }}>
-                  {completedTxnReceipt.date} at {completedTxnReceipt.time}
-                </span>
-              </div>
-            </div>
+            {!isScanningQr && (
+              <p style={{ fontSize: 12, color: 'var(--danger-light)', marginTop: 8 }}>
+                Camera permission required or camera unavailable.
+              </p>
+            )}
 
-            <div style={{
-              background: 'rgba(245, 158, 11, 0.12)',
-              border: '1px solid rgba(245, 158, 11, 0.3)',
-              color: 'var(--gold)',
-              padding: 10,
-              borderRadius: 10,
-              fontSize: 12,
-              fontWeight: 800,
-              marginBottom: 16,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 6
-            }}>
-              <Sparkles size={16} />
-              <span>+25 Guardian Points Awarded!</span>
-            </div>
-
-            <button className="btn-primary" onClick={() => setCompletedTxnReceipt(null)}>
-              Done
+            <button
+              onClick={stopQrScanner}
+              style={{
+                marginTop: 12,
+                width: '100%',
+                padding: '8px 12px',
+                borderRadius: 8,
+                background: 'rgba(255, 255, 255, 0.1)',
+                color: '#fff',
+                border: '1px solid var(--border)',
+                cursor: 'pointer'
+              }}
+            >
+              Cancel
             </button>
           </div>
         </div>
+      )}
+
+      {/* PAYMENT MODALS */}
+      {isPinModalOpen && (
+        <PINModal
+          onClose={() => setIsPinModalOpen(false)}
+          onSuccess={handlePinSuccess}
+          amount={amount}
+          recipientUpi={recipientUpi}
+        />
+      )}
+
+      {isUpiModalOpen && (
+        <UpiModal
+          onClose={() => setIsUpiModalOpen(false)}
+          onSuccess={handlePinSuccess}
+          amount={amount}
+          recipientUpi={recipientUpi}
+          app={selectedUpiApp}
+        />
       )}
     </div>
   );
