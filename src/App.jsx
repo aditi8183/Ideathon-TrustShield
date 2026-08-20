@@ -177,75 +177,77 @@ const handleTranscriptChange = (text) => {
     }
   };
 
-  const handlePaymentBlocked = (blockedData) => {
-    const newBankReview = {
-      id: `br_${Date.now()}`,
-      transaction_id: `TXN${Math.floor(1000000 + Math.random() * 9000000)}`,
-      user_id: user ? user.id : 'u042',
-      user_name: user ? user.name : 'Aditi Sharma',
-      amount: blockedData.amount,
-      recipient_upi: blockedData.recipient_upi,
-      bank_name: user ? user.bank_name : 'ICICI Bank',
-      blocked_reason: blockedData.blocked_reason,
-      risk_score: blockedData.risk_score,
-      coercive_signals: ['Active Voice Call', 'Clipboard Paste', 'New Device Anomaly'],
-      device_info: user ? user.current_device : 'Chrome on Windows 11',
-      status: 'PENDING',
-      is_false_positive_requested: false,
-      reviewed_by: 'Pending Officer Review',
-      review_note: 'Automatically blocked by Trust Shield Zero-Knowledge AI engine.',
-      created_at: new Date().toISOString()
+ const handlePaymentBlocked = (blockedData) => {
+  const newBankReview = {
+    id: `br_${Date.now()}`,
+    transaction_id: `TXN${Math.floor(1000000 + Math.random() * 9000000)}`,
+    user_id: user ? user.id : 'u042',
+    user_name: user ? user.name : 'Aditi Sharma',
+    amount: blockedData.amount,
+    recipient_upi: blockedData.recipient_upi,
+    bank_name: user ? user.bank_name : 'ICICI Bank',
+    blocked_reason: blockedData.blocked_reason,
+    risk_score: blockedData.risk_score,
+    coercive_signals: ['Active Voice Call', 'Clipboard Paste', 'New Device Anomaly'],
+    device_info: user ? user.current_device : 'Chrome on Windows 11',
+    status: 'PENDING',
+    is_false_positive_requested: false,
+    reviewed_by: 'Pending Officer Review',
+    review_note: 'Automatically blocked by Trust Shield Zero-Knowledge AI engine.',
+    created_at: new Date().toISOString()
+  };
+
+  setBankReviews(prev => [newBankReview, ...prev]);
+
+  setUser(prev => {
+    const newPoints = (Number(prev.guardian_points) || 0) + 100;
+    const newLevel = calculateLevel(newPoints);
+
+    return {
+      ...prev,
+      total_saved: (Number(prev.total_saved) || 0) + Number(blockedData.amount),
+      guardian_points: newPoints,
+      level: newLevel,
+      guardian_level: `Level ${newLevel} Guardian`
     };
+  });
 
-    setBankReviews(prev => [newBankReview, ...prev]);
+  setPointEvents(prev => [
+    {
+      id: `e_${Date.now()}`,
+      label: `Blocked ₹${blockedData.amount} Fraud Payment`,
+      pts: 100,
+      time: 'Just now'
+    },
+    ...prev
+  ]);
+};
+ const handlePaymentSuccess = (amount) => {
+  clearPaymentDraft();
 
-    setUser(prev => {
-  const newPoints = (prev.guardian_points || 0) + 100;
+  setUser(prev => {
+    const newPoints = (Number(prev.guardian_points) || 0) + 25;
+    const newLevel = calculateLevel(newPoints);
 
-  return {
-    ...prev,
-    total_saved: (prev.total_saved || 0) + Number(blockedData.amount),
-    guardian_points: newPoints,
-    level: calculateLevel(newPoints)
-  };
-});
+    return {
+      ...prev,
+      guardian_points: newPoints,
+      level: newLevel,
+      guardian_level: `Level ${newLevel} Guardian`
+    };
+  });
 
-    setPointEvents(prev => [
-      {
-        id: `e_${Date.now()}`,
-        label: `Blocked ₹${blockedData.amount} Fraud Payment`,
-        pts: 100,
-        time: 'Just now'
-      },
-      ...prev
-    ]);
-  };
-
-  const handlePaymentSuccess = (amount) => {
-    // Payment cycle completed -> clear payment draft & active call transcript
-    clearPaymentDraft();
-
-   setUser(prev => {
-  const newPoints = (prev.guardian_points || 0) + 25;
-
-  return {
-    ...prev,
-    guardian_points: newPoints,
-    level: calculateLevel(newPoints)
-  };
-});
-
-    setPointEvents(prev => [
-      {
-        id: `e_${Date.now()}`,
-        label: `Verified Safe Payment ₹${amount}`,
-        pts: 25,
-        time: 'Just now'
-      },
-      ...prev
-    ]);
-  };
-
+  setPointEvents(prev => [
+    {
+      id: `e_${Date.now()}`,
+      label: `Verified Safe Payment ₹${amount}`,
+      pts: 25,
+      time: 'Just now'
+    },
+    ...prev
+  ]);
+};
+   
  const handleUpvoteScam = (scamId) => {
   setScamList(prev => {
     const updatedScams = prev.map(s => {
@@ -267,15 +269,17 @@ const handleTranscriptChange = (text) => {
     return updatedScams;
   });
 
-  setUser(prev => {
-    const newPoints = (prev.guardian_points || 0) + 10;
+setUser(prev => {
+  const newPoints = (Number(prev.guardian_points) || 0) + 10;
+  const newLevel = calculateLevel(newPoints);
 
-    return {
-      ...prev,
-      guardian_points: newPoints,
-      level: calculateLevel(newPoints)
-    };
-  });
+  return {
+    ...prev,
+    guardian_points: newPoints,
+    level: newLevel,
+    guardian_level: `Level ${newLevel} Guardian`
+  };
+});
 
   setPointEvents(prev => [
     {
@@ -304,15 +308,18 @@ const handleTranscriptChange = (text) => {
     return updatedScams;
   });
 
-  setUser(prev => {
-    const newPoints = (prev.guardian_points || 0) + 50;
+setUser(prev => {
+  const newPoints = (Number(prev.guardian_points) || 0) + 50;
+  const newLevel = calculateLevel(newPoints);
 
-    return {
-      ...prev,
-      guardian_points: newPoints,
-      level: calculateLevel(newPoints)
-    };
-  });
+  return {
+    ...prev,
+    guardian_points: newPoints,
+    level: newLevel,
+    guardian_level: `Level ${newLevel} Guardian`,
+    cases_reported: (Number(prev.cases_reported) || 0) + 1
+  };
+});
 
   setPointEvents(prev => [
     {
