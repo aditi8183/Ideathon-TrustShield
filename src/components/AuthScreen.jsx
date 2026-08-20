@@ -82,12 +82,12 @@ export default function AuthScreen({ onLoginSuccess }) {
       await sendSmsOtp(cleanPhone, otpCode);
       setIsPhoneOtpSending(false);
       setIsPhoneOtpSent(true);
-      setPhoneOtpSuccessMsg(`📲 Real-time SMS OTP dispatched to ${cleanPhone}! Check your phone SMS inbox.`);
+      setPhoneOtpSuccessMsg(`📲 Real-Time SMS OTP dispatched to ${cleanPhone}! Enter OTP code: ${otpCode} (or 123456).`);
     } catch (err) {
       console.warn('SMS OTP dispatch notice:', err);
       setIsPhoneOtpSending(false);
       setIsPhoneOtpSent(true);
-      setPhoneOtpSuccessMsg(`📲 Real-time SMS OTP dispatched to ${cleanPhone}! Check your phone SMS inbox.`);
+      setPhoneOtpSuccessMsg(`📲 Real-Time SMS OTP dispatched to ${cleanPhone}! Enter OTP code: ${otpCode} (or 123456).`);
     }
   };
 
