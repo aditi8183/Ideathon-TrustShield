@@ -138,7 +138,7 @@ useEffect(() => {
       last_active_date: today
     };
   });
-});
+}, [user?.email, user?.last_active_date]);
 
 // YOUR EXISTING CODE CONTINUES
 const handleTranscriptChange = (text) => {
