@@ -28,9 +28,42 @@ export default function PayView({
   const [recipientUpi, setRecipientUpi] = useState(paymentDraft?.recipientUpi || '');
   const [amount, setAmount] = useState(paymentDraft?.amount || '');
   const [note, setNote] = useState(paymentDraft?.note || '');
-
+  const [frequentPayees, setFrequentPayees] = useState([]);
   // Behavioral & Device Coercion signals
   const [isPasted, setIsPasted] = useState(paymentDraft?.isPasted || false);
+  // Load most frequently paid UPI IDs
+useEffect(() => {
+  try {
+    const history = JSON.parse(
+      localStorage.getItem('trustshield_payment_history') || '[]'
+    );
+
+    const counts = {};
+
+    history.forEach((payment) => {
+      const upi =
+        payment.recipient_upi ||
+        payment.recipientUpi ||
+        payment.upi;
+
+      if (upi) {
+        counts[upi] = (counts[upi] || 0) + 1;
+      }
+    });
+
+    const topPayees = Object.entries(counts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([upi, count]) => ({
+        upi,
+        count
+      }));
+
+    setFrequentPayees(topPayees);
+  } catch (error) {
+    console.warn('Unable to load payment history:', error);
+  }
+}, []);
   const [isOddHour, setIsOddHour] = useState(false);
   const [validationError, setValidationError] = useState('');
 
@@ -558,63 +591,129 @@ const [scamAlertSent, setScamAlertSent] = useState(false);
             <span>Scan QR Code</span>
           </button>
         </div>
+{/* Quick Payee Selection Bar */}
+<div style={{ marginBottom: 14 }}>
+  <div style={{
+    fontSize: 11,
+    color: 'var(--sub)',
+    fontWeight: 700,
+    marginBottom: 6
+  }}>
+    QUICK PAYEES:
+  </div>
 
-        {/* Quick Payee Selection Bar */}
-        <div style={{ marginBottom: 14 }}>
-          <div style={{ fontSize: 11, color: 'var(--sub)', fontWeight: 700, marginBottom: 6 }}>
-            QUICK TAP DEMO PAYEES:
-          </div>
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-            <button
-              onClick={() => fillQuickPayee('starbucks.coffee@icici', 350, 'Coffee Payment', false)}
-              style={{
-                background: 'rgba(16, 185, 129, 0.1)',
-                border: '1px solid rgba(16, 185, 129, 0.25)',
-                color: 'var(--safe-light)',
-                borderRadius: 20,
-                padding: '4px 10px',
-                fontSize: 11,
-                fontWeight: 700,
-                cursor: 'pointer'
-              }}
-            >
-              ☕ Cafe Coffee (Safe)
-            </button>
+  <div style={{
+    display: 'flex',
+    gap: 6,
+    flexWrap: 'wrap'
+  }}>
+    {frequentPayees.length > 0 ? (
+      frequentPayees.map((payee) => (
+        <button
+          key={payee.upi}
+          onClick={() =>
+            fillQuickPayee(
+              payee.upi,
+              '',
+              'Quick Payment',
+              false
+            )
+          }
+          style={{
+            background: 'rgba(99, 102, 241, 0.1)',
+            border: '1px solid rgba(99, 102, 241, 0.25)',
+            color: 'var(--indigo-light)',
+            borderRadius: 20,
+            padding: '4px 10px',
+            fontSize: 11,
+            fontWeight: 700,
+            cursor: 'pointer',
+            maxWidth: '100%',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap'
+          }}
+          title={`${payee.upi} — ${payee.count} previous payments`}
+        >
+          <Smartphone size={11} style={{ verticalAlign: 'middle', marginRight: 4 }} />
+          {payee.upi}
+        </button>
+      ))
+    ) : (
+      <>
+        <button
+          onClick={() =>
+            fillQuickPayee(
+              'starbucks.coffee@icici',
+              350,
+              'Coffee Payment',
+              false
+            )
+          }
+          style={{
+            background: 'rgba(16, 185, 129, 0.1)',
+            border: '1px solid rgba(16, 185, 129, 0.25)',
+            color: 'var(--safe-light)',
+            borderRadius: 20,
+            padding: '4px 10px',
+            fontSize: 11,
+            fontWeight: 700,
+            cursor: 'pointer'
+          }}
+        >
+          ☕ Cafe Coffee
+        </button>
 
-            <button
-              onClick={() => fillQuickPayee('landlord.rent@hdfc', 15000, 'House Rent', false)}
-              style={{
-                background: 'rgba(99, 102, 241, 0.1)',
-                border: '1px solid rgba(99, 102, 241, 0.25)',
-                color: 'var(--indigo-light)',
-                borderRadius: 20,
-                padding: '4px 10px',
-                fontSize: 11,
-                fontWeight: 700,
-                cursor: 'pointer'
-              }}
-            >
-              🏠 Rent Transfer (Safe)
-            </button>
+        <button
+          onClick={() =>
+            fillQuickPayee(
+              'landlord.rent@hdfc',
+              15000,
+              'House Rent',
+              false
+            )
+          }
+          style={{
+            background: 'rgba(99, 102, 241, 0.1)',
+            border: '1px solid rgba(99, 102, 241, 0.25)',
+            color: 'var(--indigo-light)',
+            borderRadius: 20,
+            padding: '4px 10px',
+            fontSize: 11,
+            fontWeight: 700,
+            cursor: 'pointer'
+          }}
+        >
+          🏠 Rent Transfer
+        </button>
 
-            <button
-              onClick={() => fillQuickPayee('trai.verify@fraudster', 18500, 'Customs Fee Clearance', true)}
-              style={{
-                background: 'rgba(239, 68, 68, 0.12)',
-                border: '1px solid rgba(239, 68, 68, 0.3)',
-                color: 'var(--danger-light)',
-                borderRadius: 20,
-                padding: '4px 10px',
-                fontSize: 11,
-                fontWeight: 700,
-                cursor: 'pointer'
-              }}
-            >
-              🚨 TRAI Scam (Fraud)
-            </button>
-          </div>
-        </div>
-
+        <button
+          onClick={() =>
+            fillQuickPayee(
+              'trai.verify@fraudster',
+              18500,
+              'Customs Fee Clearance',
+              true
+            )
+          }
+          style={{
+            background: 'rgba(239, 68, 68, 0.12)',
+            border: '1px solid rgba(239, 68, 68, 0.3)',
+            color: 'var(--danger-light)',
+            borderRadius: 20,
+            padding: '4px 10px',
+            fontSize: 11,
+            fontWeight: 700,
+            cursor: 'pointer'
+          }}
+        >
+          🚨 TRAI Scam
+        </button>
+      </>
+    )}
+  </div>
+</div>
+      
         {/* Input Form */}
         <div className="input-group">
           <label className="input-label">Recipient UPI ID</label>
@@ -1245,13 +1344,64 @@ disabled={
         onClose={() => setIsPinModalOpen(false)}
         amount={amount}
         recipientUpi={recipientUpi}
-        onSuccess={() => {
-          if (onPaymentSuccess) onPaymentSuccess(parseFloat(amount));
-          setAmount('');
-          setRecipientUpi('');
-          setNote('');
-          setRiskFactors([]);
-        }}
+       onSuccess={() => {
+  const amountNum = parseFloat(amount) || 0;
+
+  // Save successful payment for Quick Payees
+  try {
+    const history = JSON.parse(
+      localStorage.getItem('trustshield_payment_history') || '[]'
+    );
+
+    const newPayment = {
+      recipient_upi: recipientUpi,
+      amount: amountNum,
+      timestamp: new Date().toISOString()
+    };
+
+    const updatedHistory = [newPayment, ...history].slice(0, 100);
+
+    localStorage.setItem(
+      'trustshield_payment_history',
+      JSON.stringify(updatedHistory)
+    );
+
+    // Immediately update Quick Payees
+    const counts = {};
+
+    updatedHistory.forEach((payment) => {
+      const upi =
+        payment.recipient_upi ||
+        payment.recipientUpi ||
+        payment.upi;
+
+      if (upi) {
+        counts[upi] = (counts[upi] || 0) + 1;
+      }
+    });
+
+    const topPayees = Object.entries(counts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([upi, count]) => ({
+        upi,
+        count
+      }));
+
+    setFrequentPayees(topPayees);
+  } catch (error) {
+    console.warn('Unable to save payment history:', error);
+  }
+
+  if (onPaymentSuccess) {
+    onPaymentSuccess(amountNum);
+  }
+
+  setAmount('');
+  setRecipientUpi('');
+  setNote('');
+  setRiskFactors([]);
+}}
       />
     </div>
   );
