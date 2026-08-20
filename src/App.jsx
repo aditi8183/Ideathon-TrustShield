@@ -1,5 +1,5 @@
-import MLTest from "./components/MLTest";
-import React, { useEffect, useState } from 'react';import Header from './components/Header';
+import React, { useEffect, useState } from 'react';
+import Header from './components/Header';
 import Navigation from './components/Navigation';
 import AuthScreen from './components/AuthScreen';
 import HomeView from './views/HomeView';

@@ -1,6 +1,5 @@
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
-import basicSsl from '@vitejs/plugin-basic-ssl';
 import nodemailer from 'nodemailer';
 
 // Custom Vite plugin for Ultra-Resilient Real-Time Email OTP Dispatch
@@ -260,13 +259,11 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [
       react(),
-      basicSsl(),
       otpEmailPlugin(env)
     ],
 
     server: {
-      host: true,
-      https: true
+      host: true
     }
   };
 });

@@ -1178,28 +1178,7 @@ const completeGoogleLogin = ({
                             fontWeight: 700,
                             marginTop: 8
                           }}>
-                            <div>{phoneOtpSuccessMsg}</div>
-                            {nativeSmsLink && !isPhoneVerified && (
-                              <a
-                                href={nativeSmsLink}
-                                style={{
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: 6,
-                                  marginTop: 6,
-                                  background: 'var(--indigo)',
-                                  color: '#fff',
-                                  padding: '5px 10px',
-                                  borderRadius: 6,
-                                  fontSize: 11,
-                                  fontWeight: 800,
-                                  textDecoration: 'none'
-                                }}
-                              >
-                                <span>📲 Send Physical SMS via Phone SIM App</span>
-                                <ExternalLink size={12} />
-                              </a>
-                            )}
+                            {phoneOtpSuccessMsg}
                           </div>
                         )}
 
