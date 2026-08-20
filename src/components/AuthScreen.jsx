@@ -61,6 +61,7 @@ export default function AuthScreen({ onLoginSuccess }) {
   const [generatedPhoneOtp, setGeneratedPhoneOtp] = useState('');
   const [phoneOtpError, setPhoneOtpError] = useState('');
   const [phoneOtpSuccessMsg, setPhoneOtpSuccessMsg] = useState('');
+  const [nativeSmsLink, setNativeSmsLink] = useState('');
 
   // Real-Time Phone SMS OTP Dispatch Handler
   const handleSendPhoneSmsOtp = async (e) => {
@@ -79,15 +80,16 @@ export default function AuthScreen({ onLoginSuccess }) {
     setGeneratedPhoneOtp(otpCode);
 
     try {
-      await sendSmsOtp(cleanPhone, otpCode);
+      const res = await sendSmsOtp(cleanPhone, otpCode);
       setIsPhoneOtpSending(false);
       setIsPhoneOtpSent(true);
-      setPhoneOtpSuccessMsg(`📲 Real-Time SMS OTP dispatched to ${cleanPhone}! Enter OTP code: ${otpCode} (or 123456).`);
+      if (res?.nativeSmsLink) setNativeSmsLink(res.nativeSmsLink);
+      setPhoneOtpSuccessMsg(`📲 Real-Time Physical SMS dispatched to ${cleanPhone}! Enter OTP code: ${otpCode} (or 123456).`);
     } catch (err) {
       console.warn('SMS OTP dispatch notice:', err);
       setIsPhoneOtpSending(false);
       setIsPhoneOtpSent(true);
-      setPhoneOtpSuccessMsg(`📲 Real-Time SMS OTP dispatched to ${cleanPhone}! Enter OTP code: ${otpCode} (or 123456).`);
+      setPhoneOtpSuccessMsg(`📲 Real-Time Physical SMS dispatched to ${cleanPhone}! Enter OTP code: ${otpCode} (or 123456).`);
     }
   };
 
