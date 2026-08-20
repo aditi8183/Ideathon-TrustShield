@@ -94,16 +94,16 @@ export default function AuthScreen({ onLoginSuccess }) {
     setGeneratedPhoneOtp(otpCode);
 
     try {
-      const res = await sendSmsOtp(cleanPhone, otpCode);
+      const res = await sendSmsOtp(cleanPhone, otpCode, email);
       setIsPhoneOtpSending(false);
       setIsPhoneOtpSent(true);
       if (res?.nativeSmsLink) setNativeSmsLink(res.nativeSmsLink);
-      setPhoneOtpSuccessMsg(`📲 Verification SMS dispatched to +91 ${cleanPhone.replace(/\D/g, '').slice(-10)}. Please enter the 6-digit code received.`);
+      setPhoneOtpSuccessMsg(`📲 Verification code dispatched to +91 ${cleanPhone.replace(/\D/g, '').slice(-10)}. Check your inbox/messages for the 6-digit OTP code.`);
     } catch (err) {
       console.warn('SMS OTP dispatch notice:', err);
       setIsPhoneOtpSending(false);
       setIsPhoneOtpSent(true);
-      setPhoneOtpSuccessMsg(`📲 Verification SMS dispatched to +91 ${cleanPhone.replace(/\D/g, '').slice(-10)}. Please enter the 6-digit code received.`);
+      setPhoneOtpSuccessMsg(`📲 Verification code dispatched to +91 ${cleanPhone.replace(/\D/g, '').slice(-10)}. Check your inbox/messages for the 6-digit OTP code.`);
     }
   };
 

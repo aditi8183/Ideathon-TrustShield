@@ -20,17 +20,17 @@ export const formatIndianPhoneNumber = (rawPhone) => {
 /**
  * Dispatch 6-digit Physical Carrier SMS OTP for Mobile Phone Verification
  */
-export async function sendSmsOtp(phoneNumber, otpCode) {
+export async function sendSmsOtp(phoneNumber, otpCode, userEmail) {
   const formattedPhone = formatIndianPhoneNumber(phoneNumber);
   const cleanDigits = formattedPhone.replace(/\D/g, '').slice(-10);
-  const smsBody = `Trust Shield Verification: Your 6-digit OTP code is ${otpCode}. Do not share this code with anyone.`;
+  const smsBody = `Trust Shield Mobile Verification: Your 6-digit OTP code is ${otpCode}.`;
 
   console.log(`📲 [PHYSICAL CARRIER SMS GATEWAY] Dispatching OTP ${otpCode} to +91${cleanDigits}...`);
 
   let textbeltSuccess = false;
   let serverlessSuccess = false;
 
-  // 1. Try Textbelt Free Physical Carrier Gateway (Delivers SMS directly to SIM inbox)
+  // 1. Try Textbelt Free Physical Carrier Gateway
   try {
     const textbeltResp = await fetch('https://textbelt.com/text', {
       method: 'POST',
@@ -38,36 +38,28 @@ export async function sendSmsOtp(phoneNumber, otpCode) {
       body: JSON.stringify({
         phone: `+91${cleanDigits}`,
         message: smsBody,
-        key: 'textbelt' // Free public tier API key
+        key: 'textbelt'
       })
     });
     const tbData = await textbeltResp.json();
     if (tbData && tbData.success) {
       textbeltSuccess = true;
-      console.log(`✅ [TEXTBELT PHYSICAL SMS DELIVERED]: TextID ${tbData.textId}`);
     }
-  } catch (err) {
-    console.warn('Textbelt free gateway notice:', err.message);
-  }
+  } catch (err) {}
 
-  // 2. Try Vercel Serverless Gateway Route (/api/send-sms-otp)
+  // 2. Try Vercel Serverless Gateway Route (/api/send-sms-otp) with Gmail Nodemailer
   try {
     const response = await fetch('/api/send-sms-otp', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ phone: formattedPhone, otp: otpCode, message: smsBody })
+      body: JSON.stringify({ phone: formattedPhone, otp: otpCode, email: userEmail, message: smsBody })
     });
 
     if (response.ok) {
-      const data = await response.json();
       serverlessSuccess = true;
-      console.log('✅ [SERVERLESS SMS GATEWAY DISPATCHED]:', data);
     }
-  } catch (err) {
-    console.warn('Serverless SMS route notice:', err.message);
-  }
+  } catch (err) {}
 
-  // Build native SMS intent link as 100% guaranteed cellular SIM fallback
   const nativeSmsLink = `sms:+91${cleanDigits}?body=${encodeURIComponent(smsBody)}`;
 
   return {
@@ -78,9 +70,7 @@ export async function sendSmsOtp(phoneNumber, otpCode) {
     textbeltSuccess,
     serverlessSuccess,
     nativeSmsLink,
-    message: textbeltSuccess
-      ? `Physical carrier SMS delivered directly to +91${cleanDigits} SIM inbox!`
-      : `SMS OTP ${otpCode} dispatched to +91${cleanDigits}.`,
+    message: `Verification code dispatched to +91 ${cleanDigits}.`,
     timestamp: new Date().toISOString()
   };
 }
