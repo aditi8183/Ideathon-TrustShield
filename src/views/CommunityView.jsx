@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ShieldAlert, Plus, ThumbsUp, Users, AlertTriangle, Search, Sparkles } from 'lucide-react';
+import { ShieldAlert, Plus, ThumbsUp, Search } from 'lucide-react';
 import ReportScamModal from '../components/ReportScamModal';
 
 export default function CommunityView({ scamList = [], onUpvoteScam, onAddScam }) {
@@ -142,9 +142,18 @@ const victimCount = scam.victim_count || 1;
                 </div>
               </div>
 
-              <p style={{ fontSize: 12, color: 'var(--sub)', lineHeight: '1.4', margin: '8px 0' }}>
-                {scam.description}
-              </p>
+             <p
+  style={{
+    fontSize: 12,
+    color: 'var(--sub)',
+    lineHeight: '1.4',
+    margin: '8px 0',
+    overflowWrap: 'anywhere',
+    wordBreak: 'break-word'
+  }}
+>
+  {scam.description}
+</p>
 
               {/* Details Bar */}
               <div style={{
@@ -157,11 +166,11 @@ gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
                 fontSize: 11,
                 marginBottom: 10
               }}>
-                <div>
+                <div style={{ minWidth: 0 }}>
                   <span style={{ color: 'var(--sub)' }}>Extorted Amt: </span>
                   <strong style={{ color: 'var(--text)' }}>₹{targetedAmt}</strong>
                 </div>
-                <div>
+                <div style={{ minWidth: 0 }}>
                   <span style={{ color: 'var(--sub)' }}>Community Reports: </span>
                   <strong style={{ color: 'var(--danger-light)' }}>{victimCount} victims</strong>
                 </div>
@@ -182,7 +191,7 @@ gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
                           color: 'var(--danger-light)',
                           padding: '2px 6px',
                           borderRadius: 4,
-                          fontSize: 11
+                          fontSize: 11,
                           overflowWrap: 'anywhere',
                           wordBreak: 'break-word'
                         }}
@@ -210,7 +219,8 @@ gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
     fontSize: 11,
     color: 'var(--muted)',
     overflowWrap: 'anywhere',
-    minWidth: 0
+    minWidth: 0,
+    flex: 1
   }}
 >                  Reported by {reporterName}
                 </span>
@@ -228,7 +238,8 @@ gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
-                    gap: 6
+                    gap: 6,
+                    whiteSpace: 'nowrap'
                   }}
                 >
                   <ThumbsUp size={14} />
