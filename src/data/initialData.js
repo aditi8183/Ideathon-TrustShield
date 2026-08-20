@@ -8,11 +8,12 @@ export const INITIAL_USER = {
   upi_id: 'aditi@okicici',
   bank_name: 'ICICI Bank',
   role: 'CUSTOMER',
-  guardian_points: 1250,
-  guardian_level: 'Level 3 Guardian',
-  streak: 14,
-  cases_reported: 5,
-  cases_verified: 12,
+  guardian_points: 0,
+  level: 1,
+  guardian_level: 'Level 1 Guardian',
+  streak: 1,
+  cases_reported: 0,
+  cases_verified: 0,
   total_saved: 0,
   avg_transaction_amount: 2500,
   primary_device: 'POCO X7 Pro (Android 14)',
@@ -62,8 +63,4 @@ export const INITIAL_BANK_REVIEWS = [
   }
 ];
 
-export const INITIAL_POINT_EVENTS = [
-  { id: 'e1', label: 'Blocked ₹18,500 TRAI Fraud Payment', pts: 100, time: '25m ago' },
-  { id: 'e2', label: 'Reported FedEx Customs Scam', pts: 250, time: 'Yesterday' },
-  { id: 'e3', label: 'Completed Daily Security Checkup', pts: 50, time: '2 days ago' }
-];
+export const INITIAL_POINT_EVENTS = [];
