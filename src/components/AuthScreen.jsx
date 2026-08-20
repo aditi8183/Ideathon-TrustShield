@@ -84,6 +84,11 @@ export default function AuthScreen({ onLoginSuccess }) {
       return;
     }
 
+    if (isPhoneAlreadyRegistered(cleanPhone)) {
+      setPhoneOtpError('⚠️ This mobile number is already registered. Please click "Sign In" to access your account.');
+      return;
+    }
+
     setIsPhoneOtpSending(true);
     const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
     setGeneratedPhoneOtp(otpCode);
@@ -130,6 +135,11 @@ export default function AuthScreen({ onLoginSuccess }) {
     const cleanEmail = email.trim();
     if (!cleanEmail || !cleanEmail.includes('@')) {
       setEmailOtpError('Please enter a valid email address.');
+      return;
+    }
+
+    if (isEmailAlreadyRegistered(cleanEmail)) {
+      setEmailOtpError('⚠️ This email address is already registered. Please click "Sign In" to access your account.');
       return;
     }
 
@@ -286,6 +296,39 @@ const getStoredUserProfile = (email) => {
   const profiles = getStoredUserProfiles();
 
   return profiles[email.toLowerCase().trim()] || null;
+};
+
+const isEmailAlreadyRegistered = (targetEmail) => {
+  if (!targetEmail) return false;
+  const cleanEmail = targetEmail.toLowerCase().trim();
+  const profiles = getStoredUserProfiles();
+  const roles = getRegisteredAccounts();
+
+  if (profiles[cleanEmail]) return true;
+  if (roles[cleanEmail]) return true;
+
+  if (cleanEmail === 'aditiansh8183@gmail.com' || cleanEmail === 'aditi.sharma@gmail.com') {
+    return true;
+  }
+
+  return false;
+};
+
+const isPhoneAlreadyRegistered = (targetPhone) => {
+  if (!targetPhone) return false;
+  const cleanDigits = targetPhone.replace(/\D/g, '').slice(-10);
+  if (cleanDigits.length < 10) return false;
+
+  const profiles = getStoredUserProfiles();
+  for (const key in profiles) {
+    const p = profiles[key];
+    if (p?.phone) {
+      const pDigits = p.phone.replace(/\D/g, '').slice(-10);
+      if (pDigits === cleanDigits) return true;
+    }
+  }
+
+  return false;
 };
   const createFreshUserProfile = ({
   id,
@@ -499,7 +542,17 @@ const getStoredUserProfile = (email) => {
       return;
     }
 
-    // IF REGISTER MODE: Initiate OTP verification
+    // IF REGISTER MODE: Check for duplicate Email and Phone Number!
+    if (isEmailAlreadyRegistered(cleanEmail)) {
+      setFormError('⚠️ An account with this Email Address is already registered. Please click "Sign In" to access your account.');
+      return;
+    }
+
+    if (role === 'CUSTOMER' && isPhoneAlreadyRegistered(phone)) {
+      setFormError('⚠️ An account with this Mobile Number (+91) is already registered. Please click "Sign In" to access your account.');
+      return;
+    }
+
     setIsOtpSending(true);
     const secretOtp = Math.floor(100000 + Math.random() * 900000).toString();
     setGeneratedOtp(secretOtp);
