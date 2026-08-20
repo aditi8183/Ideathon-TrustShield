@@ -362,7 +362,56 @@ export default function PayView({
     const payeeUpi = recipientUpi || 'merchant@upi';
     const payNote = note || 'Verified Safe Payment';
     const txnId = `TS-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
+try {
+  const history = JSON.parse(
+    localStorage.getItem('trustshield_payment_history') || '[]'
+  );
 
+  const updatedHistory = [
+    {
+      txnId,
+      recipientUpi: payeeUpi,
+      amount: amtNum,
+      note: payNote,
+      timestamp: new Date().toISOString()
+    },
+    ...history
+  ];
+
+  localStorage.setItem(
+    'trustshield_payment_history',
+    JSON.stringify(updatedHistory)
+  );
+
+  const counts = {};
+
+  updatedHistory.forEach((payment) => {
+    if (!payment.recipientUpi) return;
+
+    const upiKey = payment.recipientUpi.toLowerCase();
+
+    if (!counts[upiKey]) {
+      counts[upiKey] = {
+        upi: payment.recipientUpi,
+        count: 0,
+        lastAmount: payment.amount || 0,
+        note: payment.note || ''
+      };
+    }
+
+    counts[upiKey].count += 1;
+    counts[upiKey].lastAmount = payment.amount || 0;
+    counts[upiKey].note = payment.note || '';
+  });
+
+  setFrequentPayees(
+    Object.values(counts)
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5)
+  );
+} catch (error) {
+  console.error('Unable to save payment history:', error);
+}
     setCompletedTxnReceipt({
       txnId,
       amount: amtNum,
