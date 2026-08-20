@@ -74,6 +74,8 @@ html, body {
   display: flex;
   flex-direction: column;
   padding-bottom: 84px; /* nav clearance */
+    overflow-x: hidden;
+
 }
 
 /* Typography Utilities */
