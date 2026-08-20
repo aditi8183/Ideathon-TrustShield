@@ -4,7 +4,7 @@ import VoiceDetector from '../components/VoiceDetector';
 
 export default function HomeView({
   user,
-  scamList,
+  scamList = [],
   onNavigate,
   onScamDetected,
   isListening,
@@ -13,6 +13,18 @@ export default function HomeView({
   onTranscriptChange,
   onClearTranscript
 }) {
+  const safeUser = user || {
+    upi_id: 'user@oksbi',
+    bank_name: 'ICICI Bank',
+    total_saved: 48500,
+    streak: 1,
+    level: 1
+  };
+
+  const totalSavedFormatted = (safeUser.total_saved || 0).toLocaleString('en-IN');
+  const streakVal = safeUser.streak || 1;
+  const levelVal = safeUser.level || 1;
+
   return (
     <div style={{ padding: 16 }}>
       {/* Hero Security Card */}
@@ -45,7 +57,7 @@ export default function HomeView({
           Trust Shield is Active
         </h2>
         <p style={{ fontSize: 13, color: 'var(--sub)', marginBottom: 16 }}>
-          Protecting <span className="mono" style={{ color: 'var(--text)' }}>{user.upi_id}</span> on {user.bank_name}
+          Protecting <span className="mono" style={{ color: 'var(--text)' }}>{safeUser.upi_id || 'user@oksbi'}</span> on {safeUser.bank_name || 'ICICI Bank'}
         </p>
 
         {/* Quick Stats Grid */}
@@ -61,7 +73,7 @@ export default function HomeView({
           <div>
             <div style={{ fontSize: 10, color: 'var(--sub)', fontWeight: 700 }}>MONEY SAVED</div>
             <div style={{ fontSize: 15, fontWeight: 900, color: 'var(--safe-light)' }}>
-              ₹{user.total_saved.toLocaleString('en-IN')}
+              ₹{totalSavedFormatted}
             </div>
           </div>
 
@@ -69,7 +81,7 @@ export default function HomeView({
             <div style={{ fontSize: 10, color: 'var(--sub)', fontWeight: 700 }}>STREAK</div>
             <div style={{ fontSize: 15, fontWeight: 900, color: 'var(--orange)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
               <Flame size={14} />
-              <span>{user.streak}d</span>
+              <span>{streakVal}d</span>
             </div>
           </div>
 
@@ -77,7 +89,8 @@ export default function HomeView({
             <div style={{ fontSize: 10, color: 'var(--sub)', fontWeight: 700 }}>LEVEL</div>
             <div style={{ fontSize: 15, fontWeight: 900, color: 'var(--gold)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
               <Award size={14} />
-<span>Lvl {user.level || 1}</span>            </div>
+              <span>Lvl {levelVal}</span>
+            </div>
           </div>
         </div>
       </div>
@@ -121,7 +134,7 @@ export default function HomeView({
           </button>
         </div>
 
-        {scamList.slice(0, 2).map((scam) => (
+        {(scamList || []).slice(0, 2).map((scam) => (
           <div
             key={scam.id}
             style={{
