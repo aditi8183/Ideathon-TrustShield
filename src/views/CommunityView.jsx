@@ -21,8 +21,16 @@ export default function CommunityView({ scamList = [], onUpvoteScam, onAddScam }
   return (
     <div style={{ padding: 16 }}>
       {/* Header Banner */}
-      <div className="glass-card" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div>
+<div
+  className="glass-card"
+  style={{
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    flexWrap: 'wrap'
+  }}
+>        <div style={{ flex: 1, minWidth: 0 }}>
           <h2 style={{ fontSize: 20, fontWeight: 900 }}>Community Shield</h2>
           <p style={{ fontSize: 12, color: 'var(--sub)' }}>
             Crowdsourced scam intelligence. Earn Guardian Points for reporting & verifying.
@@ -97,13 +105,31 @@ const victimCount = scam.victim_count || 1;
 
           return (
             <div key={scam.id} className="scam-card" style={{ marginBottom: 14 }}>
-              <div className="scam-header">
-                <div>
+              <div
+  className="scam-header"
+  style={{
+    display: 'flex',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 10,
+    flexWrap: 'wrap'
+  }}
+>
+                <div style={{ flex: 1, minWidth: 0 }}>
                   <span className="scam-type-pill" style={{ background: 'rgba(99, 102, 241, 0.2)', color: 'var(--indigo-light)' }}>
                     {categoryDisplay}
                   </span>
-                  <h3 style={{ fontSize: 15, fontWeight: 800, marginTop: 6 }}>{scam.title}</h3>
-                </div>
+<h3
+  style={{
+    fontSize: 15,
+    fontWeight: 800,
+    marginTop: 6,
+    overflowWrap: 'anywhere',
+    wordBreak: 'break-word'
+  }}
+>
+  {scam.title}
+</h3>                </div>
                 <div style={{
                   fontSize: 10,
                   fontWeight: 800,
@@ -123,8 +149,8 @@ const victimCount = scam.victim_count || 1;
               {/* Details Bar */}
               <div style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(2, 1fr)',
-                gap: 8,
+gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',              
+              gap: 8,
                 background: 'rgba(0, 0, 0, 0.3)',
                 borderRadius: 10,
                 padding: 8,
@@ -157,6 +183,8 @@ const victimCount = scam.victim_count || 1;
                           padding: '2px 6px',
                           borderRadius: 4,
                           fontSize: 11
+                          overflowWrap: 'anywhere',
+                          wordBreak: 'break-word'
                         }}
                       >
                         {upi}
@@ -167,9 +195,24 @@ const victimCount = scam.victim_count || 1;
               )}
 
               {/* Upvote & Action Bar */}
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 }}>
-                <span style={{ fontSize: 11, color: 'var(--muted)' }}>
-                  Reported by {reporterName}
+<div
+  style={{
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+    flexWrap: 'wrap',
+    marginTop: 4
+  }}
+>             
+<span
+  style={{
+    fontSize: 11,
+    color: 'var(--muted)',
+    overflowWrap: 'anywhere',
+    minWidth: 0
+  }}
+>                  Reported by {reporterName}
                 </span>
 
                 <button
