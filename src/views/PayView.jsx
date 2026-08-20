@@ -99,14 +99,26 @@ useEffect(() => {
   const [isScanningQr, setIsScanningQr] = useState(false);
   const qrScannerRef = useRef(null);
 
+  // Payment App Selection State
+  const [selectedPaymentApp, setSelectedPaymentApp] = useState('all');
+  const [isUpiModalOpen, setIsUpiModalOpen] = useState(false);
+
   // False Positive Override Request State
   const [userOverrideNote, setUserOverrideNote] = useState('');
   const [isOverrideSubmitted, setIsOverrideSubmitted] = useState(false);
-const [trustedNomineeEmail, setTrustedNomineeEmail] = useState('');
-const [isSendingScamAlert, setIsSendingScamAlert] = useState(false);
-const [scamAlertError, setScamAlertError] = useState('');
-const [fraudAcknowledged, setFraudAcknowledged] = useState(false);
-const [scamAlertSent, setScamAlertSent] = useState(false);
+  const [trustedNomineeEmail, setTrustedNomineeEmail] = useState('');
+  const [isSendingScamAlert, setIsSendingScamAlert] = useState(false);
+  const [scamAlertError, setScamAlertError] = useState('');
+  const [fraudAcknowledged, setFraudAcknowledged] = useState(false);
+  const [scamAlertSent, setScamAlertSent] = useState(false);
+
+  const proceedToPayment = () => {
+    if (selectedPaymentApp === 'all') {
+      setIsPinModalOpen(true);
+    } else {
+      setIsUpiModalOpen(true);
+    }
+  };
   useEffect(() => {
     // Check current hour for odd-hour transaction warning (10 PM to 6 AM)
     const currentHour = new Date().getHours();
@@ -782,6 +794,44 @@ const [scamAlertSent, setScamAlertSent] = useState(false);
           </div>
         )}
 
+        {/* REAL PAYMENT METHOD SELECTOR BAR */}
+        <div style={{ marginTop: 14, marginBottom: 14 }}>
+          <div style={{ fontSize: 11, color: 'var(--sub)', fontWeight: 700, marginBottom: 8 }}>
+            SELECT PAYMENT APP / METHOD:
+          </div>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            {[
+              { id: 'all', name: 'Direct PIN (Default)', icon: '🔒', color: 'var(--indigo-light)' },
+              { id: 'gpay', name: 'Google Pay', icon: '🌐', color: '#4285f4' },
+              { id: 'phonepe', name: 'PhonePe', icon: '🟣', color: '#a855f7' },
+              { id: 'paytm', name: 'Paytm', icon: '🔵', color: '#38bdf8' },
+              { id: 'bhim', name: 'BHIM UPI', icon: '🇮🇳', color: '#10b981' }
+            ].map((app) => (
+              <button
+                key={app.id}
+                type="button"
+                onClick={() => setSelectedPaymentApp(app.id)}
+                style={{
+                  background: selectedPaymentApp === app.id ? 'rgba(99, 102, 241, 0.25)' : 'rgba(255, 255, 255, 0.04)',
+                  border: `1px solid ${selectedPaymentApp === app.id ? app.color : 'var(--border)'}`,
+                  color: selectedPaymentApp === app.id ? '#fff' : 'var(--sub)',
+                  borderRadius: 10,
+                  padding: '6px 12px',
+                  fontSize: 11,
+                  fontWeight: 800,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6
+                }}
+              >
+                <span>{app.icon}</span>
+                <span>{app.name}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
         <div style={{ display: 'flex', gap: 10 }}>
           <button
             className="btn-primary"
@@ -1337,6 +1387,18 @@ disabled={
           </div>
         </div>
       )}
+
+      {/* REAL UPI PAYMENT APP INTENT MODAL */}
+      <UpiModal
+        isOpen={isUpiModalOpen}
+        onClose={() => setIsUpiModalOpen(false)}
+        amount={amount}
+        recipientUpi={recipientUpi}
+        note={note}
+        userName={safeUser.name}
+        selectedApp={selectedPaymentApp}
+        onSuccess={handlePinSuccess}
+      />
 
       {/* PIN Entry Modal */}
       <PINModal
