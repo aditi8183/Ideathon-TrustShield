@@ -36,9 +36,9 @@ export default function PayView({
   const [isOddHour, setIsOddHour] = useState(false);
   const [validationError, setValidationError] = useState('');
 
-  // Payment App Selection State
-  const [selectedPaymentApp, setSelectedPaymentApp] = useState('all');
-  const [isUpiModalOpen, setIsUpiModalOpen] = useState(false);
+  // Payment Method & Target App Selector State
+  const [paymentMethod, setPaymentMethod] = useState('online'); // 'online' | 'in_app'
+  const [selectedUpiApp, setSelectedUpiApp] = useState('all'); // 'all' | 'gpay' | 'phonepe' | 'paytm' | 'bhim' | 'cred'
 
   // False Positive Override & Nominee State
   const [userOverrideNote, setUserOverrideNote] = useState('');
@@ -54,6 +54,7 @@ export default function PayView({
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isBlockedModalOpen, setIsBlockedModalOpen] = useState(false);
   const [isPinModalOpen, setIsPinModalOpen] = useState(false);
+  const [isUpiModalOpen, setIsUpiModalOpen] = useState(false);
   const [completedTxnReceipt, setCompletedTxnReceipt] = useState(null);
 
   // QR Scanner State
@@ -149,20 +150,20 @@ export default function PayView({
 
   const fillQuickPayee = (upi, amt, payNote, pasted = false) => {
     setRecipientUpi(upi);
-    setAmount(String(amt));
-    setNote(payNote);
+    if (amt) setAmount(String(amt));
+    if (payNote) setNote(payNote);
     setIsPasted(pasted);
     if (onUpdatePaymentDraft) {
-      onUpdatePaymentDraft({ recipientUpi: upi, amount: String(amt), note: payNote, isPasted: pasted });
+      onUpdatePaymentDraft({ recipientUpi: upi, amount: amt ? String(amt) : amount, note: payNote || note, isPasted: pasted });
     }
     setValidationError('');
   };
 
   const proceedToPayment = () => {
-    if (selectedPaymentApp === 'all') {
-      setIsPinModalOpen(true);
-    } else {
+    if (paymentMethod === 'online') {
       setIsUpiModalOpen(true);
+    } else {
+      setIsPinModalOpen(true);
     }
   };
 
@@ -334,9 +335,8 @@ export default function PayView({
 
     const amtNum = parseFloat(amount) || 0;
 
-    // Record transaction receipt before reset
     const receiptData = {
-      txnId: `TXN${Math.floor(10000000 + Math.random() * 90000000)}`,
+      txnId: `TS-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`,
       amount: amtNum,
       recipientUpi: recipientUpi.trim(),
       note: note.trim() || 'Verified Safe Payment',
@@ -373,70 +373,38 @@ export default function PayView({
 
   return (
     <div style={{ padding: 16 }}>
-      {/* Device Fingerprint Security Badge */}
-      <div style={{
-        background: 'rgba(255, 255, 255, 0.03)',
-        border: '1px solid var(--border)',
-        borderRadius: 12,
-        padding: '8px 12px',
-        marginBottom: 14,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        fontSize: 11
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--sub)' }}>
-          <Smartphone size={14} color="var(--indigo-light)" />
-          <span>Device: <strong>{safeUser.current_device || 'Chrome on Windows 11'}</strong></span>
-        </div>
-        {safeUser.is_new_device && (
-          <span style={{
-            background: 'rgba(245, 158, 11, 0.15)',
-            color: 'var(--warn-light)',
-            border: '1px solid rgba(245, 158, 11, 0.3)',
-            padding: '2px 6px',
-            borderRadius: 4,
-            fontWeight: 800
-          }}>
-            New Device Signal
-          </span>
-        )}
-      </div>
-
-      {/* Live Voice Phishing Banner Alert */}
-      {detectedScamCall && detectedScamCall.category && (
-        <div style={{
-          background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgba(12, 18, 32, 0.95))',
-          border: '1px solid rgba(239, 68, 68, 0.4)',
-          borderRadius: 16,
-          padding: 12,
-          marginBottom: 16,
-          display: 'flex',
-          alignItems: 'center',
-          gap: 10
-        }}>
-          <AlertOctagon size={24} color="var(--danger-light)" style={{ flexShrink: 0 }} />
-          <div>
-            <div style={{ fontSize: 13, fontWeight: 900, color: 'var(--danger-light)' }}>
-              LIVE VOICE SCAM WARNING: {detectedScamCall.category.name || 'Vishing Call'}
-            </div>
-            <div style={{ fontSize: 11, color: 'var(--sub)' }}>
-              Speech engine flagged coercion terms. Any transfer will be blocked to protect your money.
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Main Payment Card */}
       <div className="glass-card">
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
           <h2 style={{ fontSize: 20, fontWeight: 900 }}>UPI Payment Scanner</h2>
+
+          {/* QR Code Scanner Button */}
+          <button
+            type="button"
+            onClick={() => alert('QR Code Scanner active!')}
+            style={{
+              background: 'rgba(99, 102, 241, 0.15)',
+              border: '1px solid rgba(99, 102, 241, 0.35)',
+              color: 'var(--indigo-light)',
+              borderRadius: 10,
+              padding: '6px 12px',
+              fontSize: 12,
+              fontWeight: 700,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6
+            }}
+          >
+            <QrCode size={16} />
+            <span>Scan QR Code</span>
+          </button>
         </div>
 
         {/* Quick Payee Selection Bar */}
         <div style={{ marginBottom: 14 }}>
           <div style={{ fontSize: 11, color: 'var(--sub)', fontWeight: 700, marginBottom: 6 }}>
-            QUICK PAYEES:
+            QUICK SEND — FREQUENT PAYEES:
           </div>
 
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
@@ -447,30 +415,56 @@ export default function PayView({
                   type="button"
                   onClick={() => fillQuickPayee(payee.upi, '', 'Quick Payment', false)}
                   style={{
-                    background: 'rgba(99, 102, 241, 0.1)',
-                    border: '1px solid rgba(99, 102, 241, 0.25)',
-                    color: 'var(--indigo-light)',
+                    background: 'rgba(99, 102, 241, 0.15)',
+                    border: '1px solid rgba(99, 102, 241, 0.3)',
+                    color: 'var(--safe-light)',
                     borderRadius: 20,
                     padding: '4px 10px',
                     fontSize: 11,
-                    fontWeight: 700,
-                    cursor: 'pointer'
+                    fontWeight: 800,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 4
                   }}
                   title={`${payee.upi} — ${payee.count} previous payments`}
                 >
-                  <Smartphone size={11} style={{ verticalAlign: 'middle', marginRight: 4 }} />
-                  {payee.upi}
+                  <Smartphone size={11} />
+                  <span>{payee.upi}</span>
+                  <span style={{ fontSize: 10, opacity: 0.8 }}>x{payee.count}</span>
                 </button>
               ))
             ) : (
               <>
                 <button
                   type="button"
+                  onClick={() => fillQuickPayee('aditiansh@oksbi', 50, 'Quick Transfer', false)}
+                  style={{
+                    background: 'rgba(16, 185, 129, 0.15)',
+                    border: '1px solid rgba(16, 185, 129, 0.3)',
+                    color: 'var(--safe-light)',
+                    borderRadius: 20,
+                    padding: '4px 10px',
+                    fontSize: 11,
+                    fontWeight: 800,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 4
+                  }}
+                >
+                  <Smartphone size={11} />
+                  <span>aditiansh@oksbi</span>
+                  <span style={{ fontSize: 10, opacity: 0.8 }}>x1</span>
+                </button>
+
+                <button
+                  type="button"
                   onClick={() => fillQuickPayee('starbucks.coffee@icici', 350, 'Coffee Payment', false)}
                   style={{
-                    background: 'rgba(16, 185, 129, 0.1)',
-                    border: '1px solid rgba(16, 185, 129, 0.25)',
-                    color: 'var(--safe-light)',
+                    background: 'rgba(99, 102, 241, 0.1)',
+                    border: '1px solid rgba(99, 102, 241, 0.25)',
+                    color: 'var(--indigo-light)',
                     borderRadius: 20,
                     padding: '4px 10px',
                     fontSize: 11,
@@ -479,23 +473,6 @@ export default function PayView({
                   }}
                 >
                   ☕ Cafe Coffee
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => fillQuickPayee('landlord.rent@hdfc', 15000, 'House Rent', false)}
-                  style={{
-                    background: 'rgba(99, 102, 241, 0.1)',
-                    border: '1px solid rgba(99, 102, 241, 0.25)',
-                    color: 'var(--indigo-light)',
-                    borderRadius: 20,
-                    padding: '4px 10px',
-                    fontSize: 11,
-                    fontWeight: 700,
-                    cursor: 'pointer'
-                  }}
-                >
-                  🏠 Rent Transfer
                 </button>
 
                 <button
@@ -521,7 +498,7 @@ export default function PayView({
 
         {/* Input Form */}
         <div className="input-group">
-          <label className="input-label">Recipient UPI ID</label>
+          <label className="input-label">RECIPIENT UPI ID</label>
           <div style={{ position: 'relative' }}>
             <input
               type="text"
@@ -550,7 +527,7 @@ export default function PayView({
         </div>
 
         <div className="input-group">
-          <label className="input-label">Amount (₹)</label>
+          <label className="input-label">AMOUNT (₹)</label>
           <input
             type="number"
             className="input-field mono"
@@ -562,7 +539,7 @@ export default function PayView({
         </div>
 
         <div className="input-group">
-          <label className="input-label">Payment Note (Optional)</label>
+          <label className="input-label">PAYMENT NOTE (OPTIONAL)</label>
           <input
             type="text"
             className="input-field"
@@ -587,57 +564,155 @@ export default function PayView({
           </div>
         )}
 
-        {/* REAL PAYMENT METHOD SELECTOR BAR */}
-        <div style={{ marginTop: 14, marginBottom: 14 }}>
-          <div style={{ fontSize: 11, color: 'var(--sub)', fontWeight: 700, marginBottom: 8 }}>
-            SELECT PAYMENT APP / METHOD:
+        {/* SELECT PAYMENT METHOD SECTION */}
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ fontSize: 11, color: 'var(--sub)', fontWeight: 700, marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+            SELECT PAYMENT METHOD:
           </div>
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-            {[
-              { id: 'all', name: 'Direct PIN (Default)', icon: '🔒', color: 'var(--indigo-light)' },
-              { id: 'gpay', name: 'Google Pay', icon: '🌐', color: '#4285f4' },
-              { id: 'phonepe', name: 'PhonePe', icon: '🟣', color: '#a855f7' },
-              { id: 'paytm', name: 'Paytm', icon: '🔵', color: '#38bdf8' },
-              { id: 'bhim', name: 'BHIM UPI', icon: '🇮🇳', color: '#10b981' }
-            ].map((app) => (
-              <button
-                key={app.id}
-                type="button"
-                onClick={() => setSelectedPaymentApp(app.id)}
-                style={{
-                  background: selectedPaymentApp === app.id ? 'rgba(99, 102, 241, 0.25)' : 'rgba(255, 255, 255, 0.04)',
-                  border: `1px solid ${selectedPaymentApp === app.id ? app.color : 'var(--border)'}`,
-                  color: selectedPaymentApp === app.id ? '#fff' : 'var(--sub)',
-                  borderRadius: 10,
-                  padding: '6px 12px',
-                  fontSize: 11,
-                  fontWeight: 800,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6
-                }}
-              >
-                <span>{app.icon}</span>
-                <span>{app.name}</span>
-              </button>
-            ))}
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            <button
+              type="button"
+              onClick={() => setPaymentMethod('online')}
+              style={{
+                padding: '10px 12px',
+                borderRadius: 12,
+                border: paymentMethod === 'online' ? '1.5px solid var(--indigo-light)' : '1px solid var(--border)',
+                background: paymentMethod === 'online' ? 'rgba(99, 102, 241, 0.18)' : 'rgba(255, 255, 255, 0.03)',
+                color: paymentMethod === 'online' ? '#fff' : 'var(--sub)',
+                cursor: 'pointer',
+                textAlign: 'left',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                transition: 'all 0.2s',
+                boxShadow: paymentMethod === 'online' ? '0 0 14px rgba(99, 102, 241, 0.25)' : 'none'
+              }}
+            >
+              <div style={{
+                width: 32,
+                height: 32,
+                borderRadius: 8,
+                background: paymentMethod === 'online' ? 'var(--indigo)' : 'rgba(255, 255, 255, 0.06)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#fff',
+                flexShrink: 0
+              }}>
+                <Zap size={16} />
+              </div>
+              <div>
+                <div style={{ fontWeight: 800, fontSize: 13 }}>Pay Online</div>
+                <div style={{ fontSize: 10, color: 'var(--sub)' }}>Open UPI App (GPay/PhonePe)</div>
+              </div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setPaymentMethod('in_app')}
+              style={{
+                padding: '10px 12px',
+                borderRadius: 12,
+                border: paymentMethod === 'in_app' ? '1.5px solid var(--indigo-light)' : '1px solid var(--border)',
+                background: paymentMethod === 'in_app' ? 'rgba(99, 102, 241, 0.18)' : 'rgba(255, 255, 255, 0.03)',
+                color: paymentMethod === 'in_app' ? '#fff' : 'var(--sub)',
+                cursor: 'pointer',
+                textAlign: 'left',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                transition: 'all 0.2s',
+                boxShadow: paymentMethod === 'in_app' ? '0 0 14px rgba(99, 102, 241, 0.25)' : 'none'
+              }}
+            >
+              <div style={{
+                width: 32,
+                height: 32,
+                borderRadius: 8,
+                background: paymentMethod === 'in_app' ? 'var(--indigo)' : 'rgba(255, 255, 255, 0.06)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#fff',
+                flexShrink: 0
+              }}>
+                <Lock size={16} />
+              </div>
+              <div>
+                <div style={{ fontWeight: 800, fontSize: 13 }}>In-App PIN</div>
+                <div style={{ fontSize: 10, color: 'var(--sub)' }}>Protected PIN Gateway</div>
+              </div>
+            </button>
           </div>
         </div>
 
+        {/* TARGET UPI APP SECTION (Shown when Pay Online is selected) */}
+        {paymentMethod === 'online' && (
+          <div style={{
+            background: 'rgba(99, 102, 241, 0.06)',
+            border: '1px solid rgba(99, 102, 241, 0.2)',
+            borderRadius: 12,
+            padding: '10px 12px',
+            marginBottom: 16
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+              <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--indigo-light)' }}>
+                TARGET UPI APP:
+              </span>
+              <span style={{ fontSize: 10, color: 'var(--sub)' }}>
+                Opens directly on Pay Now
+              </span>
+            </div>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              {[
+                { id: 'all', name: 'Auto / Default', icon: '⚡' },
+                { id: 'gpay', name: 'Google Pay', icon: '🌐' },
+                { id: 'phonepe', name: 'PhonePe', icon: '🟣' },
+                { id: 'paytm', name: 'Paytm', icon: '🔵' },
+                { id: 'bhim', name: 'BHIM', icon: '🇮🇳' },
+                { id: 'cred', name: 'CRED', icon: '💳' }
+              ].map(app => (
+                <button
+                  key={app.id}
+                  type="button"
+                  onClick={() => setSelectedUpiApp(app.id)}
+                  style={{
+                    padding: '4px 10px',
+                    borderRadius: 16,
+                    border: selectedUpiApp === app.id ? '1px solid var(--indigo-light)' : '1px solid var(--border)',
+                    background: selectedUpiApp === app.id ? 'rgba(99, 102, 241, 0.25)' : 'rgba(255, 255, 255, 0.04)',
+                    color: selectedUpiApp === app.id ? '#fff' : 'var(--sub)',
+                    fontSize: 11,
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 4
+                  }}
+                >
+                  <span>{app.icon}</span>
+                  <span>{app.name}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Main Pay Action Buttons */}
         <div style={{ display: 'flex', gap: 10 }}>
           <button
             className="btn-primary"
             onClick={runRiskAnalysis}
             disabled={isAnalyzing}
-            style={{ flex: 1, marginTop: 8 }}
+            style={{ flex: 1, marginTop: 8, padding: '12px 16px', fontSize: 15, fontWeight: 900 }}
           >
             {isAnalyzing ? (
-              <span>Analyzing Zero-Knowledge Risk & Coercion Signals...</span>
+              <span>Analyzing Zero-Knowledge Risk...</span>
             ) : (
               <>
-                <Send size={18} />
-                <span>Scan & Pay ₹{amount || '0'}</span>
+                <Zap size={18} />
+                <span>Pay Now ₹{amount || '0'}</span>
               </>
             )}
           </button>
@@ -832,7 +907,7 @@ export default function PayView({
         recipientUpi={recipientUpi}
         note={note}
         userName={safeUser.name}
-        selectedApp={selectedPaymentApp}
+        selectedApp={selectedUpiApp}
         onSuccess={handlePinSuccess}
       />
 
