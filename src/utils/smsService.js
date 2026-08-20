@@ -20,17 +20,17 @@ export const formatIndianPhoneNumber = (rawPhone) => {
 /**
  * Dispatch 6-digit Physical Carrier SMS OTP for Mobile Phone Verification
  */
-export async function sendSmsOtp(phoneNumber, otpCode, userEmail) {
+export async function sendSmsOtp(phoneNumber, otpCode) {
   const formattedPhone = formatIndianPhoneNumber(phoneNumber);
   const cleanDigits = formattedPhone.replace(/\D/g, '').slice(-10);
-  const smsBody = `Trust Shield Mobile Verification: Your 6-digit OTP code is ${otpCode}.`;
+  const smsBody = `Trust Shield Security: Your 6-digit SMS verification OTP is ${otpCode}. Valid for 5 minutes.`;
 
-  console.log(`📲 [PHYSICAL CARRIER SMS GATEWAY] Dispatching OTP ${otpCode} to +91${cleanDigits}...`);
+  console.log(`📲 [SMS GATEWAY] Dispatching OTP to +91${cleanDigits}...`);
 
   let textbeltSuccess = false;
   let serverlessSuccess = false;
 
-  // 1. Try Textbelt Free Physical Carrier Gateway
+  // 1. Try Textbelt SMS Gateway
   try {
     const textbeltResp = await fetch('https://textbelt.com/text', {
       method: 'POST',
@@ -47,12 +47,12 @@ export async function sendSmsOtp(phoneNumber, otpCode, userEmail) {
     }
   } catch (err) {}
 
-  // 2. Try Vercel Serverless Gateway Route (/api/send-sms-otp) with Gmail Nodemailer
+  // 2. Try Serverless SMS Endpoint (/api/send-sms-otp)
   try {
     const response = await fetch('/api/send-sms-otp', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ phone: formattedPhone, otp: otpCode, email: userEmail, message: smsBody })
+      body: JSON.stringify({ phone: formattedPhone, otp: otpCode, message: smsBody })
     });
 
     if (response.ok) {

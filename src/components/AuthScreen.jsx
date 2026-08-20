@@ -94,35 +94,37 @@ export default function AuthScreen({ onLoginSuccess }) {
     setGeneratedPhoneOtp(otpCode);
 
     try {
-      const res = await sendSmsOtp(cleanPhone, otpCode, email);
+      const res = await sendSmsOtp(cleanPhone, otpCode);
       setIsPhoneOtpSending(false);
       setIsPhoneOtpSent(true);
       if (res?.nativeSmsLink) setNativeSmsLink(res.nativeSmsLink);
-      setPhoneOtpSuccessMsg(`📲 Verification code dispatched to +91 ${cleanPhone.replace(/\D/g, '').slice(-10)}. Check your inbox/messages for the 6-digit OTP code.`);
+      setPhoneOtpSuccessMsg(`📲 Verification code dispatched to +91 ${cleanPhone.replace(/\D/g, '').slice(-10)}. Please enter the 6-digit code received.`);
     } catch (err) {
       console.warn('SMS OTP dispatch notice:', err);
       setIsPhoneOtpSending(false);
       setIsPhoneOtpSent(true);
-      setPhoneOtpSuccessMsg(`📲 Verification code dispatched to +91 ${cleanPhone.replace(/\D/g, '').slice(-10)}. Check your inbox/messages for the 6-digit OTP code.`);
+      setPhoneOtpSuccessMsg(`📲 Verification code dispatched to +91 ${cleanPhone.replace(/\D/g, '').slice(-10)}. Please enter the 6-digit code received.`);
     }
   };
 
-  // Verify User Entered Phone SMS OTP
+  // Verify User Entered Phone SMS OTP (Strict Verification)
   const handleVerifyPhoneSmsOtp = (e) => {
     e?.preventDefault();
     setPhoneOtpError('');
 
-    if (!phoneOtpInput || phoneOtpInput.trim().length < 6) {
+    const userCode = phoneOtpInput ? phoneOtpInput.trim() : '';
+
+    if (!userCode || userCode.length < 6) {
       setPhoneOtpError('Please enter all 6 digits of the SMS OTP sent to your phone.');
       return;
     }
 
-    if (phoneOtpInput.trim() === generatedPhoneOtp || phoneOtpInput.trim() === '123456') {
+    if (userCode === generatedPhoneOtp) {
       setIsPhoneVerified(true);
       setIsPhoneOtpSent(false);
       setPhoneOtpSuccessMsg('✅ Mobile Phone Verified Successfully!');
     } else {
-      setPhoneOtpError('Incorrect verification code. Please check your SMS inbox.');
+      setPhoneOtpError('Incorrect verification code. Please check your SMS inbox and enter the exact 6-digit code.');
     }
   };
 
@@ -163,17 +165,19 @@ export default function AuthScreen({ onLoginSuccess }) {
     }
   };
 
-  // Verify User Entered Email OTP
+  // Verify User Entered Email OTP (Strict Verification)
   const handleVerifyEmailOtp = (e) => {
     e?.preventDefault();
     setEmailOtpError('');
 
-    if (!emailOtpInput || emailOtpInput.trim().length < 6) {
+    const userCode = emailOtpInput ? emailOtpInput.trim() : '';
+
+    if (!userCode || userCode.length < 6) {
       setEmailOtpError('Please enter all 6 digits of the verification code sent to your email.');
       return;
     }
 
-    if (emailOtpInput.trim() === generatedEmailOtp || emailOtpInput.trim() === '123456') {
+    if (userCode === generatedEmailOtp) {
       setIsEmailVerified(true);
       setIsEmailOtpSent(false);
       setEmailOtpSuccessMsg('✅ Email Address Verified Successfully!');
