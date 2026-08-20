@@ -69,13 +69,16 @@ html, body {
   max-width: 480px;
   min-height: 100vh;
   background-color: var(--bg);
-  box-shadow: 0 0 50px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.05);
+  box-shadow: 0 0 50px rgba(0, 0, 0, 0.8),
+              0 0 0 1px rgba(255, 255, 255, 0.05);
   position: relative;
   display: flex;
   flex-direction: column;
-  padding-bottom: 84px; /* nav clearance */
-    overflow-x: hidden;
-
+  margin: 0 auto;
+  overflow-x: hidden;
+}
+.app-container > main {
+  padding-bottom: 90px;
 }
 
 /* Typography Utilities */
@@ -330,6 +333,8 @@ html, body {
   align-items: center;
   justify-content: space-around;
   padding: 8px 10px;
+    padding-bottom: calc(8px + env(safe-area-inset-bottom));
+
 }
 
 .nav-item {
