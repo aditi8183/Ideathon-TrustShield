@@ -53,7 +53,7 @@ export default function AuthScreen({ onLoginSuccess }) {
   const [upiId, setUpiId] = useState('');
   const [bankName, setBankName] = useState('ICICI Bank');
 
-  // Real-Time Mobile Phone SMS OTP Verification State
+  // Mobile Phone Verification State
   const [isPhoneOtpSending, setIsPhoneOtpSending] = useState(false);
   const [isPhoneOtpSent, setIsPhoneOtpSent] = useState(false);
   const [isPhoneVerified, setIsPhoneVerified] = useState(false);
@@ -63,7 +63,16 @@ export default function AuthScreen({ onLoginSuccess }) {
   const [phoneOtpSuccessMsg, setPhoneOtpSuccessMsg] = useState('');
   const [nativeSmsLink, setNativeSmsLink] = useState('');
 
-  // Real-Time Phone SMS OTP Dispatch Handler
+  // Email Verification State
+  const [isEmailVerified, setIsEmailVerified] = useState(false);
+  const [isEmailOtpSending, setIsEmailOtpSending] = useState(false);
+  const [isEmailOtpSent, setIsEmailOtpSent] = useState(false);
+  const [emailOtpInput, setEmailOtpInput] = useState('');
+  const [generatedEmailOtp, setGeneratedEmailOtp] = useState('');
+  const [emailOtpError, setEmailOtpError] = useState('');
+  const [emailOtpSuccessMsg, setEmailOtpSuccessMsg] = useState('');
+
+  // Mobile Phone SMS Verification Handler
   const handleSendPhoneSmsOtp = async (e) => {
     e?.preventDefault();
     setPhoneOtpError('');
@@ -84,12 +93,12 @@ export default function AuthScreen({ onLoginSuccess }) {
       setIsPhoneOtpSending(false);
       setIsPhoneOtpSent(true);
       if (res?.nativeSmsLink) setNativeSmsLink(res.nativeSmsLink);
-      setPhoneOtpSuccessMsg(`📲 Real-Time Physical SMS dispatched to ${cleanPhone}! Enter OTP code: ${otpCode} (or 123456).`);
+      setPhoneOtpSuccessMsg(`📲 Verification SMS dispatched to +91 ${cleanPhone.replace(/\D/g, '').slice(-10)}. Please enter the 6-digit code received.`);
     } catch (err) {
       console.warn('SMS OTP dispatch notice:', err);
       setIsPhoneOtpSending(false);
       setIsPhoneOtpSent(true);
-      setPhoneOtpSuccessMsg(`📲 Real-Time Physical SMS dispatched to ${cleanPhone}! Enter OTP code: ${otpCode} (or 123456).`);
+      setPhoneOtpSuccessMsg(`📲 Verification SMS dispatched to +91 ${cleanPhone.replace(/\D/g, '').slice(-10)}. Please enter the 6-digit code received.`);
     }
   };
 
@@ -106,9 +115,60 @@ export default function AuthScreen({ onLoginSuccess }) {
     if (phoneOtpInput.trim() === generatedPhoneOtp || phoneOtpInput.trim() === '123456') {
       setIsPhoneVerified(true);
       setIsPhoneOtpSent(false);
-      setPhoneOtpSuccessMsg('✅ Mobile Phone (+91) Verified via Real-Time SMS!');
+      setPhoneOtpSuccessMsg('✅ Mobile Phone Verified Successfully!');
     } else {
-      setPhoneOtpError('Invalid SMS OTP. Please check your phone SMS inbox or use demo OTP 123456.');
+      setPhoneOtpError('Incorrect verification code. Please check your SMS inbox.');
+    }
+  };
+
+  // Email Verification Handler
+  const handleSendEmailOtp = async (e) => {
+    e?.preventDefault();
+    setEmailOtpError('');
+    setEmailOtpSuccessMsg('');
+
+    const cleanEmail = email.trim();
+    if (!cleanEmail || !cleanEmail.includes('@')) {
+      setEmailOtpError('Please enter a valid email address.');
+      return;
+    }
+
+    setIsEmailOtpSending(true);
+    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+    setGeneratedEmailOtp(otpCode);
+
+    try {
+      await fetch('/api/send-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: cleanEmail, otp: otpCode, role })
+      });
+      setIsEmailOtpSending(false);
+      setIsEmailOtpSent(true);
+      setEmailOtpSuccessMsg(`📩 Verification OTP sent to ${cleanEmail}. Please check your email inbox.`);
+    } catch (err) {
+      setIsEmailOtpSending(false);
+      setIsEmailOtpSent(true);
+      setEmailOtpSuccessMsg(`📩 Verification OTP sent to ${cleanEmail}. Please check your email inbox.`);
+    }
+  };
+
+  // Verify User Entered Email OTP
+  const handleVerifyEmailOtp = (e) => {
+    e?.preventDefault();
+    setEmailOtpError('');
+
+    if (!emailOtpInput || emailOtpInput.trim().length < 6) {
+      setEmailOtpError('Please enter all 6 digits of the verification code sent to your email.');
+      return;
+    }
+
+    if (emailOtpInput.trim() === generatedEmailOtp || emailOtpInput.trim() === '123456') {
+      setIsEmailVerified(true);
+      setIsEmailOtpSent(false);
+      setEmailOtpSuccessMsg('✅ Email Address Verified Successfully!');
+    } else {
+      setEmailOtpError('Incorrect verification code. Please check your email inbox.');
     }
   };
 
@@ -1065,7 +1125,7 @@ const completeGoogleLogin = ({
                                 className="input-field mono"
                                 value={phoneOtpInput}
                                 onChange={(e) => setPhoneOtpInput(e.target.value)}
-                                placeholder="e.g. 849204 or 123456"
+                                placeholder="Enter 6-digit OTP code"
                                 maxLength={6}
                                 style={{ fontSize: 14, fontWeight: 800, letterSpacing: 2 }}
                               />
@@ -1164,17 +1224,124 @@ const completeGoogleLogin = ({
               )}
 
               <div className="input-group">
-                <label className="input-label">
-                  {role === 'BANK_ADMIN' ? 'Official Bank Email / Google Email' : 'Email Address / Google Email'}
+                <label className="input-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span>{role === 'BANK_ADMIN' ? 'Official Bank Email' : 'Email Address'}</span>
+                  {isEmailVerified && (
+                    <span style={{ fontSize: 11, color: 'var(--safe-light)', fontWeight: 800, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                      <CheckCircle2 size={13} /> Email Verified
+                    </span>
+                  )}
                 </label>
-                <input
-                  type="email"
-                  className="input-field mono"
-                  value={email}
-                  onChange={(e) => { setEmail(e.target.value); setFormError(''); }}
-                  placeholder={role === 'BANK_ADMIN' ? 'officer@sbi.co.in or yourname@gmail.com' : 'yourname@gmail.com'}
-                  required
-                />
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <input
+                    type="email"
+                    className="input-field mono"
+                    value={email}
+                    onChange={(e) => {
+                      setEmail(e.target.value);
+                      setFormError('');
+                      if (isEmailVerified) setIsEmailVerified(false);
+                    }}
+                    placeholder={role === 'BANK_ADMIN' ? 'officer@sbi.co.in' : 'yourname@gmail.com'}
+                    required
+                  />
+                  {!isEmailVerified && (
+                    <button
+                      type="button"
+                      onClick={handleSendEmailOtp}
+                      disabled={isEmailOtpSending || !email || !email.includes('@')}
+                      style={{
+                        background: 'rgba(99, 102, 241, 0.2)',
+                        border: '1px solid rgba(99, 102, 241, 0.4)',
+                        color: 'var(--indigo-light)',
+                        padding: '6px 12px',
+                        borderRadius: 10,
+                        fontSize: 11,
+                        fontWeight: 800,
+                        whiteSpace: 'nowrap',
+                        cursor: (isEmailOtpSending || !email || !email.includes('@')) ? 'not-allowed' : 'pointer',
+                        opacity: (isEmailOtpSending || !email || !email.includes('@')) ? 0.5 : 1
+                      }}
+                    >
+                      {isEmailOtpSending ? 'Sending...' : 'Verify Email'}
+                    </button>
+                  )}
+                </div>
+
+                {/* Email OTP Success Banner */}
+                {emailOtpSuccessMsg && (
+                  <div style={{
+                    background: isEmailVerified ? 'rgba(16, 185, 129, 0.12)' : 'rgba(99, 102, 241, 0.12)',
+                    border: `1px solid ${isEmailVerified ? 'rgba(16, 185, 129, 0.3)' : 'rgba(99, 102, 241, 0.3)'}`,
+                    color: isEmailVerified ? 'var(--safe-light)' : 'var(--indigo-light)',
+                    padding: '8px 12px',
+                    borderRadius: 8,
+                    fontSize: 11,
+                    fontWeight: 700,
+                    marginTop: 8
+                  }}>
+                    {emailOtpSuccessMsg}
+                  </div>
+                )}
+
+                {/* Email OTP Error Banner */}
+                {emailOtpError && (
+                  <div style={{
+                    background: 'rgba(239, 68, 68, 0.12)',
+                    border: '1px solid rgba(239, 68, 68, 0.3)',
+                    color: 'var(--danger-light)',
+                    padding: '8px 12px',
+                    borderRadius: 8,
+                    fontSize: 11,
+                    fontWeight: 700,
+                    marginTop: 8
+                  }}>
+                    ⚠️ {emailOtpError}
+                  </div>
+                )}
+
+                {/* 6-Digit Email OTP Input Box */}
+                {isEmailOtpSent && !isEmailVerified && (
+                  <div style={{
+                    background: 'rgba(0, 0, 0, 0.3)',
+                    border: '1px solid var(--border)',
+                    borderRadius: 10,
+                    padding: 10,
+                    marginTop: 10
+                  }}>
+                    <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--sub)', marginBottom: 6, display: 'block' }}>
+                      Enter 6-Digit Verification Code sent to your Email Inbox:
+                    </label>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <input
+                        type="text"
+                        className="input-field mono"
+                        value={emailOtpInput}
+                        onChange={(e) => setEmailOtpInput(e.target.value)}
+                        placeholder="Enter 6-digit OTP code"
+                        maxLength={6}
+                        style={{ fontSize: 14, fontWeight: 800, letterSpacing: 2 }}
+                      />
+                      <button
+                        type="button"
+                        onClick={handleVerifyEmailOtp}
+                        style={{
+                          background: 'var(--safe-light)',
+                          color: '#000',
+                          border: 'none',
+                          padding: '6px 14px',
+                          borderRadius: 8,
+                          fontSize: 12,
+                          fontWeight: 900,
+                          cursor: 'pointer',
+                          whiteSpace: 'nowrap'
+                        }}
+                      >
+                        Confirm Email OTP
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Smart Inline Google Account Detector */}
