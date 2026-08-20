@@ -27,47 +27,48 @@ export default function App() {
   const [user, setUser] = useState(() => {
     try {
       const stored = localStorage.getItem('trust_shield_active_user');
-      return stored ? JSON.parse(stored) : null;
+      if (!stored) return null;
+      const parsed = JSON.parse(stored);
+      if (parsed && typeof parsed === 'object' && (parsed.email || parsed.name)) {
+        return parsed;
+      }
+      return null;
     } catch (e) {
       return null;
     }
   });
-  // Keep user progress saved after every change
-// Keep user progress saved after every change
-useEffect(() => {
-  if (!user) return;
 
-  try {
-    // Save the currently active session
-    localStorage.setItem(
-      'trust_shield_active_user',
-      JSON.stringify(user)
-    );
-
-    // Save the latest profile permanently by email
-    if (user.email) {
-      const storedProfiles = JSON.parse(
-        localStorage.getItem('trust_shield_user_profiles') || '{}'
-      );
-
-      storedProfiles[user.email.toLowerCase().trim()] = user;
-
-      localStorage.setItem(
-        'trust_shield_user_profiles',
-        JSON.stringify(storedProfiles)
-      );
-    }
-  } catch (e) {
-    console.error('Could not save user progress:', e);
-  }
-}, [user]);
   const [isAuthenticated, setIsAuthenticated] = useState(() => {
     try {
-      return !!localStorage.getItem('trust_shield_active_user');
+      const stored = localStorage.getItem('trust_shield_active_user');
+      if (!stored) return false;
+      const parsed = JSON.parse(stored);
+      return !!(parsed && typeof parsed === 'object' && (parsed.email || parsed.name));
     } catch (e) {
       return false;
     }
   });
+
+  // Keep user progress saved after every change
+  useEffect(() => {
+    if (!user) return;
+
+    try {
+      localStorage.setItem('trust_shield_active_user', JSON.stringify(user));
+      if (user.email) {
+        const storedProfiles = JSON.parse(
+          localStorage.getItem('trust_shield_user_profiles') || '{}'
+        );
+        storedProfiles[user.email.toLowerCase().trim()] = user;
+        localStorage.setItem(
+          'trust_shield_user_profiles',
+          JSON.stringify(storedProfiles)
+        );
+      }
+    } catch (e) {
+      console.error('Could not save user progress:', e);
+    }
+  }, [user]);
 
   const [activeTab, setActiveTabState] = useState(() => {
     try {
