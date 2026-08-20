@@ -33,19 +33,34 @@ export default function App() {
     }
   });
   // Keep user progress saved after every change
+// Keep user progress saved after every change
 useEffect(() => {
   if (!user) return;
 
   try {
+    // Save the currently active session
     localStorage.setItem(
       'trust_shield_active_user',
       JSON.stringify(user)
     );
+
+    // Save the latest profile permanently by email
+    if (user.email) {
+      const storedProfiles = JSON.parse(
+        localStorage.getItem('trust_shield_user_profiles') || '{}'
+      );
+
+      storedProfiles[user.email.toLowerCase().trim()] = user;
+
+      localStorage.setItem(
+        'trust_shield_user_profiles',
+        JSON.stringify(storedProfiles)
+      );
+    }
   } catch (e) {
     console.error('Could not save user progress:', e);
   }
 }, [user]);
-
   const [isAuthenticated, setIsAuthenticated] = useState(() => {
     try {
       return !!localStorage.getItem('trust_shield_active_user');
