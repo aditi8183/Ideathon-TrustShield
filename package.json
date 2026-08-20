@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "html5-qrcode": "^2.3.8",
     "lucide-react": "^0.428.0",
     "nodemailer": "^9.0.5",
     "onnxruntime-web": "^1.27.0",

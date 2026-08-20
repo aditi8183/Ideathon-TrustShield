@@ -3,7 +3,6 @@ import { Send, ShieldAlert, AlertOctagon, CheckCircle2, QrCode, Camera, AlertTri
 import PINModal from '../components/PINModal';
 import { sendNomineeScamAlert } from '../utils/smsService';
 const Html5Qrcode = typeof window !== 'undefined' ? window.Html5Qrcode : null;
-
 export default function PayView({
   user,
   scamList = [],

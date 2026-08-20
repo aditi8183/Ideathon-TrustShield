@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';import Header from './compone
 import Navigation from './components/Navigation';
 import AuthScreen from './components/AuthScreen';
 import HomeView from './views/HomeView';
-import PayView from './views/PayView';
+import PayView from '../PayView';
 import CommunityView from './views/CommunityView';
 import BankView from './views/BankView';
 import ProfileView from './views/ProfileView';
