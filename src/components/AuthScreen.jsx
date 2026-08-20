@@ -449,7 +449,7 @@ const getStoredUserProfile = (email) => {
     return () => clearInterval(timer);
   }, [isOtpSent, resendTimer]);
 
-  // Initiate Real-Time OTP Email Dispatch
+  // Initiate Auth (Direct Login for LOGIN mode, OTP Dispatch for REGISTER mode)
   const handleInitiateAuth = async (e) => {
     e?.preventDefault();
     if (!email) return;
@@ -463,8 +463,44 @@ const getStoredUserProfile = (email) => {
       return;
     }
 
-    setIsOtpSending(true);
+    const cleanEmail = email.toLowerCase().trim();
 
+    // IF SIGN IN MODE: Direct Sign In without OTP!
+    if (mode === 'LOGIN') {
+      const existingProfile = getStoredUserProfile(cleanEmail);
+      let authenticatedUser;
+
+      if (existingProfile) {
+        authenticatedUser = {
+          ...existingProfile,
+          role,
+          current_device: navigator.userAgent.includes('Windows') ? 'Chrome on Windows 11' : 'Mobile Device',
+          is_new_device: false,
+          auth_provider: 'DIRECT_LOGIN'
+        };
+      } else {
+        authenticatedUser = createFreshUserProfile({
+          id: role === 'CUSTOMER' ? `cust_${Date.now()}` : `admin_${Date.now()}`,
+          role,
+          name: role === 'CUSTOMER' ? cleanEmail.split('@')[0] || 'Customer' : 'Bank Risk Officer',
+          email: cleanEmail,
+          phone: '+91 98765 43210',
+          upi_id: `${cleanEmail.split('@')[0].replace(/[^a-zA-Z0-9]/g, '')}@okicici`,
+          bank_name: bankName || 'ICICI Bank',
+          employee_id: role === 'BANK_ADMIN' ? employeeId || 'EMP-9942' : null,
+          branch: role === 'BANK_ADMIN' ? branchLocation : null,
+          auth_provider: 'DIRECT_LOGIN'
+        });
+      }
+
+      registerUserRole(cleanEmail, role);
+      saveStoredUserProfile(authenticatedUser);
+      onLoginSuccess(authenticatedUser);
+      return;
+    }
+
+    // IF REGISTER MODE: Initiate OTP verification
+    setIsOtpSending(true);
     const secretOtp = Math.floor(100000 + Math.random() * 900000).toString();
     setGeneratedOtp(secretOtp);
 
@@ -474,12 +510,10 @@ const getStoredUserProfile = (email) => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, otp: secretOtp, role })
       });
-
       setIsOtpSending(false);
       setIsOtpSent(true);
       setResendTimer(30);
     } catch (err) {
-      console.warn('Real-time email dispatch fallback mode:', err);
       setIsOtpSending(false);
       setIsOtpSent(true);
       setResendTimer(30);
@@ -1226,7 +1260,7 @@ const completeGoogleLogin = ({
               <div className="input-group">
                 <label className="input-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span>{role === 'BANK_ADMIN' ? 'Official Bank Email' : 'Email Address'}</span>
-                  {isEmailVerified && (
+                  {mode === 'REGISTER' && isEmailVerified && (
                     <span style={{ fontSize: 11, color: 'var(--safe-light)', fontWeight: 800, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                       <CheckCircle2 size={13} /> Email Verified
                     </span>
@@ -1245,7 +1279,7 @@ const completeGoogleLogin = ({
                     placeholder={role === 'BANK_ADMIN' ? 'officer@sbi.co.in' : 'yourname@gmail.com'}
                     required
                   />
-                  {!isEmailVerified && (
+                  {mode === 'REGISTER' && !isEmailVerified && (
                     <button
                       type="button"
                       onClick={handleSendEmailOtp}
@@ -1268,8 +1302,8 @@ const completeGoogleLogin = ({
                   )}
                 </div>
 
-                {/* Email OTP Success Banner */}
-                {emailOtpSuccessMsg && (
+                {/* Email OTP Success Banner (REGISTER Mode Only) */}
+                {mode === 'REGISTER' && emailOtpSuccessMsg && (
                   <div style={{
                     background: isEmailVerified ? 'rgba(16, 185, 129, 0.12)' : 'rgba(99, 102, 241, 0.12)',
                     border: `1px solid ${isEmailVerified ? 'rgba(16, 185, 129, 0.3)' : 'rgba(99, 102, 241, 0.3)'}`,
@@ -1284,8 +1318,8 @@ const completeGoogleLogin = ({
                   </div>
                 )}
 
-                {/* Email OTP Error Banner */}
-                {emailOtpError && (
+                {/* Email OTP Error Banner (REGISTER Mode Only) */}
+                {mode === 'REGISTER' && emailOtpError && (
                   <div style={{
                     background: 'rgba(239, 68, 68, 0.12)',
                     border: '1px solid rgba(239, 68, 68, 0.3)',
@@ -1300,8 +1334,8 @@ const completeGoogleLogin = ({
                   </div>
                 )}
 
-                {/* 6-Digit Email OTP Input Box */}
-                {isEmailOtpSent && !isEmailVerified && (
+                {/* 6-Digit Email OTP Input Box (REGISTER Mode Only) */}
+                {mode === 'REGISTER' && isEmailOtpSent && !isEmailVerified && (
                   <div style={{
                     background: 'rgba(0, 0, 0, 0.3)',
                     border: '1px solid var(--border)',
@@ -1402,12 +1436,17 @@ const completeGoogleLogin = ({
               </div>
 
               <button type="submit" className="btn-primary" disabled={isOtpSending} style={{ marginTop: 12 }}>
-                {isOtpSending ? (
-                  <span>Dispatching Real-Time Email...</span>
+                {mode === 'LOGIN' ? (
+                  <>
+                    <LogIn size={18} />
+                    <span>Sign In</span>
+                  </>
+                ) : isOtpSending ? (
+                  <span>Dispatching Email Verification...</span>
                 ) : (
                   <>
-                    <Mail size={18} />
-                    <span>Send Real-Time Email OTP</span>
+                    <UserPlus size={18} />
+                    <span>Register Account</span>
                   </>
                 )}
               </button>
