@@ -837,6 +837,71 @@ userName: safeUser.name || 'User',
           </button>
         </div>
 
+        {/* Quick Send - Frequent Payees */}
+        {frequentPayees.length > 0 && (
+          <div style={{ marginBottom: 20 }}>
+            <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--sub)', marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+              Quick Send - Frequent Payees
+            </div>
+            <div style={{ display: 'flex', gap: 16, overflowX: 'auto', paddingBottom: 8, scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' }}>
+              {frequentPayees.map((payee, idx) => {
+                // Ensure we don't display something like ball@upi*1, just the clean UPI ID
+                const cleanUpi = payee.upi.split('*')[0];
+                const displayName = cleanUpi.split('@')[0];
+                const initial = displayName.charAt(0).toUpperCase();
+                return (
+                  <div
+                    key={idx}
+                    onClick={() => {
+                      setRecipientUpi(cleanUpi);
+                    }}
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      gap: 8,
+                      cursor: 'pointer',
+                      minWidth: 64,
+                      transition: 'transform 0.2s ease',
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
+                    onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                  >
+                    <div style={{
+                      width: 52,
+                      height: 52,
+                      borderRadius: '50%',
+                      background: 'linear-gradient(135deg, #6366f1, #4338ca)',
+                      color: '#fff',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: 22,
+                      fontWeight: 800,
+                      boxShadow: '0 4px 12px rgba(99, 102, 241, 0.25)',
+                      border: '2px solid rgba(255, 255, 255, 0.1)'
+                    }}>
+                      {initial}
+                    </div>
+                    <div style={{
+                      fontSize: 11,
+                      fontWeight: 700,
+                      color: 'var(--text)',
+                      textAlign: 'center',
+                      maxWidth: 72,
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis'
+                    }}>
+                      {displayName}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {/* Input Form */}
         <div className="input-group">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
