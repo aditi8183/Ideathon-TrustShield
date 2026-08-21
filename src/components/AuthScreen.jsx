@@ -747,10 +747,11 @@ const handleVerifyOtp = (e) => {
     return;
   }
 
-  const roleCheck = validateRoleEmailMatch(email, role);
-
-  if (!roleCheck.valid) {
-    setOtpError(roleCheck.error);
+  const emailRole = getEmailExistingRole(email);
+  if (emailRole && emailRole !== role) {
+    setOtpError(
+      `⚠️ This Email Address (${email}) is already registered under ${emailRole === 'BANK_ADMIN' ? 'Bank Risk Admin' : 'Customer'}. Please switch tabs to Sign In.`
+    );
     return;
   }
 
@@ -989,7 +990,7 @@ bank_name: bankName || '',
     setEmail(googleAccount.email);
     setName(googleAccount.name);
 
-    const roleCheck = validateRoleEmailMatch(googleAccount.email, role);
+    const roleCheck = validateRoleAndIdentifiers(role, mode === 'REGISTER');
     if (!roleCheck.valid) {
       setFormError(roleCheck.error);
       return;
