@@ -196,18 +196,20 @@ const handleTranscriptChange = (text) => {
   };
 
  const handlePaymentBlocked = (blockedData) => {
+  if (!user) return;
+
   const newBankReview = {
     id: `br_${Date.now()}`,
-    transaction_id: `TXN${Math.floor(1000000 + Math.random() * 9000000)}`,
-    user_id: user ? user.id : 'u042',
-    user_name: user ? user.name : 'Aditi Sharma',
+    transaction_id: `TXN${Date.now()}`,
+    user_id: user.id,
+    user_name: user.name,
     amount: blockedData.amount,
     recipient_upi: blockedData.recipient_upi,
-    bank_name: user ? user.bank_name : 'ICICI Bank',
+    bank_name: user.bank_name,
     blocked_reason: blockedData.blocked_reason,
     risk_score: blockedData.risk_score,
-    coercive_signals: ['Active Voice Call', 'Clipboard Paste', 'New Device Anomaly'],
-    device_info: user ? user.current_device : 'Chrome on Windows 11',
+    coercive_signals: blockedData.coercive_signals || [],
+    device_info: user.current_device,
     status: 'PENDING',
     is_false_positive_requested: false,
     reviewed_by: 'Pending Officer Review',
