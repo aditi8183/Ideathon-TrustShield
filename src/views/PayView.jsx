@@ -27,6 +27,35 @@ import UpiModal from '../components/UpiModal';
 import { sendNomineeScamAlert } from '../utils/smsService';
 import jsQR from 'jsqr';
 
+const UPI_PAYMENT_APPS = [
+  { id: 'all', name: 'Auto / Default', icon: '⚡' },
+  { id: 'gpay', name: 'Google Pay', icon: '🌐' },
+  { id: 'phonepe', name: 'PhonePe', icon: '🟣' },
+  { id: 'paytm', name: 'Paytm', icon: '🔵' },
+  { id: 'bhim', name: 'BHIM', icon: '🇮🇳' },
+  { id: 'cred', name: 'CRED', icon: '💳' },
+  { id: 'trustshield_pin', name: 'TrustShield PIN', icon: '🔒' }
+];
+
+const getUpiAppMeta = (appId) => {
+  return UPI_PAYMENT_APPS.find(app => app.id === appId) || UPI_PAYMENT_APPS[0];
+};
+
+const formatPaymentTime = (timestamp) => {
+  if (!timestamp) return 'Earlier transfer';
+  try {
+    return new Date(timestamp).toLocaleString('en-IN', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  } catch (e) {
+    return 'Earlier transfer';
+  }
+};
+
 // Helper to identify whether user entered a UPI ID or a UPI Number (mobile)
 export const getPayeeType = (input) => {
   if (!input || typeof input !== 'string') return 'none';
@@ -201,6 +230,7 @@ export default function PayView({
   const [amount, setAmount] = useState(paymentDraft?.amount || '');
   const [note, setNote] = useState(paymentDraft?.note || '');
   const [frequentPayees, setFrequentPayees] = useState([]);
+  const [paymentHistory, setPaymentHistory] = useState([]);
   const [isPasted, setIsPasted] = useState(paymentDraft?.isPasted || false);
   const [isOddHour, setIsOddHour] = useState(false);
   const [validationError, setValidationError] = useState('');
@@ -233,40 +263,74 @@ export default function PayView({
   const canvasRef = useRef(null);
   const scanIntervalRef = useRef(null);
 
+  const rebuildFrequentPayees = (history) => {
+    const counts = {};
+    history.forEach((payment) => {
+      const upi = payment.recipient_upi || payment.recipientUpi || payment.upi;
+      if (upi) {
+        const upiKey = upi.toLowerCase();
+        if (!counts[upiKey]) {
+          counts[upiKey] = {
+            upi: upi,
+            count: 0,
+            lastAmount: payment.amount || 0,
+            note: payment.note || ''
+          };
+        }
+        counts[upiKey].count += 1;
+        counts[upiKey].lastAmount = payment.amount || 0;
+        counts[upiKey].note = payment.note || '';
+      }
+    });
+
+    const topPayees = Object.values(counts)
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5);
+    setFrequentPayees(topPayees);
+  };
+
+  const normalizePaymentHistory = (history) => {
+    return (Array.isArray(history) ? history : [])
+      .map((payment, index) => {
+        const payeeInput = payment.recipient_upi || payment.recipientUpi || payment.upi || '';
+        const resolved = payment.payeeName
+          ? null
+          : resolvePayeeDetails(payeeInput, scamList);
+        const paymentAppId = payment.paymentAppId || payment.payment_app_id || payment.appId || 'trustshield_pin';
+        const appMeta = getUpiAppMeta(paymentAppId);
+
+        return {
+          id: payment.id || payment.txnId || `history_${index}_${payment.timestamp || Date.now()}`,
+          txnId: payment.txnId || payment.transaction_id || `TS-HIST-${index + 1}`,
+          recipient_upi: payeeInput,
+          payeeName: payment.payeeName || payment.payee_name || resolved?.name || 'Verified Payee',
+          payeeType: payment.payeeType || payment.payee_type || getPayeeType(payeeInput),
+          amount: Number(payment.amount) || 0,
+          timestamp: payment.timestamp || payment.created_at || new Date().toISOString(),
+          note: payment.note || '',
+          paymentAppId,
+          paymentAppName: payment.paymentAppName || payment.payment_app_name || appMeta.name,
+          paymentAppIcon: payment.paymentAppIcon || payment.payment_app_icon || appMeta.icon
+        };
+      })
+      .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+  };
+
   // Load frequent payees & seed default history if empty
   useEffect(() => {
     try {
       let history = JSON.parse(localStorage.getItem('trustshield_payment_history') || 'null');
       if (!history || history.length === 0) {
         history = [
-          { recipient_upi: 'landlord.rent@hdfc', amount: 15000, timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24 * 12).toISOString() },
-          { recipient_upi: 'aditi@okicici', amount: 2000, timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24 * 6).toISOString() },
-          { recipient_upi: '9876543210', amount: 500, timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24 * 3).toISOString() }
+          { recipient_upi: 'landlord.rent@hdfc', payeeName: 'Rajesh Kumar (House Rent)', payeeType: 'upi_id', amount: 15000, paymentAppId: 'gpay', paymentAppName: 'Google Pay', paymentAppIcon: '🌐', timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24 * 12).toISOString() },
+          { recipient_upi: 'aditi@okicici', payeeName: 'Aditi Sharma', payeeType: 'upi_id', amount: 2000, paymentAppId: 'phonepe', paymentAppName: 'PhonePe', paymentAppIcon: '🟣', timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24 * 6).toISOString() },
+          { recipient_upi: '9876543210', payeeName: 'Aditi Sharma', payeeType: 'upi_number', amount: 500, paymentAppId: 'trustshield_pin', paymentAppName: 'TrustShield PIN', paymentAppIcon: '🔒', timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24 * 3).toISOString() }
         ];
-        localStorage.setItem('trustshield_payment_history', JSON.stringify(history));
       }
-      const counts = {};
-      history.forEach((payment) => {
-        const upi = payment.recipient_upi || payment.recipientUpi || payment.upi;
-        if (upi) {
-          const upiKey = upi.toLowerCase();
-          if (!counts[upiKey]) {
-            counts[upiKey] = {
-              upi: upi,
-              count: 0,
-              lastAmount: payment.amount || 0,
-              note: payment.note || ''
-            };
-          }
-          counts[upiKey].count += 1;
-          counts[upiKey].lastAmount = payment.amount || 0;
-          counts[upiKey].note = payment.note || '';
-        }
-      });
-      const topPayees = Object.values(counts)
-        .sort((a, b) => b.count - a.count)
-        .slice(0, 5);
-      setFrequentPayees(topPayees);
+      const normalizedHistory = normalizePaymentHistory(history);
+      localStorage.setItem('trustshield_payment_history', JSON.stringify(normalizedHistory));
+      setPaymentHistory(normalizedHistory);
+      rebuildFrequentPayees(normalizedHistory);
     } catch (error) {
       console.warn('Unable to load payment history:', error);
     }
@@ -692,46 +756,48 @@ userName: safeUser.name || 'User',
     setIsUpiModalOpen(false);
 
     const amtNum = parseFloat(amount) || 0;
+    const now = new Date();
+    const payeeInput = recipientUpi.trim();
+    const payeeMeta = resolvedPayee || resolvePayeeDetails(payeeInput, scamList);
+    const paymentAppId = paymentMethod === 'online' ? selectedUpiApp : 'trustshield_pin';
+    const paymentApp = getUpiAppMeta(paymentAppId);
 
     const receiptData = {
       txnId: `TS-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`,
       amount: amtNum,
-      recipientUpi: recipientUpi.trim(),
+      recipientUpi: payeeInput,
+      payeeName: payeeMeta?.name || 'Verified Payee',
+      payeeType,
       note: note.trim() || 'Verified Safe Payment',
-      date: new Date().toLocaleDateString('en-IN'),
-      time: new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })
+      paymentAppId,
+      paymentAppName: paymentApp.name,
+      paymentAppIcon: paymentApp.icon,
+      timestamp: now.toISOString(),
+      date: now.toLocaleDateString('en-IN'),
+      time: now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })
     };
 
     setCompletedTxnReceipt(receiptData);
 
     try {
       const history = JSON.parse(localStorage.getItem('trustshield_payment_history') || '[]');
-      const newPayment = { recipient_upi: recipientUpi.trim(), amount: amtNum, timestamp: new Date().toISOString() };
-      const updatedHistory = [newPayment, ...history].slice(0, 100);
+      const newPayment = {
+        id: receiptData.txnId,
+        txnId: receiptData.txnId,
+        recipient_upi: payeeInput,
+        payeeName: receiptData.payeeName,
+        payeeType: receiptData.payeeType,
+        amount: amtNum,
+        note: receiptData.note,
+        paymentAppId,
+        paymentAppName: paymentApp.name,
+        paymentAppIcon: paymentApp.icon,
+        timestamp: receiptData.timestamp
+      };
+      const updatedHistory = normalizePaymentHistory([newPayment, ...history]).slice(0, 100);
       localStorage.setItem('trustshield_payment_history', JSON.stringify(updatedHistory));
-
-      const counts = {};
-      updatedHistory.forEach((p) => {
-        const u = p.recipient_upi || p.recipientUpi || p.upi;
-        if (u) {
-          const upiKey = u.toLowerCase();
-          if (!counts[upiKey]) {
-            counts[upiKey] = {
-              upi: u,
-              count: 0,
-              lastAmount: p.amount || 0,
-              note: p.note || ''
-            };
-          }
-          counts[upiKey].count += 1;
-          counts[upiKey].lastAmount = p.amount || 0;
-          counts[upiKey].note = p.note || '';
-        }
-      });
-      const topPayees = Object.values(counts)
-        .sort((a, b) => b.count - a.count)
-        .slice(0, 5);
-      setFrequentPayees(topPayees);
+      setPaymentHistory(updatedHistory);
+      rebuildFrequentPayees(updatedHistory);
     } catch (e) {}
 
     if (onPaymentSuccess) {
@@ -1019,14 +1085,7 @@ userName: safeUser.name || 'User',
               </span>
             </div>
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-              {[
-                { id: 'all', name: 'Auto / Default', icon: '⚡' },
-                { id: 'gpay', name: 'Google Pay', icon: '🌐' },
-                { id: 'phonepe', name: 'PhonePe', icon: '🟣' },
-                { id: 'paytm', name: 'Paytm', icon: '🔵' },
-                { id: 'bhim', name: 'BHIM', icon: '🇮🇳' },
-                { id: 'cred', name: 'CRED', icon: '💳' }
-              ].map(app => (
+              {UPI_PAYMENT_APPS.filter(app => app.id !== 'trustshield_pin').map(app => (
                 <button
                   key={app.id}
                   type="button"
@@ -1090,6 +1149,137 @@ userName: safeUser.name || 'User',
             </button>
           )}
         </div>
+      </div>
+
+      {/* PAYMENT HISTORY */}
+      <div className="glass-card">
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+          <div>
+            <h3 style={{ fontSize: 18, fontWeight: 900, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <History size={19} color="var(--indigo-light)" />
+              <span>Payment History</span>
+            </h3>
+            <p style={{ fontSize: 11, color: 'var(--sub)', marginTop: 2 }}>
+              Last {paymentHistory.length} verified payments saved on this device
+            </p>
+          </div>
+          <span style={{
+            fontSize: 11,
+            color: 'var(--safe-light)',
+            background: 'rgba(16, 185, 129, 0.1)',
+            border: '1px solid rgba(16, 185, 129, 0.25)',
+            borderRadius: 999,
+            padding: '4px 9px',
+            fontWeight: 800
+          }}>
+            Ledger
+          </span>
+        </div>
+
+        {completedTxnReceipt && (
+          <div style={{
+            background: 'rgba(16, 185, 129, 0.1)',
+            border: '1px solid rgba(16, 185, 129, 0.28)',
+            borderRadius: 12,
+            padding: 12,
+            marginBottom: 12,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10
+          }}>
+            <CheckCircle2 size={20} color="var(--safe-light)" style={{ flexShrink: 0 }} />
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: 12, fontWeight: 900, color: 'var(--safe-light)' }}>
+                Latest payment saved to history
+              </div>
+              <div style={{ fontSize: 11, color: 'var(--sub)', marginTop: 2 }}>
+                ₹{completedTxnReceipt.amount.toLocaleString('en-IN')} to {completedTxnReceipt.payeeName} via {completedTxnReceipt.paymentAppName}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {paymentHistory.length === 0 ? (
+          <div style={{
+            background: 'rgba(255, 255, 255, 0.03)',
+            border: '1px dashed var(--border)',
+            borderRadius: 12,
+            padding: 16,
+            textAlign: 'center',
+            color: 'var(--sub)',
+            fontSize: 12,
+            fontWeight: 700
+          }}>
+            No completed payments yet.
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {paymentHistory.slice(0, 12).map((payment) => (
+              <div
+                key={payment.id}
+                style={{
+                  background: 'rgba(255, 255, 255, 0.03)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 12,
+                  padding: 12
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, marginBottom: 8 }}>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 900, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {payment.payeeName}
+                    </div>
+                    <div className="mono" style={{ fontSize: 11, color: 'var(--indigo-light)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: 2 }}>
+                      {payment.recipient_upi}
+                    </div>
+                  </div>
+                  <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                    <div className="mono" style={{ fontSize: 15, fontWeight: 900, color: 'var(--safe-light)' }}>
+                      ₹{payment.amount.toLocaleString('en-IN')}
+                    </div>
+                    <div style={{ fontSize: 10, color: 'var(--sub)', marginTop: 2 }}>
+                      {formatPaymentTime(payment.timestamp)}
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: '1fr 1fr',
+                  gap: 8,
+                  fontSize: 11,
+                  color: 'var(--sub)'
+                }}>
+                  <div>
+                    <span style={{ color: 'var(--muted)', fontWeight: 800 }}>Payee Type</span>
+                    <div style={{ color: 'var(--text)', fontWeight: 800, marginTop: 2 }}>
+                      {payment.payeeType === 'upi_number' ? 'UPI Number' : 'UPI ID'}
+                    </div>
+                  </div>
+                  <div>
+                    <span style={{ color: 'var(--muted)', fontWeight: 800 }}>Payment App</span>
+                    <div style={{ color: 'var(--text)', fontWeight: 800, marginTop: 2 }}>
+                      <span style={{ marginRight: 4 }}>{payment.paymentAppIcon}</span>
+                      {payment.paymentAppName}
+                    </div>
+                  </div>
+                </div>
+
+                {payment.note && (
+                  <div style={{
+                    marginTop: 8,
+                    paddingTop: 8,
+                    borderTop: '1px solid var(--border)',
+                    fontSize: 11,
+                    color: 'var(--sub)'
+                  }}>
+                    <span style={{ color: 'var(--muted)', fontWeight: 800 }}>Note:</span> {payment.note}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* UNIFIED ALL-IN-ONE EXPLAINABILITY MODAL */}
