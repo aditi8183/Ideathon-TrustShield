@@ -250,33 +250,51 @@ export default function ProfileView({ user, pointEvents, onOpenOnboarding, onUpd
         </button>
       </div>
 
-      {/* Gamification Stats Grid */}
+      {/* Gamification Stats Grid (Small compact 2x2 cards) */}
       <div className="stats-grid">
         <div className="stat-box">
-          <div className="stat-label">MONEY SAVED</div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+            <span className="stat-label">MONEY SAVED</span>
+            <div style={{ padding: '4px 6px', borderRadius: 8, background: 'rgba(16, 185, 129, 0.15)', color: 'var(--safe-light)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <ShieldCheck size={14} />
+            </div>
+          </div>
           <div className="stat-val" style={{ color: 'var(--safe-light)' }}>
             ₹{user.total_saved.toLocaleString('en-IN')}
           </div>
         </div>
 
         <div className="stat-box">
-          <div className="stat-label">GUARDIAN POINTS</div>
-          <div className="stat-val" style={{ color: 'var(--gold)', display: 'flex', alignItems: 'center', gap: 4 }}>
-            <Sparkles size={18} />
-            <span>{user.guardian_points}</span>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+            <span className="stat-label">GUARDIAN PTS</span>
+            <div style={{ padding: '4px 6px', borderRadius: 8, background: 'rgba(251, 191, 36, 0.15)', color: 'var(--gold)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Sparkles size={14} />
+            </div>
+          </div>
+          <div className="stat-val" style={{ color: 'var(--gold)' }}>
+            {user.guardian_points} <span style={{ fontSize: 13, fontWeight: 700 }}>pts</span>
           </div>
         </div>
 
         <div className="stat-box">
-          <div className="stat-label">DAY STREAK</div>
-          <div className="stat-val" style={{ color: 'var(--orange)', display: 'flex', alignItems: 'center', gap: 4 }}>
-            <Flame size={18} />
-            <span>{user.streak} days</span>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+            <span className="stat-label">DAY STREAK</span>
+            <div style={{ padding: '4px 6px', borderRadius: 8, background: 'rgba(249, 115, 22, 0.15)', color: 'var(--orange)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Flame size={14} />
+            </div>
+          </div>
+          <div className="stat-val" style={{ color: 'var(--orange)' }}>
+            {user.streak} <span style={{ fontSize: 13, fontWeight: 700 }}>{user.streak === 1 ? 'day' : 'days'}</span>
           </div>
         </div>
 
         <div className="stat-box">
-          <div className="stat-label">SCAMS REPORTED</div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+            <span className="stat-label">SCAMS REPORTED</span>
+            <div style={{ padding: '4px 6px', borderRadius: 8, background: 'rgba(99, 102, 241, 0.15)', color: 'var(--indigo-light)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <ShieldAlert size={14} />
+            </div>
+          </div>
           <div className="stat-val" style={{ color: 'var(--indigo-light)' }}>
             {user.cases_reported}
           </div>
