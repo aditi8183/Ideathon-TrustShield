@@ -2,10 +2,10 @@ import React, { useState } from 'react';
 import { ShieldCheck, ArrowRight, Building2, User, Phone, Wallet } from 'lucide-react';
 
 export default function OnboardingModal({ isOpen, onClose, user, onSaveUser }) {
-  const [name, setName] = useState(user.name);
-  const [upi, setUpi] = useState(user.upi_id);
-  const [phone, setPhone] = useState(user.phone);
-  const [bank, setBank] = useState(user.bank_name);
+  const [name, setName] = useState(user.name || '');
+  const [upi, setUpi] = useState(user.upi_id || '');
+  const [phone, setPhone] = useState(user.phone || '');
+  const [bank, setBank] = useState(user.bank_name || '');
 
   if (!isOpen) return null;
 
@@ -13,9 +13,9 @@ export default function OnboardingModal({ isOpen, onClose, user, onSaveUser }) {
     e.preventDefault();
     onSaveUser({
       ...user,
-      name: name.trim() || 'User',
-      upi_id: upi.trim() || 'user@okicici',
-      phone: phone.trim() || '+91 98765 43210',
+      name: name.trim(),
+      upi_id: upi.trim(),
+      phone: phone.trim(),
       bank_name: bank
     });
     onClose();
@@ -91,7 +91,9 @@ export default function OnboardingModal({ isOpen, onClose, user, onSaveUser }) {
               value={bank}
               onChange={(e) => setBank(e.target.value)}
               style={{ cursor: 'pointer' }}
+              required
             >
+              <option value="" disabled>Select your primary bank</option>
               {banksList.map((b) => (
                 <option key={b} value={b} style={{ background: 'var(--surf)', color: 'var(--text)' }}>
                   {b}

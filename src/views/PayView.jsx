@@ -818,12 +818,6 @@ userName: safeUser.name || 'User',
                     >
                       👤 {payee.upi}
 
-                      <span style={{
-                        marginLeft: 5,
-                        opacity: 0.7
-                      }}>
-                        ×{payee.count}
-                      </span>
                     </button>
                   ))}
                 </div>
