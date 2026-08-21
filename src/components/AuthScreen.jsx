@@ -419,6 +419,7 @@ const getEmployeeIdExistingRole = (targetEmpId) => {
   role,
   name,
   email,
+  password,
   phone,
   upi_id,
   bank_name,
@@ -432,6 +433,7 @@ const getEmployeeIdExistingRole = (targetEmpId) => {
     role,
     name,
     email,
+    password: password || '',
     phone,
     upi_id,
     bank_name,
@@ -464,119 +466,118 @@ const getEmployeeIdExistingRole = (targetEmpId) => {
   };
 };
 
+const findProfileByIdentifier = (inputStr) => {
+  if (!inputStr) return null;
+  const str = inputStr.trim();
+  const cleanEmail = str.toLowerCase();
+  const cleanDigits = str.replace(/\D/g, '').slice(-10);
+  const cleanUpi = str.toLowerCase();
+  const cleanEmp = str.toUpperCase();
+
+  const profiles = getStoredUserProfiles();
+
+  if (profiles[cleanEmail]) return profiles[cleanEmail];
+
+  for (const key in profiles) {
+    const p = profiles[key];
+    if (p?.email && p.email.toLowerCase().trim() === cleanEmail) return p;
+    if (p?.phone && p.phone.replace(/\D/g, '').slice(-10) === cleanDigits && cleanDigits.length >= 10) return p;
+    if (p?.upi_id && p.upi_id.toLowerCase().trim() === cleanUpi && cleanUpi.includes('@')) return p;
+    if (p?.employee_id && p.employee_id.toUpperCase().trim() === cleanEmp) return p;
+  }
+
+  const roles = getRegisteredAccounts();
+  if (roles[cleanEmail]) {
+    return { email: cleanEmail, role: roles[cleanEmail] };
+  }
+
+  return null;
+};
+
   // Dynamic Role & Identifier Validation Engine
   const validateRoleAndIdentifiers = (targetRole, isRegistrationMode) => {
-    const cleanEmail = (email || '').toLowerCase().trim();
-    const cleanPhone = (phone || '').replace(/\D/g, '').slice(-10);
-    const cleanUpi = (upiId || '').toLowerCase().trim();
-    const cleanEmpId = (employeeId || '').toUpperCase().trim();
+    const inputEmail = (email || '').trim();
+    const inputPhone = (phone || '').trim();
+    const inputUpi = (upiId || '').trim();
+    const inputEmpId = (employeeId || '').trim();
 
-    // 1. CHECK EMAIL
-    if (cleanEmail) {
-      const emailRole = getEmailExistingRole(cleanEmail);
-      if (emailRole) {
-        if (!isRegistrationMode) {
-          // SIGN IN MODE
-          if (emailRole !== targetRole) {
-            return {
-              valid: false,
-              error: `⚠️ This account (${cleanEmail}) is registered under ${emailRole === 'BANK_ADMIN' ? 'Bank Risk Admin' : 'Customer'}. Please switch tabs to "${emailRole === 'BANK_ADMIN' ? 'Bank Risk Admin' : 'Customer'}" to sign in.`
-            };
-          }
-        } else {
-          // REGISTER MODE
-          if (emailRole !== targetRole) {
-            return {
-              valid: false,
-              error: `⚠️ This Email Address (${cleanEmail}) is already registered under ${emailRole === 'BANK_ADMIN' ? 'Bank Risk Admin' : 'Customer'}. Please switch tabs to Sign In.`
-            };
-          } else {
-            return {
-              valid: false,
-              error: `⚠️ An account with this Email Address (${cleanEmail}) is already registered. Please click "Sign In" to access your account.`
-            };
-          }
-        }
+    // IF SIGN IN MODE: Check if the entered login input belongs to an existing account under the OTHER role!
+    if (!isRegistrationMode) {
+      const matchedProfile = findProfileByIdentifier(inputEmail) || (inputEmpId ? findProfileByIdentifier(inputEmpId) : null);
+
+      if (matchedProfile && matchedProfile.role && matchedProfile.role !== targetRole) {
+        const otherRoleName = matchedProfile.role === 'BANK_ADMIN' ? 'Bank Risk Admin' : 'Customer';
+        return {
+          valid: false,
+          error: `⚠️ This account (${matchedProfile.email || inputEmail}) is registered under ${otherRoleName}. Please switch tabs to "${otherRoleName}" to sign in.`
+        };
       }
+
+      return { valid: true };
     }
 
-    // 2. CHECK MOBILE PHONE NUMBER
-    if (cleanPhone && cleanPhone.length >= 10) {
-      const phoneRole = getPhoneExistingRole(cleanPhone);
-      if (phoneRole) {
-        if (!isRegistrationMode) {
-          // SIGN IN MODE
-          if (phoneRole !== targetRole) {
-            return {
-              valid: false,
-              error: `⚠️ This Mobile Number (+91 ${cleanPhone}) is registered under ${phoneRole === 'BANK_ADMIN' ? 'Bank Risk Admin' : 'Customer'}. Please switch tabs to "${phoneRole === 'BANK_ADMIN' ? 'Bank Risk Admin' : 'Customer'}" to sign in.`
-            };
-          }
-        } else {
-          // REGISTER MODE
-          if (phoneRole !== targetRole) {
-            return {
-              valid: false,
-              error: `⚠️ This Mobile Number (+91 ${cleanPhone}) is already registered under ${phoneRole === 'BANK_ADMIN' ? 'Bank Risk Admin' : 'Customer'}. Please switch tabs to Sign In.`
-            };
-          } else {
-            return {
-              valid: false,
-              error: `⚠️ An account with this Mobile Number (+91 ${cleanPhone}) is already registered. Please click "Sign In" to access your account.`
-            };
-          }
-        }
-      }
-    }
-
-    // 3. CHECK PRIMARY UPI ID
-    if (cleanUpi && cleanUpi.includes('@')) {
-      const upiRole = getUpiExistingRole(cleanUpi);
-      if (upiRole) {
-        if (!isRegistrationMode) {
-          // SIGN IN MODE
-          if (upiRole !== targetRole) {
-            return {
-              valid: false,
-              error: `⚠️ This Primary UPI ID (${cleanUpi}) is registered under ${upiRole === 'BANK_ADMIN' ? 'Bank Risk Admin' : 'Customer'}. Please switch tabs to "${upiRole === 'BANK_ADMIN' ? 'Bank Risk Admin' : 'Customer'}" to sign in.`
-            };
-          }
-        } else {
-          // REGISTER MODE
-          if (upiRole !== targetRole) {
-            return {
-              valid: false,
-              error: `⚠️ This Primary UPI ID (${cleanUpi}) is already registered under ${upiRole === 'BANK_ADMIN' ? 'Bank Risk Admin' : 'Customer'}. Please switch tabs to Sign In.`
-            };
-          } else {
-            return {
-              valid: false,
-              error: `⚠️ An account with this Primary UPI ID (${cleanUpi}) is already registered. Please click "Sign In" to access your account.`
-            };
-          }
-        }
-      }
-    }
-
-    // 4. CHECK BANK EMPLOYEE ID
-    if (cleanEmpId) {
-      const empRole = getEmployeeIdExistingRole(cleanEmpId);
-      if (empRole) {
-        if (!isRegistrationMode) {
-          // SIGN IN MODE
-          if (empRole !== targetRole) {
-            return {
-              valid: false,
-              error: `⚠️ Employee ID (${cleanEmpId}) is registered under Bank Risk Admin. Please switch tabs to "Bank Risk Admin" to sign in.`
-            };
-          }
-        } else {
-          // REGISTER MODE
+    // IF REGISTER MODE: Check for duplicate Email, Mobile Phone, UPI ID, or Employee ID!
+    if (inputEmail) {
+      const emailProfile = findProfileByIdentifier(inputEmail);
+      if (emailProfile && emailProfile.role) {
+        if (emailProfile.role !== targetRole) {
+          const otherRoleName = emailProfile.role === 'BANK_ADMIN' ? 'Bank Risk Admin' : 'Customer';
           return {
             valid: false,
-            error: `⚠️ This Bank Employee ID (${cleanEmpId}) is already registered under Bank Risk Admin. Please click "Sign In" to access your account.`
+            error: `⚠️ This Email Address (${inputEmail}) is already registered under ${otherRoleName}. Please switch tabs to Sign In.`
+          };
+        } else {
+          return {
+            valid: false,
+            error: `⚠️ An account with this Email Address (${inputEmail}) is already registered. Please click "Sign In" to access your account.`
           };
         }
+      }
+    }
+
+    if (inputPhone && inputPhone.replace(/\D/g, '').length >= 10) {
+      const phoneProfile = findProfileByIdentifier(inputPhone);
+      if (phoneProfile && phoneProfile.role) {
+        if (phoneProfile.role !== targetRole) {
+          const otherRoleName = phoneProfile.role === 'BANK_ADMIN' ? 'Bank Risk Admin' : 'Customer';
+          return {
+            valid: false,
+            error: `⚠️ This Mobile Number (+91 ${inputPhone.replace(/\D/g, '').slice(-10)}) is already registered under ${otherRoleName}. Please switch tabs to Sign In.`
+          };
+        } else {
+          return {
+            valid: false,
+            error: `⚠️ An account with this Mobile Number (+91 ${inputPhone.replace(/\D/g, '').slice(-10)}) is already registered. Please click "Sign In" to access your account.`
+          };
+        }
+      }
+    }
+
+    if (inputUpi && inputUpi.includes('@')) {
+      const upiProfile = findProfileByIdentifier(inputUpi);
+      if (upiProfile && upiProfile.role) {
+        if (upiProfile.role !== targetRole) {
+          const otherRoleName = upiProfile.role === 'BANK_ADMIN' ? 'Bank Risk Admin' : 'Customer';
+          return {
+            valid: false,
+            error: `⚠️ This Primary UPI ID (${inputUpi}) is already registered under ${otherRoleName}. Please switch tabs to Sign In.`
+          };
+        } else {
+          return {
+            valid: false,
+            error: `⚠️ An account with this Primary UPI ID (${inputUpi}) is already registered. Please click "Sign In" to access your account.`
+          };
+        }
+      }
+    }
+
+    if (targetRole === 'BANK_ADMIN' && inputEmpId) {
+      const empProfile = findProfileByIdentifier(inputEmpId);
+      if (empProfile && empProfile.role) {
+        return {
+          valid: false,
+          error: `⚠️ This Bank Employee ID (${inputEmpId}) is already registered under Bank Risk Admin. Please click "Sign In" to access your account.`
+        };
       }
     }
 
@@ -684,25 +685,41 @@ const getEmployeeIdExistingRole = (targetEmpId) => {
 
     const cleanEmail = email.toLowerCase().trim();
 
-    // IF SIGN IN MODE: Direct Sign In with Role Verification!
+    // IF SIGN IN MODE: Direct Sign In with Role & Password Verification!
     if (mode === 'LOGIN') {
+      if (!password || password.trim().length < 6) {
+        setFormError('⚠️ Please enter your account password (minimum 6 characters).');
+        return;
+      }
+
       const existingProfile = getStoredUserProfile(cleanEmail);
-      let authenticatedUser;
 
       if (existingProfile) {
-        authenticatedUser = {
+        if (existingProfile.password && existingProfile.password !== password) {
+          setFormError('⚠️ Incorrect password. Please enter the correct password for this account.');
+          return;
+        }
+
+        const authenticatedUser = {
           ...existingProfile,
           role,
+          password: existingProfile.password || password,
           current_device: navigator.userAgent.includes('Windows') ? 'Chrome on Windows 11' : 'Mobile Device',
           is_new_device: false,
           auth_provider: 'DIRECT_LOGIN'
         };
+
+        registerUserRole(cleanEmail, role);
+        saveStoredUserProfile(authenticatedUser);
+        onLoginSuccess(authenticatedUser);
+        return;
       } else {
-        authenticatedUser = createFreshUserProfile({
+        const authenticatedUser = createFreshUserProfile({
           id: role === 'CUSTOMER' ? `cust_${Date.now()}` : `admin_${Date.now()}`,
           role,
           name: role === 'CUSTOMER' ? cleanEmail.split('@')[0] || 'Customer' : 'Bank Risk Officer',
           email: cleanEmail,
+          password: password,
           phone: phone || '',
           upi_id: upiId || '',
           bank_name: bankName || '',
@@ -710,15 +727,20 @@ const getEmployeeIdExistingRole = (targetEmpId) => {
           branch: role === 'BANK_ADMIN' ? branchLocation : null,
           auth_provider: 'DIRECT_LOGIN'
         });
-      }
 
-      registerUserRole(cleanEmail, role);
-      saveStoredUserProfile(authenticatedUser);
-      onLoginSuccess(authenticatedUser);
+        registerUserRole(cleanEmail, role);
+        saveStoredUserProfile(authenticatedUser);
+        onLoginSuccess(authenticatedUser);
+        return;
+      }
+    }
+
+    // IF REGISTER MODE: Validate minimum 6 character password requirement!
+    if (!password || password.trim().length < 6) {
+      setFormError('⚠️ Please create a password of at least 6 characters for your new account.');
       return;
     }
 
-    // IF REGISTER MODE: Dispatches OTP after passes all cross-role validation checks
     setIsOtpSending(true);
     const secretOtp = Math.floor(100000 + Math.random() * 900000).toString();
     setGeneratedOtp(secretOtp);
@@ -773,6 +795,7 @@ const handleVerifyOtp = (e) => {
         authenticatedUser = {
           ...existingProfile,
           role,
+          password: password || existingProfile.password || '',
           name: name || existingProfile.name,
           phone: phone || existingProfile.phone,
           upi_id: upiId || existingProfile.upi_id,
@@ -797,9 +820,10 @@ const handleVerifyOtp = (e) => {
               ? email.split('@')[0] || 'Customer'
               : 'Bank Risk Officer'),
           email: cleanEmail,
-         phone: phone || '',
-upi_id: upiId || '',
-bank_name: bankName || '',
+          password: password,
+          phone: phone || '',
+          upi_id: upiId || '',
+          bank_name: bankName || '',
           employee_id:
             role === 'BANK_ADMIN'
               ? employeeId || 'EMP-9942'
