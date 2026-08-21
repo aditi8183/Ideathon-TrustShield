@@ -243,12 +243,24 @@ export default function PayView({
       const counts = {};
       history.forEach((payment) => {
         const upi = payment.recipient_upi || payment.recipientUpi || payment.upi;
-        if (upi) counts[upi] = (counts[upi] || 0) + 1;
+        if (upi) {
+          const upiKey = upi.toLowerCase();
+          if (!counts[upiKey]) {
+            counts[upiKey] = {
+              upi: upi,
+              count: 0,
+              lastAmount: payment.amount || 0,
+              note: payment.note || ''
+            };
+          }
+          counts[upiKey].count += 1;
+          counts[upiKey].lastAmount = payment.amount || 0;
+          counts[upiKey].note = payment.note || '';
+        }
       });
-      const topPayees = Object.entries(counts)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 5)
-        .map(([upi, count]) => ({ upi, count }));
+      const topPayees = Object.values(counts)
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 5);
       setFrequentPayees(topPayees);
     } catch (error) {
       console.warn('Unable to load payment history:', error);
@@ -668,12 +680,24 @@ userName: safeUser.name || 'User',
       const counts = {};
       updatedHistory.forEach((p) => {
         const u = p.recipient_upi || p.recipientUpi || p.upi;
-        if (u) counts[u] = (counts[u] || 0) + 1;
+        if (u) {
+          const upiKey = u.toLowerCase();
+          if (!counts[upiKey]) {
+            counts[upiKey] = {
+              upi: u,
+              count: 0,
+              lastAmount: p.amount || 0,
+              note: p.note || ''
+            };
+          }
+          counts[upiKey].count += 1;
+          counts[upiKey].lastAmount = p.amount || 0;
+          counts[upiKey].note = p.note || '';
+        }
       });
-      const topPayees = Object.entries(counts)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 5)
-        .map(([u, count]) => ({ upi: u, count }));
+      const topPayees = Object.values(counts)
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 5);
       setFrequentPayees(topPayees);
     } catch (e) {}
 
@@ -712,6 +736,80 @@ userName: safeUser.name || 'User',
             <Camera size={16} />
             <span>Scan Camera QR</span>
           </button>
+        </div>
+
+        {/* Quick Send - Frequent Payees */}
+        <div style={{ marginBottom: 14 }}>
+          <div style={{
+            fontSize: 11,
+            color: 'var(--sub)',
+            fontWeight: 700,
+            marginBottom: 6
+          }}>
+            QUICK SEND — FREQUENT PAYEES
+          </div>
+
+          {(() => {
+            const filteredPayees = frequentPayees.filter(payee => 
+              payee.upi.toLowerCase().includes((recipientUpi || '').toLowerCase())
+            );
+
+            if (filteredPayees.length > 0) {
+              return (
+                <div style={{
+                  display: 'flex',
+                  gap: 6,
+                  flexWrap: 'wrap'
+                }}>
+                  {filteredPayees.map((payee) => (
+                    <button
+                      key={payee.upi}
+                      onClick={() =>
+                        fillQuickPayee(
+                          payee.upi,
+                          payee.lastAmount,
+                          payee.note || 'Quick Send',
+                          false
+                        )
+                      }
+                      style={{
+                        background: 'rgba(16, 185, 129, 0.1)',
+                        border: '1px solid rgba(16, 185, 129, 0.25)',
+                        color: 'var(--safe-light)',
+                        borderRadius: 20,
+                        padding: '6px 11px',
+                        fontSize: 11,
+                        fontWeight: 700,
+                        cursor: 'pointer'
+                      }}
+                    >
+                      👤 {payee.upi}
+
+                      <span style={{
+                        marginLeft: 5,
+                        opacity: 0.7
+                      }}>
+                        ×{payee.count}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              );
+            } else {
+              return (
+                <div style={{
+                  padding: 10,
+                  borderRadius: 10,
+                  background: 'rgba(255,255,255,0.03)',
+                  border: '1px solid var(--border)',
+                  color: 'var(--sub)',
+                  fontSize: 11
+                }}>
+                  No frequent payees match your search.
+                </div>
+              );
+            }
+          })()}
         </div>
 
         {/* Input Form */}
