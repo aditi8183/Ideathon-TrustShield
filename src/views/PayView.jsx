@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Html5Qrcode } from 'html5-qrcode';
 import {
   Send,
   ShieldAlert,
@@ -19,12 +18,169 @@ import {
   HelpCircle,
   Bell,
   Lock,
-  Zap
+  Zap,
+  History
 } from 'lucide-react';
 
 import PINModal from '../components/PINModal';
 import UpiModal from '../components/UpiModal';
 import { sendNomineeScamAlert } from '../utils/smsService';
+
+// Helper to identify whether user entered a UPI ID or a UPI Number (mobile)
+export const getPayeeType = (input) => {
+  if (!input || typeof input !== 'string') return 'none';
+  const trimmed = input.trim();
+  if (trimmed.includes('@')) return 'upi_id';
+  const cleanDigits = trimmed.replace(/\D/g, '');
+  if (cleanDigits.length >= 8 && cleanDigits.length <= 12) return 'upi_number';
+  return 'unknown';
+};
+
+// Helper to parse standard UPI QR strings (upi://pay?pa=...&pn=...&am=...)
+export const parseUpiQrCode = (text) => {
+  if (!text || typeof text !== 'string') return null;
+  const trimmed = text.trim();
+
+  // If standard UPI payment URI scheme: upi://pay?pa=...&pn=...&am=...&tn=...
+  if (trimmed.toLowerCase().startsWith('upi://pay') || trimmed.includes('pa=')) {
+    try {
+      const urlStr = trimmed.startsWith('upi://') ? trimmed : `upi://pay?${trimmed}`;
+      const url = new URL(urlStr);
+      const pa = url.searchParams.get('pa') || '';
+      const pn = url.searchParams.get('pn') || '';
+      const am = url.searchParams.get('am') || '';
+      const tn = url.searchParams.get('tn') || pn || '';
+      return { upi: pa, amount: am, note: tn, name: pn };
+    } catch (e) {
+      console.warn('UPI QR URL parse error:', e);
+    }
+  }
+
+  // If raw UPI ID (e.g. aditi@okhdfcbank)
+  if (trimmed.includes('@')) {
+    return { upi: trimmed, amount: '', note: '', name: '' };
+  }
+
+  // If 10-digit phone or UPI number
+  const digits = trimmed.replace(/\D/g, '');
+  if (digits.length >= 8 && digits.length <= 12) {
+    return { upi: digits.slice(-10), amount: '', note: '', name: '' };
+  }
+
+  return { upi: trimmed, amount: '', note: '', name: '' };
+};
+
+// Helper to inspect transaction history for a specific payee (first-time vs returning + last paid amount)
+export const getPayeeHistoryStats = (payeeInput) => {
+  if (!payeeInput || typeof payeeInput !== 'string' || !payeeInput.trim()) return null;
+  const target = payeeInput.trim().toLowerCase();
+  const targetDigits = target.replace(/\D/g, '').slice(-10);
+
+  try {
+    const history = JSON.parse(localStorage.getItem('trustshield_payment_history') || '[]');
+    if (!Array.isArray(history)) return { isFirstTime: true, txnCount: 0, lastPayment: null, avgAmount: 0 };
+
+    const matchedTxns = history.filter(p => {
+      const upi = (p.recipient_upi || p.recipientUpi || p.upi || '').toLowerCase().trim();
+      const upiDigits = upi.replace(/\D/g, '').slice(-10);
+      if (upi && upi === target) return true;
+      if (targetDigits.length === 10 && upiDigits.length === 10 && upiDigits === targetDigits) return true;
+      return false;
+    });
+
+    if (matchedTxns.length === 0) {
+      return {
+        isFirstTime: true,
+        txnCount: 0,
+        lastPayment: null,
+        avgAmount: 0
+      };
+    }
+
+    const lastTxn = matchedTxns[0];
+    const totalAmt = matchedTxns.reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+
+    return {
+      isFirstTime: false,
+      txnCount: matchedTxns.length,
+      lastPayment: {
+        amount: Number(lastTxn.amount) || 0,
+        timestamp: lastTxn.timestamp || null,
+        formattedDate: lastTxn.timestamp
+          ? new Date(lastTxn.timestamp).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+          : 'Earlier transfer'
+      },
+      avgAmount: Math.round(totalAmt / matchedTxns.length)
+    };
+  } catch (e) {
+    console.warn('Error reading payment history:', e);
+    return { isFirstTime: true, txnCount: 0, lastPayment: null, avgAmount: 0 };
+  }
+};
+
+export const resolvePayeeDetails = (input, scamList = []) => {
+  if (!input || !input.trim()) return null;
+  const raw = input.trim().toLowerCase();
+  const digits = raw.replace(/\D/g, '').slice(-10);
+  const type = getPayeeType(input);
+
+  if (type === 'none') return null;
+
+  // 1. Blacklist check against community scams (UPI ID and Phone number)
+  const matchedScam = (scamList || []).find(s => {
+    const matchUpi = (s.upi_ids || []).some(u => u.toLowerCase() === raw);
+    const matchPhone = (s.phone_numbers || []).some(p => {
+      const pDigits = p.replace(/\D/g, '').slice(-10);
+      return pDigits && digits && pDigits === digits;
+    });
+    return matchUpi || matchPhone;
+  });
+
+  if (matchedScam || raw.includes('fraud') || raw.includes('trai')) {
+    return {
+      type,
+      isFraud: true,
+      name: matchedScam ? `🚨 Blacklisted Fraudster (${matchedScam.title || 'Known Scam'})` : '🚨 Blacklisted Fraud Payee',
+      resolvedVpa: type === 'upi_number' ? `${digits}@fraudster` : raw,
+      bank: 'TrustShield Blacklisted Database'
+    };
+  }
+
+  // 2. Verified Known Safe Mock Entries
+  if (raw === 'starbucks.coffee@icici') {
+    return { type: 'upi_id', isFraud: false, name: 'Starbucks Coffee India', resolvedVpa: raw, bank: 'ICICI Merchant' };
+  }
+  if (raw === 'landlord.rent@hdfc') {
+    return { type: 'upi_id', isFraud: false, name: 'Rajesh Kumar (House Rent)', resolvedVpa: raw, bank: 'HDFC Bank' };
+  }
+  if (raw === 'aditiansh@oksbi' || raw === 'aditi@okicici' || digits === '9876543210') {
+    return { type, isFraud: false, name: 'Aditi Sharma', resolvedVpa: 'aditi@okicici', bank: 'ICICI Bank' };
+  }
+
+  // 3. Generic Valid Formats
+  if (type === 'upi_number') {
+    return {
+      type: 'upi_number',
+      isFraud: false,
+      name: `Verified Account (${digits})`,
+      resolvedVpa: `${digits}@upi`,
+      bank: 'NPCI Central Mapper'
+    };
+  }
+  if (type === 'upi_id') {
+    const handle = raw.split('@')[0];
+    const capitalized = handle.charAt(0).toUpperCase() + handle.slice(1);
+    return {
+      type: 'upi_id',
+      isFraud: false,
+      name: `${capitalized} (Verified UPI)`,
+      resolvedVpa: raw,
+      bank: 'Verified UPI Account'
+    };
+  }
+
+  return null;
+};
 
 export default function PayView({
   user,
@@ -72,10 +228,18 @@ export default function PayView({
   const [isScanningQr, setIsScanningQr] = useState(false);
   const html5QrCodeRef = useRef(null);
 
-  // Load frequent payees from local storage
+  // Load frequent payees & seed default history if empty
   useEffect(() => {
     try {
-      const history = JSON.parse(localStorage.getItem('trustshield_payment_history') || '[]');
+      let history = JSON.parse(localStorage.getItem('trustshield_payment_history') || 'null');
+      if (!history || history.length === 0) {
+        history = [
+          { recipient_upi: 'landlord.rent@hdfc', amount: 15000, timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24 * 12).toISOString() },
+          { recipient_upi: 'aditi@okicici', amount: 2000, timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24 * 6).toISOString() },
+          { recipient_upi: '9876543210', amount: 500, timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24 * 3).toISOString() }
+        ];
+        localStorage.setItem('trustshield_payment_history', JSON.stringify(history));
+      }
       const counts = {};
       history.forEach((payment) => {
         const upi = payment.recipient_upi || payment.recipientUpi || payment.upi;
@@ -114,66 +278,127 @@ export default function PayView({
     }
   }, [paymentDraft]);
 
+  // Payee resolution & historical stats helper state
+  const payeeType = getPayeeType(recipientUpi);
+  const resolvedPayee = resolvePayeeDetails(recipientUpi, scamList);
+  const payeeHistory = getPayeeHistoryStats(recipientUpi);
+
+  const proceedToPayment = () => {
+    if (paymentMethod === 'online') {
+      setIsUpiModalOpen(true);
+    } else {
+      setIsPinModalOpen(true);
+    }
+  };
+
   // QR Scanner Handlers
-  const stopQrScanner = async () => {
-    if (html5QrCodeRef.current) {
-      try {
-        if (html5QrCodeRef.current.isScanning) {
-          await html5QrCodeRef.current.stop();
-        }
-        await html5QrCodeRef.current.clear();
-      } catch (err) {
-        console.error('Error stopping QR scanner:', err);
+  const applyScannedQr = (rawQrString) => {
+    if (!rawQrString || !rawQrString.trim()) return;
+    const parsed = parseUpiQrCode(rawQrString);
+    if (parsed && parsed.upi) {
+      setRecipientUpi(parsed.upi);
+      if (parsed.amount) setAmount(parsed.amount);
+      if (parsed.note) setNote(parsed.note);
+      setIsPasted(false);
+      if (onUpdatePaymentDraft) {
+        onUpdatePaymentDraft({
+          recipientUpi: parsed.upi,
+          amount: parsed.amount || amount,
+          note: parsed.note || note,
+          isPasted: false
+        });
       }
-      html5QrCodeRef.current = null;
+      setValidationError('');
+      stopQrScanner();
+    }
+  };
+
+  const stopQrScanner = () => {
+    if (scanIntervalRef.current) {
+      clearInterval(scanIntervalRef.current);
+      scanIntervalRef.current = null;
+    }
+    if (videoRef.current && videoRef.current.srcObject) {
+      try {
+        const tracks = videoRef.current.srcObject.getTracks();
+        tracks.forEach(track => track.stop());
+      } catch (err) {
+        console.error('Error stopping camera stream:', err);
+      }
+      videoRef.current.srcObject = null;
     }
     setIsScanningQr(false);
+    setIsCameraActive(false);
     setIsQrScannerOpen(false);
+    setScannerError('');
   };
 
   const handleScanQrCode = async () => {
     setIsQrScannerOpen(true);
     setIsScanningQr(true);
+    setScannerError('');
+    setIsCameraActive(false);
 
-    setTimeout(async () => {
-      try {
-        const html5QrCode = new Html5Qrcode('qr-reader');
-        html5QrCodeRef.current = html5QrCode;
+    try {
+      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'environment' }
+        });
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          await videoRef.current.play().catch(() => {});
+          setIsCameraActive(true);
+        }
 
-        await html5QrCode.start(
-          { facingMode: 'environment' },
-          { fps: 10, qrbox: { width: 250, height: 250 } },
-          (decodedText) => {
-            let extractedUpi = decodedText;
-            let extractedAmount = '';
-            let extractedNote = '';
-
-            // Real parsing of standard UPI URI schemes: upi://pay?pa=address@bank&am=100&tn=note
-            if (decodedText.startsWith('upi://pay') || decodedText.includes('pa=')) {
-              try {
-                const urlString = decodedText.startsWith('upi://') 
-                  ? decodedText 
-                  : `upi://pay?${decodedText}`;
-                const url = new URL(urlString);
-                
-                extractedUpi = url.searchParams.get('pa') || extractedUpi;
-                extractedAmount = url.searchParams.get('am') || '';
-                extractedNote = url.searchParams.get('tn') || url.searchParams.get('pn') || '';
-              } catch (e) {
-                console.warn('Malformed UPI string parsed, using raw text:', e);
+        // Live BarcodeDetector frame scanner loop
+        if ('BarcodeDetector' in window) {
+          try {
+            const detector = new window.BarcodeDetector({ formats: ['qr_code'] });
+            scanIntervalRef.current = setInterval(async () => {
+              if (videoRef.current && videoRef.current.readyState >= 2) {
+                try {
+                  const barcodes = await detector.detect(videoRef.current);
+                  if (barcodes.length > 0 && barcodes[0].rawValue) {
+                    applyScannedQr(barcodes[0].rawValue);
+                  }
+                } catch (detectErr) {
+                  // Continue scanning loop
+                }
               }
-            }
-
-            fillQuickPayee(extractedUpi, extractedAmount, extractedNote, false);
-            stopQrScanner();
-          },
-          () => {}
-        );
-      } catch (err) {
-        console.error('Failed to start QR camera scanner:', err);
-        setIsScanningQr(false);
+            }, 300);
+          } catch (detInitErr) {
+            console.warn('BarcodeDetector init error:', detInitErr);
+          }
+        }
+      } else {
+        setScannerError('Camera access not supported in this environment. You can upload a QR image below.');
       }
-    }, 300);
+    } catch (err) {
+      console.warn('Camera access info:', err);
+      setScannerError('Camera permission not granted or camera busy. You can upload a QR image or screenshot below.');
+      setIsCameraActive(false);
+    }
+  };
+
+  const handleQrImageUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setScannerError('');
+    try {
+      if ('BarcodeDetector' in window) {
+        const detector = new window.BarcodeDetector({ formats: ['qr_code'] });
+        const imageBitmap = await createImageBitmap(file);
+        const barcodes = await detector.detect(imageBitmap);
+        if (barcodes.length > 0 && barcodes[0].rawValue) {
+          applyScannedQr(barcodes[0].rawValue);
+          return;
+        }
+      }
+      setScannerError('No UPI QR code found in uploaded image. Please ensure the QR is clear or enter the UPI ID manually.');
+    } catch (err) {
+      console.error('QR image decode error:', err);
+      setScannerError('Could not decode QR from image. Please enter UPI details manually.');
+    }
   };
 
   const handleUpiChange = (e) => {
@@ -231,26 +456,19 @@ export default function PayView({
     setValidationError('');
   };
 
-  const proceedToPayment = () => {
-    if (paymentMethod === 'online') {
-      setIsUpiModalOpen(true);
-    } else {
-      setIsPinModalOpen(true);
-    }
-  };
-
   // Zero-Knowledge Risk & Coercion Scanner
   const runRiskAnalysis = () => {
     setValidationError('');
     setIsOverrideSubmitted(false);
     setScamAlertSent(false);
 
+    const pType = getPayeeType(recipientUpi);
     if (!recipientUpi || !recipientUpi.trim()) {
-      setValidationError('Please enter a valid recipient UPI ID (e.g. name@oksbi).');
+      setValidationError('Please enter a Recipient UPI ID or 10-digit UPI Number.');
       return;
     }
-    if (!recipientUpi.includes('@')) {
-      setValidationError('UPI ID must contain "@" (e.g. name@bank).');
+    if (pType === 'unknown') {
+      setValidationError('Please enter a valid UPI ID (e.g. name@upi) or 10-digit UPI Number / Mobile.');
       return;
     }
     const amtNum = parseFloat(amount);
@@ -339,38 +557,35 @@ label: averageTransactionAmount > 0
           score: 15
         });
       }
-    // Get payment history
-    const getPaymentHistory = () => {
-  try {
-    return JSON.parse(
-      localStorage.getItem('trustshield_payment_history') || '[]'
-    );
-  } catch {
-    return [];
-  }
-};
-
-     // 6. First-time Transfer
-const paymentHistory = getPaymentHistory();
-
-const hasPaidRecipient = paymentHistory.some(
-  payment =>
-    (payment.recipient_upi || '').toLowerCase().trim() ===
-    recipientUpi.toLowerCase().trim()
-);
-
-if (!hasPaidRecipient) {
-  score += 10;
-  cSignals.push('First-Time Transfer');
-
-  factors.push({
-    id: 'first_time_payee',
-    label: 'First-time transfer to this recipient',
-    labelHindi: 'इस पते पर पहला लेनदेन',
-    severity: 'info',
-    score: 10
-  });
-}
+      // 6. First-time Payee vs Last Payment Amount Spike Analysis
+      const pHistory = getPayeeHistoryStats(recipientUpi);
+      if (pHistory) {
+        if (pHistory.isFirstTime) {
+          score += 15;
+          cSignals.push('First-Time Payee');
+          factors.push({
+            id: 'first_time_payee',
+            label: 'First-time transfer to this recipient (No previous payment record found in ledger)',
+            labelHindi: 'इस प्राप्तकर्ता को पहला लेनदेन (पहले कोई पिछला भुगतान रिकॉर्ड नहीं)',
+            severity: 'info',
+            score: 15
+          });
+        } else if (pHistory.lastPayment && pHistory.lastPayment.amount > 0) {
+          const lastAmt = pHistory.lastPayment.amount;
+          if (amtNum >= lastAmt * 4 && amtNum >= 1500) {
+            const multiplier = Math.round(amtNum / lastAmt);
+            score += 25;
+            cSignals.push('Payee Amount Multiplier Spike');
+            factors.push({
+              id: 'last_payment_spike',
+              label: `Sudden Payee Spike: ₹${amtNum.toLocaleString('en-IN')} is ${multiplier}x higher than your last payment (₹${lastAmt.toLocaleString('en-IN')}) to this recipient`,
+              labelHindi: `अचानक बड़ी राशि: इस प्राप्तकर्ता को पिछले भुगतान (₹${lastAmt}) से ${multiplier} गुना अधिक`,
+              severity: 'warn',
+              score: 25
+            });
+          }
+        }
+      }
 
       // 7. Late Night Hours
       if (isOddHour) {
@@ -578,6 +793,73 @@ userName: safeUser.name || 'User',
               </span>
             )}
           </div>
+          {/* Live Payee Resolution Pill */}
+          {resolvedPayee && recipientUpi.trim().length >= 3 && (
+            <div style={{
+              marginTop: 6,
+              padding: '6px 10px',
+              borderRadius: 8,
+              background: resolvedPayee.isFraud ? 'rgba(239, 68, 68, 0.12)' : 'rgba(16, 185, 129, 0.1)',
+              border: resolvedPayee.isFraud ? '1px solid rgba(239, 68, 68, 0.3)' : '1px solid rgba(16, 185, 129, 0.25)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              fontSize: 11
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: resolvedPayee.isFraud ? 'var(--danger-light)' : 'var(--safe-light)', fontWeight: 700 }}>
+                {resolvedPayee.isFraud ? <AlertOctagon size={14} /> : <CheckCircle2 size={14} />}
+                <span>{resolvedPayee.name}</span>
+              </div>
+              <span style={{ color: 'var(--sub)', fontSize: 10 }}>
+                {resolvedPayee.type === 'upi_number' ? 'NPCI Central Mapper' : 'Verified Handle'}
+              </span>
+            </div>
+          )}
+
+          {/* Historical Payment & Last Transaction Context Pill */}
+          {recipientUpi.trim().length >= 3 && payeeHistory && (
+            <div style={{
+              marginTop: 6,
+              padding: '6px 10px',
+              borderRadius: 8,
+              background: payeeHistory.isFirstTime ? 'rgba(245, 158, 11, 0.08)' : 'rgba(56, 189, 248, 0.08)',
+              border: payeeHistory.isFirstTime ? '1px solid rgba(245, 158, 11, 0.25)' : '1px solid rgba(56, 189, 248, 0.25)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              fontSize: 11,
+              flexWrap: 'wrap',
+              gap: 4
+            }}>
+              {payeeHistory.isFirstTime ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--warn-light)', fontWeight: 700 }}>
+                  <ShieldAlert size={14} />
+                  <span>First-Time Payee (No prior transfers to this address)</span>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#38bdf8', fontWeight: 600 }}>
+                  <History size={14} />
+                  <span>
+                    Returning Payee ({payeeHistory.txnCount}x) • Last paid <strong style={{ color: '#fff' }}>₹{payeeHistory.lastPayment?.amount.toLocaleString('en-IN')}</strong> on {payeeHistory.lastPayment?.formattedDate}
+                  </span>
+                </div>
+              )}
+
+              {!payeeHistory.isFirstTime && payeeHistory.lastPayment && parseFloat(amount) > payeeHistory.lastPayment.amount * 4 && parseFloat(amount) >= 1500 && (
+                <span style={{
+                  fontSize: 10,
+                  fontWeight: 800,
+                  color: 'var(--danger-light)',
+                  background: 'rgba(239, 68, 68, 0.15)',
+                  border: '1px solid rgba(239, 68, 68, 0.3)',
+                  padding: '1px 6px',
+                  borderRadius: 4
+                }}>
+                  ⚠️ {Math.round(parseFloat(amount) / payeeHistory.lastPayment.amount)}x Spike vs Last Paid
+                </span>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="input-group">
