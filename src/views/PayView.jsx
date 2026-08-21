@@ -1461,36 +1461,6 @@ Sent to: {safeUser?.trusted_nominee?.name || 'Trusted nominee'}
               </label>
             </div>
 
-            {/* Quick Demo Test Buttons */}
-            <div style={{ textAlign: 'left', marginBottom: 12, background: 'rgba(255, 255, 255, 0.03)', padding: 8, borderRadius: 10, border: '1px solid var(--border)' }}>
-              <div style={{ fontSize: 10, color: 'var(--sub)', fontWeight: 700, marginBottom: 4, textTransform: 'uppercase' }}>
-                Quick Test Sample QR Data:
-              </div>
-              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                <button
-                  type="button"
-                  onClick={() => applyScannedQr('upi://pay?pa=starbucks.coffee@icici&pn=Starbucks&am=350&tn=Coffee')}
-                  style={{ fontSize: 10, padding: '3px 8px', borderRadius: 6, background: 'rgba(16, 185, 129, 0.15)', color: 'var(--safe-light)', border: '1px solid rgba(16, 185, 129, 0.3)', cursor: 'pointer', fontWeight: 700 }}
-                >
-                  ☕ Starbucks QR (₹350)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => applyScannedQr('upi://pay?pa=9876543210@upi&pn=RameshStore&am=120&tn=Grocery')}
-                  style={{ fontSize: 10, padding: '3px 8px', borderRadius: 6, background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', border: '1px solid rgba(56, 189, 248, 0.3)', cursor: 'pointer', fontWeight: 700 }}
-                >
-                  📱 Mobile UPI QR (₹120)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => applyScannedQr('upi://pay?pa=scam.lottery.claim@fakebank&pn=MegaWinLottery&am=4999&tn=LotteryTax')}
-                  style={{ fontSize: 10, padding: '3px 8px', borderRadius: 6, background: 'rgba(239, 68, 68, 0.15)', color: 'var(--danger-light)', border: '1px solid rgba(239, 68, 68, 0.3)', cursor: 'pointer', fontWeight: 700 }}
-                >
-                  ⚠️ Scam QR (₹4999)
-                </button>
-              </div>
-            </div>
-
             <button
               onClick={stopQrScanner}
               style={{
