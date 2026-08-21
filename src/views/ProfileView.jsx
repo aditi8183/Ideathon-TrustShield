@@ -1,30 +1,112 @@
 import React, { useState } from 'react';
-import { User, ShieldCheck, Award, Flame, Sparkles, FileText, Download, Edit3, Check, Mail, CheckCircle2, Phone, Bell, ShieldAlert } from 'lucide-react';
+import {
+  User,
+  ShieldCheck,
+  Award,
+  Flame,
+  Sparkles,
+  FileText,
+  Download,
+  Edit3,
+  Check,
+  Mail,
+  CheckCircle2,
+  Phone,
+  Bell,
+  ShieldAlert,
+  Users,
+  Settings,
+  Plus,
+  Trash2,
+  X,
+  Sliders,
+  UserPlus
+} from 'lucide-react';
 
 export default function ProfileView({ user, pointEvents, onOpenOnboarding, onUpdateUser }) {
   const isGoogleUser = user?.auth_provider === 'GOOGLE_ACCOUNT' || user?.email?.includes('@gmail.com');
   const userInitial = (user?.name || user?.email || 'U').charAt(0).toUpperCase();
 
-  // Trusted Nominee Emergency Guardian State
-  const [nomineeName, setNomineeName] = useState(user?.trusted_nominee?.name || '');
-  const [nomineePhone, setNomineePhone] = useState(user?.trusted_nominee?.phone || '');
-  const [nomineeEmail, setNomineeEmail] = useState(user?.trusted_nominee?.email || '');
-  const [isNomineeEnabled, setIsNomineeEnabled] = useState(user?.trusted_nominee?.enabled ?? true);
+  // Multiple Trusted Nominees State
+  const [nominees, setNominees] = useState(() => {
+    if (Array.isArray(user?.nominees) && user.nominees.length > 0) {
+      return user.nominees;
+    }
+    if (user?.trusted_nominee?.name) {
+      return [{
+        id: `nom_1`,
+        name: user.trusted_nominee.name,
+        phone: user.trusted_nominee.phone || '',
+        email: user.trusted_nominee.email || '',
+        relationship: 'Family Guardian',
+        enabled: user.trusted_nominee.enabled ?? true
+      }];
+    }
+    return [
+      {
+        id: 'nom_default_1',
+        name: 'Papa (Rajesh Sharma)',
+        phone: '+91 98765 43210',
+        email: 'rajesh.sharma@gmail.com',
+        relationship: 'Father / Parent',
+        enabled: true
+      }
+    ];
+  });
+
+  const [isNomineeModalOpen, setIsNomineeModalOpen] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
 
-  const handleSaveNominee = () => {
+  // New Nominee Form Inputs (inside Settings Modal)
+  const [newNomName, setNewNomName] = useState('');
+  const [newNomPhone, setNewNomPhone] = useState('');
+  const [newNomEmail, setNewNomEmail] = useState('');
+  const [newNomRelation, setNewNomRelation] = useState('Parent');
+
+  const handleAddNominee = (e) => {
+    e?.preventDefault();
+    if (!newNomName.trim()) return;
+    const newEntry = {
+      id: `nom_${Date.now()}`,
+      name: newNomName.trim(),
+      phone: newNomPhone.trim(),
+      email: newNomEmail.trim(),
+      relationship: newNomRelation || 'Family Member',
+      enabled: true
+    };
+    setNominees(prev => [...prev, newEntry]);
+    setNewNomName('');
+    setNewNomPhone('');
+    setNewNomEmail('');
+    setNewNomRelation('Parent');
+  };
+
+  const handleRemoveNominee = (idToRemove) => {
+    setNominees(prev => prev.filter(n => n.id !== idToRemove));
+  };
+
+  const handleToggleNomineeEnabled = (idToToggle) => {
+    setNominees(prev => prev.map(n => n.id === idToToggle ? { ...n, enabled: !n.enabled } : n));
+  };
+
+  const handleSaveNomineesSettings = () => {
+    const primaryNominee = nominees[0] || null;
     const updatedUser = {
       ...user,
-      trusted_nominee: {
-        name: nomineeName,
-        phone: nomineePhone,
-        email: nomineeEmail,
-        enabled: isNomineeEnabled
-      }
+      nominees: nominees,
+      trusted_nominee: primaryNominee ? {
+        name: primaryNominee.name,
+        phone: primaryNominee.phone,
+        email: primaryNominee.email,
+        enabled: primaryNominee.enabled
+      } : null
     };
     if (onUpdateUser) onUpdateUser(updatedUser);
     setSavedSuccess(true);
-    setTimeout(() => setSavedSuccess(false), 2500);
+    setTimeout(() => {
+      setSavedSuccess(false);
+      setIsNomineeModalOpen(false);
+    }, 1200);
   };
 
   return (
@@ -171,95 +253,77 @@ export default function ProfileView({ user, pointEvents, onOpenOnboarding, onUpd
         </div>
       </div>
 
-      {/* Trusted Nominee Emergency Guardian Card */}
+      {/* Clean Emergency Guardians Summary Card (No input fields on main screen) */}
       <div className="glass-card">
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Phone size={20} color="var(--indigo-light)" />
-            <h3 style={{ fontSize: 16, fontWeight: 900 }}>Trusted Nominee Emergency Guardian</h3>
+            <ShieldAlert size={20} color="var(--indigo-light)" />
+            <h3 style={{ fontSize: 16, fontWeight: 900 }}>Emergency Guardians</h3>
           </div>
           <span style={{
-            background: isNomineeEnabled ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
-            color: isNomineeEnabled ? 'var(--safe-light)' : 'var(--danger-light)',
-            border: `1px solid ${isNomineeEnabled ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`,
+            background: 'rgba(16, 185, 129, 0.15)',
+            color: 'var(--safe-light)',
+            border: '1px solid rgba(16, 185, 129, 0.3)',
             padding: '2px 8px',
             borderRadius: 12,
             fontSize: 10,
             fontWeight: 800
           }}>
-            {isNomineeEnabled ? 'SMS ALERTS ACTIVE' : 'ALERTS PAUSED'}
+            {nominees.filter(n => n.enabled).length} ACTIVE GUARDIANS
           </span>
         </div>
 
         <p style={{ fontSize: 12, color: 'var(--sub)', marginBottom: 14 }}>
-          If a high-risk cyber fraud payment or coercion call is detected on your account, Trust Shield sends an instant <strong>Emergency SMS Alert</strong> to your trusted family member.
+          Emergency SMS & Email alerts are dispatched to your configured trusted guardians if high-risk fraud or coercion is detected.
         </p>
 
-        <div className="input-group">
-          <label className="input-label">Nominee Name / Relation</label>
-          <input
-            type="text"
-            className="input-field"
-            value={nomineeName}
-            onChange={(e) => setNomineeName(e.target.value)}
-            placeholder="e.g. Papa (Rajesh Sharma)"
-          />
+        {/* Clean Badges for Configured Nominees */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
+          {nominees.length > 0 ? (
+            nominees.map(n => (
+              <div
+                key={n.id}
+                style={{
+                  background: n.enabled ? 'rgba(99, 102, 241, 0.12)' : 'rgba(255, 255, 255, 0.05)',
+                  border: `1px solid ${n.enabled ? 'rgba(99, 102, 241, 0.3)' : 'var(--border)'}`,
+                  borderRadius: 12,
+                  padding: '8px 12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  fontSize: 12,
+                  fontWeight: 700,
+                  color: n.enabled ? 'var(--text)' : 'var(--sub)'
+                }}
+              >
+                <Users size={14} color={n.enabled ? 'var(--indigo-light)' : 'var(--sub)'} />
+                <span>{n.name} <span style={{ opacity: 0.7, fontSize: 11 }}>({n.relationship})</span></span>
+                {n.enabled ? (
+                  <span style={{ fontSize: 9, background: 'rgba(16, 185, 129, 0.2)', color: 'var(--safe-light)', padding: '1px 6px', borderRadius: 6, fontWeight: 900 }}>
+                    ACTIVE
+                  </span>
+                ) : (
+                  <span style={{ fontSize: 9, background: 'rgba(239, 68, 68, 0.2)', color: 'var(--danger-light)', padding: '1px 6px', borderRadius: 6, fontWeight: 900 }}>
+                    PAUSED
+                  </span>
+                )}
+              </div>
+            ))
+          ) : (
+            <div style={{ fontSize: 12, color: 'var(--sub)', fontStyle: 'italic' }}>
+              No emergency guardians configured yet.
+            </div>
+          )}
         </div>
 
-        <div className="input-group">
-          <label className="input-label">Nominee Mobile Phone Number (+91)</label>
-          <input
-            type="tel"
-            className="input-field mono"
-            value={nomineePhone}
-            onChange={(e) => setNomineePhone(e.target.value)}
-            placeholder="e.g. +91 98765 43210"
-          />
-        </div>
-
-        <div className="input-group">
-          <label className="input-label">Nominee Email Address</label>
-          <input
-            type="email"
-            className="input-field mono"
-            value={nomineeEmail}
-            onChange={(e) => setNomineeEmail(e.target.value)}
-            placeholder="e.g. papa.rajesh@gmail.com"
-          />
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 10, marginBottom: 14 }}>
-          <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--sub)' }}>Enable Real-Time Emergency SMS Alerts:</span>
-          <button
-            type="button"
-            onClick={() => setIsNomineeEnabled(!isNomineeEnabled)}
-            style={{
-              background: isNomineeEnabled ? 'var(--indigo)' : 'rgba(255, 255, 255, 0.1)',
-              color: '#fff',
-              border: 'none',
-              borderRadius: 20,
-              padding: '6px 14px',
-              fontSize: 11,
-              fontWeight: 800,
-              cursor: 'pointer'
-            }}
-          >
-            {isNomineeEnabled ? 'ON (Active)' : 'OFF (Paused)'}
-          </button>
-        </div>
-
+        {/* Action Button to Open Settings Drawer / Modal */}
         <button
           className="btn-primary"
-          onClick={handleSaveNominee}
-          style={{ width: '100%', fontSize: 13 }}
+          onClick={() => setIsNomineeModalOpen(true)}
+          style={{ width: '100%', fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
         >
-          {savedSuccess ? (
-            <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-              <CheckCircle2 size={16} /> Saved Trusted Nominee Successfully!
-            </span>
-          ) : (
-            <span>Save Trusted Nominee Settings</span>
-          )}
+          <Settings size={16} />
+          <span>Manage Emergency Guardians Settings</span>
         </button>
       </div>
 
@@ -366,6 +430,230 @@ export default function ProfileView({ user, pointEvents, onOpenOnboarding, onUpd
           <span>Install App</span>
         </button>
       </div>
+
+      {/* ========================================================================= */}
+      {/* MANAGE EMERGENCY GUARDIANS SETTINGS MODAL */}
+      {/* ========================================================================= */}
+      {isNomineeModalOpen && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0, 0, 0, 0.75)',
+          backdropFilter: 'blur(8px)',
+          zIndex: 9999,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: 16
+        }}>
+          <div className="glass-card" style={{
+            width: '100%',
+            maxWidth: 520,
+            maxHeight: '90vh',
+            overflowY: 'auto',
+            background: 'var(--card-bg)',
+            border: '1px solid var(--border)',
+            borderRadius: 20,
+            padding: 20,
+            boxShadow: '0 20px 40px rgba(0,0,0,0.5)'
+          }}>
+            {/* Modal Header */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, borderBottom: '1px solid var(--border)', paddingBottom: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <Users size={22} color="var(--indigo-light)" />
+                <div>
+                  <h3 style={{ fontSize: 17, fontWeight: 900, margin: 0 }}>Emergency Guardians Settings</h3>
+                  <div style={{ fontSize: 11, color: 'var(--sub)' }}>Manage multiple trusted nominees for fraud alert dispatch</div>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsNomineeModalOpen(false)}
+                style={{ background: 'none', border: 'none', color: 'var(--sub)', cursor: 'pointer', padding: 4 }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Configured Nominees List */}
+            <div style={{ marginBottom: 20 }}>
+              <h4 style={{ fontSize: 13, fontWeight: 800, color: 'var(--sub)', marginBottom: 10, textTransform: 'uppercase' }}>
+                Configured Guardians ({nominees.length})
+              </h4>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {nominees.map(nom => (
+                  <div
+                    key={nom.id}
+                    style={{
+                      background: 'var(--card-inner)',
+                      border: '1px solid var(--border)',
+                      borderRadius: 14,
+                      padding: 12,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: 12
+                    }}
+                  >
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <strong style={{ fontSize: 14 }}>{nom.name}</strong>
+                        <span style={{ fontSize: 10, background: 'rgba(99, 102, 241, 0.15)', color: 'var(--indigo-light)', padding: '2px 6px', borderRadius: 6, fontWeight: 800 }}>
+                          {nom.relationship}
+                        </span>
+                      </div>
+                      <div className="mono" style={{ fontSize: 11, color: 'var(--sub)', marginTop: 2 }}>
+                        {nom.phone} {nom.email ? `• ${nom.email}` : ''}
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <button
+                        type="button"
+                        onClick={() => handleToggleNomineeEnabled(nom.id)}
+                        style={{
+                          background: nom.enabled ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+                          color: nom.enabled ? 'var(--safe-light)' : 'var(--danger-light)',
+                          border: `1px solid ${nom.enabled ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`,
+                          borderRadius: 12,
+                          padding: '4px 10px',
+                          fontSize: 11,
+                          fontWeight: 800,
+                          cursor: 'pointer'
+                        }}
+                      >
+                        {nom.enabled ? 'ON' : 'OFF'}
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveNominee(nom.id)}
+                        style={{
+                          background: 'rgba(239, 68, 68, 0.1)',
+                          border: '1px solid rgba(239, 68, 68, 0.2)',
+                          color: 'var(--danger-light)',
+                          borderRadius: 8,
+                          padding: 6,
+                          cursor: 'pointer'
+                        }}
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Add New Nominee Form */}
+            <div style={{
+              background: 'rgba(0, 0, 0, 0.2)',
+              border: '1px solid var(--border)',
+              borderRadius: 14,
+              padding: 14,
+              marginBottom: 16
+            }}>
+              <h4 style={{ fontSize: 13, fontWeight: 800, color: 'var(--indigo-light)', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <UserPlus size={16} /> Add Another Emergency Guardian
+              </h4>
+
+              <form onSubmit={handleAddNominee}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
+                  <div>
+                    <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--sub)', display: 'block', marginBottom: 4 }}>Full Name</label>
+                    <input
+                      type="text"
+                      className="input-field"
+                      value={newNomName}
+                      onChange={(e) => setNewNomName(e.target.value)}
+                      placeholder="e.g. Sunita Sharma"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--sub)', display: 'block', marginBottom: 4 }}>Relationship</label>
+                    <select
+                      className="input-field"
+                      value={newNomRelation}
+                      onChange={(e) => setNewNomRelation(e.target.value)}
+                    >
+                      <option value="Parent">Parent</option>
+                      <option value="Spouse">Spouse</option>
+                      <option value="Sibling">Sibling</option>
+                      <option value="Child">Child</option>
+                      <option value="Legal Guardian">Legal Guardian</option>
+                      <option value="Trusted Friend">Trusted Friend</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
+                  <div>
+                    <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--sub)', display: 'block', marginBottom: 4 }}>Mobile Number (+91)</label>
+                    <input
+                      type="tel"
+                      className="input-field mono"
+                      value={newNomPhone}
+                      onChange={(e) => setNewNomPhone(e.target.value)}
+                      placeholder="+91 98765 12345"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--sub)', display: 'block', marginBottom: 4 }}>Email Address</label>
+                    <input
+                      type="email"
+                      className="input-field mono"
+                      value={newNomEmail}
+                      onChange={(e) => setNewNomEmail(e.target.value)}
+                      placeholder="nominee@gmail.com"
+                    />
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  style={{
+                    width: '100%',
+                    background: 'rgba(99, 102, 241, 0.2)',
+                    border: '1px solid rgba(99, 102, 241, 0.4)',
+                    color: 'var(--indigo-light)',
+                    padding: '8px 12px',
+                    borderRadius: 10,
+                    fontSize: 12,
+                    fontWeight: 800,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 6
+                  }}
+                >
+                  <Plus size={14} /> Add Nominee to List
+                </button>
+              </form>
+            </div>
+
+            {/* Modal Save Button */}
+            <button
+              className="btn-primary"
+              onClick={handleSaveNomineesSettings}
+              style={{ width: '100%', fontSize: 13 }}
+            >
+              {savedSuccess ? (
+                <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                  <CheckCircle2 size={16} /> Saved All Guardians Settings!
+                </span>
+              ) : (
+                <span>Save All Emergency Guardians Settings</span>
+              )}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
