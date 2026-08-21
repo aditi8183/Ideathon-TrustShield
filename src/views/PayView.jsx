@@ -35,6 +35,40 @@ export const getPayeeType = (input) => {
   return 'unknown';
 };
 
+// Helper to parse standard UPI QR strings (upi://pay?pa=...&pn=...&am=...)
+export const parseUpiQrCode = (text) => {
+  if (!text || typeof text !== 'string') return null;
+  const trimmed = text.trim();
+
+  // If standard UPI payment URI scheme: upi://pay?pa=...&pn=...&am=...&tn=...
+  if (trimmed.toLowerCase().startsWith('upi://pay') || trimmed.includes('pa=')) {
+    try {
+      const urlStr = trimmed.startsWith('upi://') ? trimmed : `upi://pay?${trimmed}`;
+      const url = new URL(urlStr);
+      const pa = url.searchParams.get('pa') || '';
+      const pn = url.searchParams.get('pn') || '';
+      const am = url.searchParams.get('am') || '';
+      const tn = url.searchParams.get('tn') || pn || '';
+      return { upi: pa, amount: am, note: tn, name: pn };
+    } catch (e) {
+      console.warn('UPI QR URL parse error:', e);
+    }
+  }
+
+  // If raw UPI ID (e.g. aditi@okhdfcbank)
+  if (trimmed.includes('@')) {
+    return { upi: trimmed, amount: '', note: '', name: '' };
+  }
+
+  // If 10-digit phone or UPI number
+  const digits = trimmed.replace(/\D/g, '');
+  if (digits.length >= 8 && digits.length <= 12) {
+    return { upi: digits.slice(-10), amount: '', note: '', name: '' };
+  }
+
+  return { upi: trimmed, amount: '', note: '', name: '' };
+};
+
 export const resolvePayeeDetails = (input, scamList = []) => {
   if (!input || !input.trim()) return null;
   const raw = input.trim().toLowerCase();
@@ -151,7 +185,11 @@ export default function PayView({
   // QR Scanner State
   const [isQrScannerOpen, setIsQrScannerOpen] = useState(false);
   const [isScanningQr, setIsScanningQr] = useState(false);
+  const [scannerError, setScannerError] = useState('');
+  const [isCameraActive, setIsCameraActive] = useState(false);
   const videoRef = useRef(null);
+  const scanIntervalRef = useRef(null);
+  const fileInputRef = useRef(null);
 
   // Load frequent payees from local storage
   useEffect(() => {
@@ -208,7 +246,32 @@ export default function PayView({
   };
 
   // QR Scanner Handlers
+  const applyScannedQr = (rawQrString) => {
+    if (!rawQrString || !rawQrString.trim()) return;
+    const parsed = parseUpiQrCode(rawQrString);
+    if (parsed && parsed.upi) {
+      setRecipientUpi(parsed.upi);
+      if (parsed.amount) setAmount(parsed.amount);
+      if (parsed.note) setNote(parsed.note);
+      setIsPasted(false);
+      if (onUpdatePaymentDraft) {
+        onUpdatePaymentDraft({
+          recipientUpi: parsed.upi,
+          amount: parsed.amount || amount,
+          note: parsed.note || note,
+          isPasted: false
+        });
+      }
+      setValidationError('');
+      stopQrScanner();
+    }
+  };
+
   const stopQrScanner = () => {
+    if (scanIntervalRef.current) {
+      clearInterval(scanIntervalRef.current);
+      scanIntervalRef.current = null;
+    }
     if (videoRef.current && videoRef.current.srcObject) {
       try {
         const tracks = videoRef.current.srcObject.getTracks();
@@ -219,12 +282,16 @@ export default function PayView({
       videoRef.current.srcObject = null;
     }
     setIsScanningQr(false);
+    setIsCameraActive(false);
     setIsQrScannerOpen(false);
+    setScannerError('');
   };
 
   const handleScanQrCode = async () => {
     setIsQrScannerOpen(true);
     setIsScanningQr(true);
+    setScannerError('');
+    setIsCameraActive(false);
 
     try {
       if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
@@ -233,18 +300,59 @@ export default function PayView({
         });
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
-          videoRef.current.play().catch(() => {});
+          await videoRef.current.play().catch(() => {});
+          setIsCameraActive(true);
         }
+
+        // Real-time BarcodeDetector frame scanner loop
+        if ('BarcodeDetector' in window) {
+          try {
+            const detector = new window.BarcodeDetector({ formats: ['qr_code'] });
+            scanIntervalRef.current = setInterval(async () => {
+              if (videoRef.current && videoRef.current.readyState >= 2) {
+                try {
+                  const barcodes = await detector.detect(videoRef.current);
+                  if (barcodes.length > 0 && barcodes[0].rawValue) {
+                    applyScannedQr(barcodes[0].rawValue);
+                  }
+                } catch (detectErr) {
+                  // Continue scanning loop
+                }
+              }
+            }, 300);
+          } catch (detInitErr) {
+            console.warn('BarcodeDetector init error:', detInitErr);
+          }
+        }
+      } else {
+        setScannerError('Camera access not supported in this environment. You can upload a QR image below.');
       }
     } catch (err) {
       console.warn('Camera access info:', err);
+      setScannerError('Camera permission not granted or camera busy. You can upload a QR image or screenshot below.');
+      setIsCameraActive(false);
     }
+  };
 
-    // Auto-detect and parse QR code / fallback demo simulation
-    setTimeout(() => {
-      fillQuickPayee('starbucks.coffee@icici', 450, 'Coffee & Snacks Scan', false);
-      stopQrScanner();
-    }, 2000);
+  const handleQrImageUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setScannerError('');
+    try {
+      if ('BarcodeDetector' in window) {
+        const detector = new window.BarcodeDetector({ formats: ['qr_code'] });
+        const imageBitmap = await createImageBitmap(file);
+        const barcodes = await detector.detect(imageBitmap);
+        if (barcodes.length > 0 && barcodes[0].rawValue) {
+          applyScannedQr(barcodes[0].rawValue);
+          return;
+        }
+      }
+      setScannerError('No UPI QR code found in uploaded image. Please ensure the QR is clear or enter the UPI ID manually.');
+    } catch (err) {
+      console.error('QR image decode error:', err);
+      setScannerError('Could not decode QR from image. Please enter UPI details manually.');
+    }
   };
 
   const handleUpiChange = (e) => {
@@ -1076,7 +1184,7 @@ export default function PayView({
       {/* ACTUAL CAMERA SCANNER MODAL */}
       {isQrScannerOpen && (
         <div className="modal-overlay">
-          <div className="modal-content" style={{ maxWidth: 360, textAlign: 'center' }}>
+          <div className="modal-content" style={{ maxWidth: 380, textAlign: 'center' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
               <h3 style={{ fontSize: 16, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 6 }}>
                 <Camera size={18} />
@@ -1090,7 +1198,7 @@ export default function PayView({
               </button>
             </div>
 
-            <div style={{ position: 'relative', width: '100%', borderRadius: 12, overflow: 'hidden', background: '#000', minHeight: 220, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ position: 'relative', width: '100%', borderRadius: 12, overflow: 'hidden', background: '#000', minHeight: 240, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <video
                 ref={videoRef}
                 autoPlay
@@ -1098,13 +1206,13 @@ export default function PayView({
                 muted
                 style={{
                   width: '100%',
-                  height: 220,
+                  height: 240,
                   objectFit: 'cover'
                 }}
               />
               <div style={{
                 position: 'absolute',
-                inset: 30,
+                inset: 24,
                 border: '2px dashed var(--safe-light)',
                 borderRadius: 12,
                 boxShadow: '0 0 20px rgba(16, 185, 129, 0.4)',
@@ -1112,25 +1220,65 @@ export default function PayView({
               }} />
             </div>
 
-            <p style={{ fontSize: 12, color: 'var(--sub)', marginTop: 10 }}>
-              Align the merchant QR code inside the viewfinder to scan.
-            </p>
+            {scannerError ? (
+              <p style={{ fontSize: 12, color: 'var(--warn-light)', marginTop: 10, background: 'rgba(245, 158, 11, 0.12)', padding: '6px 10px', borderRadius: 8 }}>
+                ⚠️ {scannerError}
+              </p>
+            ) : (
+              <p style={{ fontSize: 12, color: 'var(--sub)', marginTop: 10 }}>
+                Align merchant or payee QR code in the box to scan.
+              </p>
+            )}
 
-            <button
-              onClick={stopQrScanner}
-              style={{
-                marginTop: 12,
-                width: '100%',
-                padding: '8px 12px',
-                borderRadius: 8,
-                background: 'rgba(255, 255, 255, 0.1)',
-                color: '#fff',
-                border: '1px solid var(--border)',
-                cursor: 'pointer'
-              }}
-            >
-              Cancel
-            </button>
+            {/* Optional Image Upload fallback */}
+            <input
+              type="file"
+              accept="image/*"
+              ref={fileInputRef}
+              onChange={handleQrImageUpload}
+              style={{ display: 'none' }}
+            />
+
+            <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
+              <button
+                type="button"
+                onClick={() => fileInputRef.current && fileInputRef.current.click()}
+                style={{
+                  flex: 1,
+                  padding: '8px 12px',
+                  borderRadius: 8,
+                  background: 'rgba(99, 102, 241, 0.15)',
+                  color: 'var(--indigo-light)',
+                  border: '1px solid rgba(99, 102, 241, 0.3)',
+                  fontSize: 12,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 6
+                }}
+              >
+                <QrCode size={14} />
+                <span>Upload QR Image</span>
+              </button>
+              <button
+                type="button"
+                onClick={stopQrScanner}
+                style={{
+                  flex: 1,
+                  padding: '8px 12px',
+                  borderRadius: 8,
+                  background: 'rgba(255, 255, 255, 0.08)',
+                  color: '#fff',
+                  border: '1px solid var(--border)',
+                  fontSize: 12,
+                  cursor: 'pointer'
+                }}
+              >
+                Cancel
+              </button>
+            </div>
           </div>
         </div>
       )}
