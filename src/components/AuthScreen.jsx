@@ -311,6 +311,18 @@ const isEmailAlreadyRegistered = (targetEmail) => {
   return false;
 };
 
+const getEmailExistingRole = (targetEmail) => {
+  if (!targetEmail) return null;
+  const cleanEmail = targetEmail.toLowerCase().trim();
+  const profiles = getStoredUserProfiles();
+  const roles = getRegisteredAccounts();
+
+  if (profiles[cleanEmail]?.role) return profiles[cleanEmail].role;
+  if (roles[cleanEmail]) return roles[cleanEmail];
+
+  return null;
+};
+
 const isPhoneAlreadyRegistered = (targetPhone) => {
   if (!targetPhone) return false;
   const cleanDigits = targetPhone.replace(/\D/g, '').slice(-10);
@@ -328,6 +340,22 @@ const isPhoneAlreadyRegistered = (targetPhone) => {
   return false;
 };
 
+const getPhoneExistingRole = (targetPhone) => {
+  if (!targetPhone) return null;
+  const cleanDigits = targetPhone.replace(/\D/g, '').slice(-10);
+  if (cleanDigits.length < 10) return null;
+
+  const profiles = getStoredUserProfiles();
+  for (const key in profiles) {
+    const p = profiles[key];
+    if (p?.phone) {
+      const pDigits = p.phone.replace(/\D/g, '').slice(-10);
+      if (pDigits === cleanDigits) return p.role || 'CUSTOMER';
+    }
+  }
+  return null;
+};
+
 const isUpiIdAlreadyRegistered = (targetUpi) => {
   if (!targetUpi || !targetUpi.includes('@')) return false;
   const cleanUpi = targetUpi.toLowerCase().trim();
@@ -343,6 +371,20 @@ const isUpiIdAlreadyRegistered = (targetUpi) => {
   return false;
 };
 
+const getUpiExistingRole = (targetUpi) => {
+  if (!targetUpi || !targetUpi.includes('@')) return null;
+  const cleanUpi = targetUpi.toLowerCase().trim();
+
+  const profiles = getStoredUserProfiles();
+  for (const key in profiles) {
+    const p = profiles[key];
+    if (p?.upi_id && p.upi_id.toLowerCase().trim() === cleanUpi) {
+      return p.role || 'CUSTOMER';
+    }
+  }
+  return null;
+};
+
 const isEmployeeIdAlreadyRegistered = (targetEmpId) => {
   if (!targetEmpId) return false;
   const cleanEmp = targetEmpId.toUpperCase().trim();
@@ -356,6 +398,20 @@ const isEmployeeIdAlreadyRegistered = (targetEmpId) => {
   }
 
   return false;
+};
+
+const getEmployeeIdExistingRole = (targetEmpId) => {
+  if (!targetEmpId) return null;
+  const cleanEmp = targetEmpId.toUpperCase().trim();
+
+  const profiles = getStoredUserProfiles();
+  for (const key in profiles) {
+    const p = profiles[key];
+    if (p?.employee_id && p.employee_id.toUpperCase().trim() === cleanEmp) {
+      return p.role || 'BANK_ADMIN';
+    }
+  }
+  return null;
 };
   const createFreshUserProfile = ({
   id,
@@ -535,9 +591,24 @@ const isEmployeeIdAlreadyRegistered = (targetEmpId) => {
 
     const cleanEmail = email.toLowerCase().trim();
 
-    // IF SIGN IN MODE: Direct Sign In without OTP!
+    // IF SIGN IN MODE: Direct Sign In with Role Verification!
     if (mode === 'LOGIN') {
+      const emailRole = getEmailExistingRole(cleanEmail);
+      if (emailRole && emailRole !== role) {
+        setFormError(
+          `⚠️ This account (${cleanEmail}) is registered under ${emailRole === 'BANK_ADMIN' ? 'Bank Risk Admin' : 'Customer'}. Please switch tabs to "${emailRole === 'BANK_ADMIN' ? 'Bank Risk Admin' : 'Customer'}" to sign in.`
+        );
+        return;
+      }
+
       const existingProfile = getStoredUserProfile(cleanEmail);
+      if (existingProfile && existingProfile.role && existingProfile.role !== role) {
+        setFormError(
+          `⚠️ This account (${cleanEmail}) is registered under ${existingProfile.role === 'BANK_ADMIN' ? 'Bank Risk Admin' : 'Customer'}. Please switch tabs to "${existingProfile.role === 'BANK_ADMIN' ? 'Bank Risk Admin' : 'Customer'}" to sign in.`
+        );
+        return;
+      }
+
       let authenticatedUser;
 
       if (existingProfile) {
@@ -554,9 +625,9 @@ const isEmployeeIdAlreadyRegistered = (targetEmpId) => {
           role,
           name: role === 'CUSTOMER' ? cleanEmail.split('@')[0] || 'Customer' : 'Bank Risk Officer',
           email: cleanEmail,
-         phone: phone || '',
-upi_id: upiId || '',
-bank_name: bankName || '',
+          phone: phone || '',
+          upi_id: upiId || '',
+          bank_name: bankName || '',
           employee_id: role === 'BANK_ADMIN' ? employeeId || 'EMP-9942' : null,
           branch: role === 'BANK_ADMIN' ? branchLocation : null,
           auth_provider: 'DIRECT_LOGIN'
@@ -569,25 +640,61 @@ bank_name: bankName || '',
       return;
     }
 
-    // IF REGISTER MODE: Cross-Role Duplicate Check (Customer & Bank Admin)
-    if (isEmailAlreadyRegistered(cleanEmail)) {
-      setFormError('⚠️ An account (Customer or Bank Admin) with this Email Address is already registered. Please click "Sign In" to access your account.');
+    // IF REGISTER MODE: Cross-Role & Detailed Identifier Checks (Email, Phone, UPI ID, Employee ID)!
+    const emailRole = getEmailExistingRole(cleanEmail);
+    if (emailRole) {
+      if (emailRole !== role) {
+        setFormError(
+          `⚠️ This Email Address (${cleanEmail}) is already registered under ${emailRole === 'BANK_ADMIN' ? 'Bank Risk Admin' : 'Customer'}. Please switch tabs to Sign In.`
+        );
+      } else {
+        setFormError(
+          `⚠️ An account with this Email Address (${cleanEmail}) is already registered. Please click "Sign In" to access your account.`
+        );
+      }
       return;
     }
 
-    if (phone && isPhoneAlreadyRegistered(phone)) {
-      setFormError('⚠️ An account (Customer or Bank Admin) with this Mobile Number (+91) is already registered. Please click "Sign In" to access your account.');
-      return;
+    if (phone) {
+      const phoneRole = getPhoneExistingRole(phone);
+      if (phoneRole) {
+        if (phoneRole !== role) {
+          setFormError(
+            `⚠️ This Mobile Number (+91 ${phone.replace(/\D/g, '').slice(-10)}) is already registered under ${phoneRole === 'BANK_ADMIN' ? 'Bank Risk Admin' : 'Customer'}. Please switch tabs to Sign In.`
+          );
+        } else {
+          setFormError(
+            `⚠️ An account with this Mobile Number (+91 ${phone.replace(/\D/g, '').slice(-10)}) is already registered. Please click "Sign In" to access your account.`
+          );
+        }
+        return;
+      }
     }
 
-    if (role === 'CUSTOMER' && upiId && isUpiIdAlreadyRegistered(upiId)) {
-      setFormError(`⚠️ An account with this Primary UPI ID (${upiId.trim()}) is already registered. Please click "Sign In" to access your account.`);
-      return;
+    if (upiId && upiId.includes('@')) {
+      const upiRole = getUpiExistingRole(upiId);
+      if (upiRole) {
+        if (upiRole !== role) {
+          setFormError(
+            `⚠️ This Primary UPI ID (${upiId.trim()}) is already registered under ${upiRole === 'BANK_ADMIN' ? 'Bank Risk Admin' : 'Customer'}. Please switch tabs to Sign In.`
+          );
+        } else {
+          setFormError(
+            `⚠️ An account with this Primary UPI ID (${upiId.trim()}) is already registered. Please click "Sign In" to access your account.`
+          );
+        }
+        return;
+      }
     }
 
-    if (role === 'BANK_ADMIN' && employeeId && isEmployeeIdAlreadyRegistered(employeeId)) {
-      setFormError(`⚠️ A Bank Admin account with Employee ID (${employeeId.trim()}) is already registered. Please click "Sign In" to access your account.`);
-      return;
+    if (role === 'BANK_ADMIN' && employeeId) {
+      const empRole = getEmployeeIdExistingRole(employeeId);
+      if (empRole) {
+        setFormError(
+          `⚠️ This Bank Employee ID (${employeeId.trim()}) is already registered under Bank Risk Admin. Please click "Sign In" to access your account.`
+        );
+        return;
+      }
     }
 
     setIsOtpSending(true);
