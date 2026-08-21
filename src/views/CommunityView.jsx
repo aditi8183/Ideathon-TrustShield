@@ -158,9 +158,10 @@ const victimCount = scam.victim_count || 1;
               {/* Details Bar */}
               <div style={{
                 display: 'grid',
-gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',              
-              gap: 8,
-                background: 'rgba(0, 0, 0, 0.3)',
+                gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',              
+                gap: 8,
+                background: 'var(--card-inner)',
+                border: '1px solid var(--border)',
                 borderRadius: 10,
                 padding: 8,
                 fontSize: 11,

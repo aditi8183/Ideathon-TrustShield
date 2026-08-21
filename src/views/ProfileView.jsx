@@ -110,7 +110,7 @@ export default function ProfileView({ user, pointEvents, onOpenOnboarding, onUpd
           fontSize: 12,
           color: 'var(--sub)',
           marginBottom: 10,
-          background: 'rgba(255,255,255,0.03)',
+          background: 'var(--card-inner)',
           padding: '4px 10px',
           borderRadius: 8,
           border: '1px solid var(--border)'
@@ -297,7 +297,7 @@ export default function ProfileView({ user, pointEvents, onOpenOnboarding, onUpd
                 justifyContent: 'space-between',
                 padding: '10px 12px',
                 borderRadius: 12,
-                background: 'rgba(255, 255, 255, 0.03)',
+                background: 'var(--card-inner)',
                 border: '1px solid var(--border)'
               }}
             >

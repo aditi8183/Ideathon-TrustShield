@@ -80,6 +80,28 @@ export default function App() {
     }
   });
 
+  const [theme, setTheme] = useState(() => {
+    try {
+      return localStorage.getItem('trust_shield_theme') || 'dark';
+    } catch (e) {
+      return 'dark';
+    }
+  });
+
+  const toggleTheme = () => {
+    setTheme(prev => {
+      const next = prev === 'dark' ? 'light' : 'dark';
+      try {
+        localStorage.setItem('trust_shield_theme', next);
+      } catch (e) {}
+      return next;
+    });
+  };
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+  }, [theme]);
+
   const setActiveTab = (tab) => {
     setActiveTabState(tab);
     try {
@@ -369,14 +391,16 @@ setUser(prev => {
 
   // Render AuthScreen if not logged in
   if (!isAuthenticated || !user) {
-    return <AuthScreen onLoginSuccess={handleLoginSuccess} />;
+    return <AuthScreen onLoginSuccess={handleLoginSuccess} theme={theme} toggleTheme={toggleTheme} />;
   }
 
   return (
-    <div className="app-container">
+    <div className="app-container" data-theme={theme}>
       {/* Header */}
       <Header
         user={user}
+        theme={theme}
+        toggleTheme={toggleTheme}
         onOpenProfile={() => setIsOnboardingOpen(true)}
         onLogout={handleLogout}
       />
@@ -386,6 +410,8 @@ setUser(prev => {
         {activeTab === 'home' && (
           <HomeView
             user={user}
+            theme={theme}
+            toggleTheme={toggleTheme}
             scamList={scamList}
             onNavigate={(tab) => setActiveTab(tab)}
             onScamDetected={handleScamDetected}
@@ -400,6 +426,7 @@ setUser(prev => {
         {activeTab === 'pay' && (
           <PayView
             user={user}
+            theme={theme}
             scamList={scamList}
             detectedScamCall={detectedScamCall}
             onPaymentBlocked={handlePaymentBlocked}
@@ -412,6 +439,8 @@ setUser(prev => {
 
         {activeTab === 'community' && (
           <CommunityView
+            user={user}
+            theme={theme}
             scamList={scamList}
             onUpvoteScam={handleUpvoteScam}
             onAddScam={handleAddScam}
@@ -421,6 +450,8 @@ setUser(prev => {
         {/* Bank Audit View: Exclusively accessible to Bank Risk Admins */}
         {activeTab === 'bank' && isBankAdmin && (
           <BankView
+            user={user}
+            theme={theme}
             bankReviews={bankReviews}
             onResolveReview={handleResolveBankReview}
           />
@@ -429,8 +460,10 @@ setUser(prev => {
         {activeTab === 'profile' && (
           <ProfileView
             user={user}
+            theme={theme}
             pointEvents={pointEvents}
             onOpenOnboarding={() => setIsOnboardingOpen(true)}
+            onUpdateUser={setUser}
           />
         )}
       </main>
@@ -438,6 +471,7 @@ setUser(prev => {
       {/* Bottom Navigation */}
       <Navigation
         user={user}
+        theme={theme}
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         pendingBankCount={pendingBankCount}

@@ -113,7 +113,7 @@ export default function PINModal({ isOpen, onClose, amount, recipientUpi, onSucc
                       padding: '14px 0',
                       borderRadius: 14,
                       border: '1px solid var(--border)',
-                      background: 'rgba(255, 255, 255, 0.04)',
+                      background: 'var(--input-bg)',
                       color: 'var(--text)',
                       fontSize: 18,
                       fontWeight: 800,

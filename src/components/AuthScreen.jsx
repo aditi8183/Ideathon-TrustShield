@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   Shield, ShieldCheck, Lock, Mail, User, Building2, Phone, 
   ArrowRight, Sparkles, CheckCircle2, KeyRound, Globe, ExternalLink, 
-  AlertTriangle, AlertOctagon, Settings, Check, Trash2, Plus, LogIn, UserPlus 
+  AlertTriangle, AlertOctagon, Settings, Check, Trash2, Plus, LogIn, UserPlus,
+  Sun, Moon
 } from 'lucide-react';
 import { sendSmsOtp } from '../utils/smsService';
 
@@ -39,7 +40,7 @@ const DEFAULT_GOOGLE_ACCOUNTS = [
   }
 ];
 
-export default function AuthScreen({ onLoginSuccess }) {
+export default function AuthScreen({ onLoginSuccess, theme = 'dark', toggleTheme }) {
   const [role, setRole] = useState('CUSTOMER'); // 'CUSTOMER' | 'BANK_ADMIN'
   const [mode, setMode] = useState('LOGIN'); // 'LOGIN' | 'REGISTER'
 
@@ -1048,7 +1049,36 @@ bank_name: bankName || '',
   const isEmailGoogle = email.toLowerCase().trim().endsWith('@gmail.com') || email.toLowerCase().trim().endsWith('@googlemail.com');
 
   return (
-    <div className="app-container" style={{ minHeight: '100vh', justifyContent: 'center', paddingBottom: 20 }}>
+    <div className="app-container" data-theme={theme} style={{ minHeight: '100vh', justifyContent: 'center', paddingBottom: 20, position: 'relative' }}>
+      {/* Top Header Theme Toggle */}
+      {toggleTheme && (
+        <div style={{ position: 'absolute', top: 16, right: 16, zIndex: 30 }}>
+          <button
+            type="button"
+            onClick={toggleTheme}
+            className="theme-toggle-btn"
+            title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode`}
+            style={{
+              background: 'var(--card)',
+              border: '1px solid var(--border)',
+              borderRadius: 12,
+              padding: '6px 12px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              color: 'var(--text)',
+              fontSize: 12,
+              fontWeight: 800,
+              cursor: 'pointer',
+              boxShadow: 'var(--shadow-card)'
+            }}
+          >
+            {theme === 'dark' ? <Sun size={15} color="#fbbf24" /> : <Moon size={15} color="var(--indigo)" />}
+            <span>{theme === 'dark' ? 'Light' : 'Dark'}</span>
+          </button>
+        </div>
+      )}
+
       {/* Ambient Radial Background Graphic */}
       <div style={{
         position: 'absolute',
@@ -1090,7 +1120,7 @@ bank_name: bankName || '',
           display: 'grid',
           gridTemplateColumns: '1fr 1fr',
           gap: 8,
-          background: 'rgba(0, 0, 0, 0.4)',
+          background: 'var(--card-inner)',
           padding: 4,
           borderRadius: 16,
           border: '1px solid var(--border)',

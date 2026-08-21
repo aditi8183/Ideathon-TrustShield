@@ -401,7 +401,7 @@ export default function VoiceDetector({
             lineHeight: '1.4',
             fontStyle: 'italic',
             resize: 'none',
-            background: 'rgba(0, 0, 0, 0.4)',
+            background: 'var(--input-bg)',
             borderColor: classification && classification.scam_label ? 'rgba(239, 68, 68, 0.4)' : 'var(--border)'
           }}
         />
@@ -452,7 +452,7 @@ export default function VoiceDetector({
       {/* Live Neural Scam Probability Meter */}
       {transcript && (
         <div style={{
-          background: 'rgba(0, 0, 0, 0.4)',
+          background: 'var(--card-inner)',
           border: '1px solid var(--border)',
           borderRadius: 12,
           padding: 12,
@@ -653,8 +653,8 @@ export default function VoiceDetector({
             style={{
               maxWidth: 520,
               width: '100%',
-              background: '#0d1322',
-              borderColor: 'rgba(99, 102, 241, 0.4)',
+              background: 'var(--surf)',
+              borderColor: 'var(--border-active)',
               padding: 24,
               boxShadow: '0 20px 60px rgba(0, 0, 0, 0.8)'
             }}
@@ -696,7 +696,7 @@ export default function VoiceDetector({
 
             {/* Model Architecture Info */}
             <div style={{
-              background: 'rgba(0, 0, 0, 0.4)',
+              background: 'var(--card-inner)',
               borderRadius: 12,
               padding: 14,
               marginBottom: 16,
