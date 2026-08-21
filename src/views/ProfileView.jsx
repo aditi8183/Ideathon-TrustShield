@@ -8,6 +8,7 @@ export default function ProfileView({ user, pointEvents, onOpenOnboarding, onUpd
   // Trusted Nominee Emergency Guardian State
   const [nomineeName, setNomineeName] = useState(user?.trusted_nominee?.name || '');
   const [nomineePhone, setNomineePhone] = useState(user?.trusted_nominee?.phone || '');
+  const [nomineeEmail, setNomineeEmail] = useState(user?.trusted_nominee?.email || '');
   const [isNomineeEnabled, setIsNomineeEnabled] = useState(user?.trusted_nominee?.enabled ?? true);
   const [savedSuccess, setSavedSuccess] = useState(false);
 
@@ -17,6 +18,7 @@ export default function ProfileView({ user, pointEvents, onOpenOnboarding, onUpd
       trusted_nominee: {
         name: nomineeName,
         phone: nomineePhone,
+        email: nomineeEmail,
         enabled: isNomineeEnabled
       }
     };
@@ -212,6 +214,17 @@ export default function ProfileView({ user, pointEvents, onOpenOnboarding, onUpd
             value={nomineePhone}
             onChange={(e) => setNomineePhone(e.target.value)}
             placeholder="e.g. +91 98765 43210"
+          />
+        </div>
+
+        <div className="input-group">
+          <label className="input-label">Nominee Email Address</label>
+          <input
+            type="email"
+            className="input-field mono"
+            value={nomineeEmail}
+            onChange={(e) => setNomineeEmail(e.target.value)}
+            placeholder="e.g. papa.rajesh@gmail.com"
           />
         </div>
 
