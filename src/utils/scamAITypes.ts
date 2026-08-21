@@ -1,5 +1,3 @@
-import scamAIModel, { MODEL_CATEGORY_MAP } from './scamAIModel.js';
-
 export interface ScamAIInferenceResult {
   isScam: boolean;
   confidence: number;
@@ -14,6 +12,3 @@ export interface ScamAIInferenceResult {
   matchedPatterns?: string[];
   rawProbabilities?: number[];
 }
-
-export { MODEL_CATEGORY_MAP };
-export default scamAIModel;
