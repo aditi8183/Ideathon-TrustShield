@@ -24,10 +24,12 @@ import {
   CreditCard,
   Upload,
   RefreshCw,
-  Zap
+  Zap,
+  Lock
 } from 'lucide-react';
 import jsQR from 'jsqr';
 import PINModal from '../components/PINModal';
+import UpiModal from '../components/UpiModal';
 import { sendNomineeScamAlert } from '../utils/smsService';
 
 export default function PayView({
@@ -52,9 +54,15 @@ export default function PayView({
   };
 
   const [payMode, setPayMode] = useState('UPI');
-  const [recipientUpi, setRecipientUpi] = useState(paymentDraft?.recipientUpi || '');
-  const [amount, setAmount] = useState(paymentDraft?.amount || '');
+  const [recipientUpi, setRecipientUpi] = useState(paymentDraft?.recipientUpi || 'aditiansh@oksbi');
+  const [amount, setAmount] = useState(paymentDraft?.amount || '50');
   const [note, setNote] = useState(paymentDraft?.note || '');
+
+  // Payment Method Selector State: 'ONLINE' (Pay Online) | 'IN_APP_PIN' (In-App PIN)
+  const [paymentMethod, setPaymentMethod] = useState('ONLINE');
+
+  // Target UPI App Selection State: 'all' | 'gpay' | 'phonepe' | 'paytm' | 'bhim' | 'cred'
+  const [selectedUpiApp, setSelectedUpiApp] = useState('all');
 
   const [accountNo, setAccountNo] = useState('');
   const [confirmAccountNo, setConfirmAccountNo] = useState('');
@@ -70,11 +78,10 @@ export default function PayView({
   const [validationError, setValidationError] = useState('');
 
   const frequentPayees = [
-    { name: 'Papa', upi: 'rajesh.sharma@okicici', relation: 'Father', initial: 'P', color: '#6366f1' },
-    { name: 'Sister', upi: 'pooja.sharma@paytm', relation: 'Sister', initial: 'S', color: '#ec4899' },
-    { name: 'Starbucks Coffee', upi: 'starbucks.coffee@icici', relation: 'Merchant', initial: '☕', color: '#10b981' },
-    { name: 'Ramesh Supermarket', upi: 'ramesh.store@upi', relation: 'Vendor', initial: '🛒', color: '#f59e0b' },
-    { name: 'House Rent', upi: 'landlord.rent@hdfc', relation: 'Rent', initial: '🏠', color: '#8b5cf6' }
+    { name: 'aditiansh@oksbi', upi: 'aditiansh@oksbi', count: '×1', initial: '👤', color: '#10b981' },
+    { name: 'Papa', upi: 'rajesh.sharma@okicici', count: '', initial: 'P', color: '#6366f1' },
+    { name: 'Sister', upi: 'pooja.sharma@paytm', count: '', initial: 'S', color: '#ec4899' },
+    { name: 'Starbucks', upi: 'starbucks.coffee@icici', count: '', initial: '☕', color: '#10b981' }
   ];
 
   const quickAmounts = [100, 500, 1000, 2000, 5000, 10000];
@@ -103,6 +110,7 @@ export default function PayView({
   const [isBlockedModalOpen, setIsBlockedModalOpen] = useState(false);
   const [isUrgentWarningOpen, setIsUrgentWarningOpen] = useState(false);
   const [isPinModalOpen, setIsPinModalOpen] = useState(false);
+  const [isUpiModalOpen, setIsUpiModalOpen] = useState(false);
 
   const [isQrScannerOpen, setIsQrScannerOpen] = useState(false);
   const [isCameraActive, setIsCameraActive] = useState(false);
@@ -222,7 +230,7 @@ export default function PayView({
           setScannerError('Could not decode a valid UPI QR code from the uploaded image.');
         }
       };
-      img.src = event.result;
+      img.src = event.target.result;
     };
     reader.readAsDataURL(file);
   };
@@ -326,10 +334,6 @@ export default function PayView({
     if (payMode === 'UPI') {
       if (!recipientUpi.trim()) {
         setValidationError('Please enter a Recipient UPI ID or select a Frequent Payee.');
-        return;
-      }
-      if (!recipientUpi.includes('@')) {
-        setValidationError('Please enter a valid UPI ID (e.g. name@upi or phonepe/gpay).');
         return;
       }
     } else if (payMode === 'BANK_ACCOUNT') {
@@ -459,13 +463,18 @@ export default function PayView({
       } else if (finalScore >= 40) {
         setIsUrgentWarningOpen(true);
       } else {
-        setIsPinModalOpen(true);
+        if (paymentMethod === 'ONLINE') {
+          setIsUpiModalOpen(true);
+        } else {
+          setIsPinModalOpen(true);
+        }
       }
     }, 600);
   };
 
   const handlePinSuccess = () => {
     setIsPinModalOpen(false);
+    setIsUpiModalOpen(false);
     const amtNum = parseFloat(amount) || 0;
     const dest = getTargetDestinationString();
     const payNote = note || 'Verified Safe Payment';
@@ -491,26 +500,65 @@ export default function PayView({
     setIsOverrideSubmitted(true);
   };
 
+  const getRiskColor = (score) => {
+    if (score >= 70) return 'var(--danger-light)';
+    if (score >= 40) return 'var(--warn-light)';
+    return 'var(--safe-light)';
+  };
+
   return (
     <div style={{ padding: 16 }}>
+      {/* Device Security Badge */}
+      <div style={{
+        background: 'rgba(255, 255, 255, 0.03)',
+        border: '1px solid var(--border)',
+        borderRadius: 12,
+        padding: '8px 12px',
+        marginBottom: 14,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        fontSize: 11
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--sub)' }}>
+          <Smartphone size={14} color="var(--indigo-light)" />
+          <span>Device: <strong>{safeUser.current_device || 'Chrome on Windows'}</strong></span>
+        </div>
+        {safeUser.is_new_device && (
+          <span style={{
+            background: 'rgba(245, 158, 11, 0.15)',
+            color: 'var(--warn-light)',
+            border: '1px solid rgba(245, 158, 11, 0.3)',
+            padding: '2px 6px',
+            borderRadius: 4,
+            fontWeight: 800
+          }}>
+            New Device Signal
+          </span>
+        )}
+      </div>
+
+      {/* Main Payment Container Card */}
       <div className="glass-card">
+        {/* Header matching screenshot */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-          <h2 style={{ fontSize: 19, fontWeight: 900, margin: 0 }}>Send Payment & Risk Shield</h2>
+          <h2 style={{ fontSize: 20, fontWeight: 900, margin: 0 }}>UPI Payment Scanner</h2>
+
+          {/* QR Code Scanner Button */}
           <button
             onClick={startQrScanner}
             style={{
-              background: 'rgba(99, 102, 241, 0.15)',
-              border: '1px solid rgba(99, 102, 241, 0.35)',
+              background: 'rgba(99, 102, 241, 0.2)',
+              border: '1px solid rgba(99, 102, 241, 0.4)',
               color: 'var(--indigo-light)',
               borderRadius: 10,
-              padding: '6px 12px',
+              padding: '8px 14px',
               fontSize: 12,
               fontWeight: 800,
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
-              gap: 6,
-              transition: 'all 0.2s ease'
+              gap: 6
             }}
           >
             <QrCode size={16} />
@@ -518,233 +566,225 @@ export default function PayView({
           </button>
         </div>
 
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: '1fr 1fr 1fr',
-          gap: 6,
-          background: 'var(--card-inner)',
-          padding: 4,
-          borderRadius: 14,
-          border: '1px solid var(--border)',
-          marginBottom: 16
-        }}>
-          <button
-            type="button"
-            onClick={() => setPayMode('UPI')}
-            style={{
-              padding: '8px 4px',
-              borderRadius: 10,
-              border: 'none',
-              background: payMode === 'UPI' ? 'var(--indigo)' : 'transparent',
-              color: payMode === 'UPI' ? '#fff' : 'var(--sub)',
-              fontSize: 11,
-              fontWeight: 800,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 4
-            }}
-          >
-            <Zap size={14} />
-            <span>UPI ID</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setPayMode('BANK_ACCOUNT')}
-            style={{
-              padding: '8px 4px',
-              borderRadius: 10,
-              border: 'none',
-              background: payMode === 'BANK_ACCOUNT' ? 'var(--indigo)' : 'transparent',
-              color: payMode === 'BANK_ACCOUNT' ? '#fff' : 'var(--sub)',
-              fontSize: 11,
-              fontWeight: 800,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 4
-            }}
-          >
-            <Landmark size={14} />
-            <span>Bank A/C</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setPayMode('NETBANKING')}
-            style={{
-              padding: '8px 4px',
-              borderRadius: 10,
-              border: 'none',
-              background: payMode === 'NETBANKING' ? 'var(--indigo)' : 'transparent',
-              color: payMode === 'NETBANKING' ? '#fff' : 'var(--sub)',
-              fontSize: 11,
-              fontWeight: 800,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 4
-            }}
-          >
-            <Building2 size={14} />
-            <span>NetBanking</span>
-          </button>
-        </div>
-
-        {payMode === 'UPI' && (
-          <>
-            <div style={{ marginBottom: 16 }}>
-              <div style={{ fontSize: 11, color: 'var(--sub)', fontWeight: 800, marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                Quick Send
-              </div>
-              <div style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingBottom: 6, scrollbarWidth: 'none' }}>
-                {frequentPayees.map((payee, idx) => (
-                  <div
-                    key={idx}
-                    onClick={() => fillQuickPayee(payee.upi, 0, `${payee.name} Payment`, false)}
-                    style={{
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      gap: 6,
-                      cursor: 'pointer',
-                      minWidth: 64
-                    }}
-                  >
-                    <div style={{
-                      width: 48,
-                      height: 48,
-                      borderRadius: '50%',
-                      background: payee.color,
-                      color: '#fff',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: 18,
-                      fontWeight: 900,
-                      border: '2px solid rgba(255, 255, 255, 0.15)'
-                    }}>
-                      {payee.initial}
-                    </div>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text)' }}>{payee.name}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="input-group">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                <label className="input-label" style={{ margin: 0 }}>Recipient UPI ID</label>
-                <button
-                  type="button"
-                  onClick={handleUpiPaste}
-                  style={{ background: 'none', border: 'none', color: 'var(--indigo-light)', fontSize: 11, fontWeight: 800, cursor: 'pointer' }}
-                >
-                  <Copy size={12} /> Paste Clipboard
-                </button>
-              </div>
-              <input
-                type="text"
-                className="input-field mono"
-                value={recipientUpi}
-                onChange={handleUpiChange}
-                placeholder="name@upi or phone number"
-                required
-              />
-            </div>
-          </>
-        )}
-
-        {payMode === 'BANK_ACCOUNT' && (
-          <div style={{ marginBottom: 16 }}>
-            <div className="input-group">
-              <label className="input-label">Beneficiary Account Number</label>
-              <input type="text" className="input-field mono" value={accountNo} onChange={(e) => setAccountNo(e.target.value)} placeholder="e.g. 5010029481923" />
-            </div>
-            <div className="input-group">
-              <label className="input-label">Confirm Beneficiary Account Number</label>
-              <input type="password" className="input-field mono" value={confirmAccountNo} onChange={(e) => setConfirmAccountNo(e.target.value)} placeholder="Re-enter" />
-            </div>
-            <div className="input-group">
-              <label className="input-label">Bank IFSC Code</label>
-              <input type="text" className="input-field mono" value={ifscCode} onChange={(e) => setIfscCode(e.target.value.toUpperCase())} placeholder="e.g. SBIN0001234" maxLength={11} />
-            </div>
-          </div>
-        )}
-
-        {payMode === 'NETBANKING' && (
-          <div style={{ marginBottom: 16 }}>
-            <div className="input-group">
-              <label className="input-label">Select Your Bank</label>
-              <select className="input-field" value={selectedBank} onChange={(e) => setSelectedBank(e.target.value)}>
-                <option value="State Bank of India">State Bank of India</option>
-                <option value="HDFC Bank">HDFC Bank</option>
-                <option value="ICICI Bank">ICICI Bank</option>
-              </select>
-            </div>
-            <div className="input-group">
-              <label className="input-label">User ID</label>
-              <input type="text" className="input-field mono" value={netbankingId} onChange={(e) => setNetbankingId(e.target.value)} />
-            </div>
-          </div>
-        )}
-
-        {/* Quick Amount Selector Chips */}
+        {/* QUICK SEND — FREQUENT PAYEES matching screenshot */}
         <div style={{ marginBottom: 16 }}>
-          <div style={{ fontSize: 11, color: 'var(--sub)', fontWeight: 700, marginBottom: 6 }}>QUICK SELECT AMOUNT:</div>
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-            {quickAmounts.map((amtVal) => (
+          <div style={{ fontSize: 11, color: 'var(--sub)', fontWeight: 800, marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+            QUICK SEND — FREQUENT PAYEES
+          </div>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+            <button
+              type="button"
+              onClick={() => fillQuickPayee('aditiansh@oksbi', 50, '', false)}
+              style={{
+                background: 'rgba(16, 185, 129, 0.15)',
+                border: '1px solid rgba(16, 185, 129, 0.35)',
+                color: 'var(--safe-light)',
+                borderRadius: 20,
+                padding: '6px 12px',
+                fontSize: 12,
+                fontWeight: 800,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6
+              }}
+            >
+              <UserCheck size={14} />
+              <span className="mono">aditiansh@oksbi</span>
+              <span style={{ opacity: 0.7, fontSize: 11 }}>×1</span>
+            </button>
+
+            {frequentPayees.slice(1).map((payee, idx) => (
               <button
-                key={amtVal}
+                key={idx}
                 type="button"
-                onClick={() => {
-                  setAmount(String(amtVal));
-                  if (validationError) setValidationError('');
-                }}
+                onClick={() => fillQuickPayee(payee.upi, 0, `${payee.name} Payment`, false)}
                 style={{
-                  background: amount === String(amtVal) ? 'var(--indigo)' : 'rgba(255, 255, 255, 0.05)',
-                  border: `1px solid ${amount === String(amtVal) ? 'var(--indigo-light)' : 'var(--border)'}`,
-                  color: amount === String(amtVal) ? '#fff' : 'var(--sub)',
-                  borderRadius: 16,
-                  padding: '4px 10px',
-                  fontSize: 11,
+                  background: 'rgba(99, 102, 241, 0.12)',
+                  border: '1px solid rgba(99, 102, 241, 0.3)',
+                  color: 'var(--indigo-light)',
+                  borderRadius: 20,
+                  padding: '6px 12px',
+                  fontSize: 12,
                   fontWeight: 800,
-                  cursor: 'pointer'
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6
                 }}
               >
-                ₹{amtVal.toLocaleString('en-IN')}
+                <span>{payee.initial}</span>
+                <span>{payee.name}</span>
               </button>
             ))}
           </div>
         </div>
 
-        {/* Amount Input */}
+        {/* RECIPIENT UPI ID matching screenshot */}
         <div className="input-group">
-          <label className="input-label">Transfer Amount (₹ INR)</label>
+          <label className="input-label">RECIPIENT UPI ID</label>
+          <input
+            type="text"
+            className="input-field mono"
+            value={recipientUpi}
+            onChange={handleUpiChange}
+            placeholder="aditiansh@oksbi"
+            required
+          />
+        </div>
+
+        {/* AMOUNT (₹) matching screenshot */}
+        <div className="input-group">
+          <label className="input-label">AMOUNT (₹)</label>
           <input
             type="number"
             className="input-field mono"
             value={amount}
             onChange={handleAmountChange}
-            placeholder="e.g. 2500"
+            placeholder="50"
             style={{ fontSize: 18, fontWeight: 900, color: 'var(--indigo-light)' }}
             required
           />
         </div>
 
-        {/* Note / Purpose Input */}
+        {/* PAYMENT NOTE (OPTIONAL) matching screenshot */}
         <div className="input-group">
-          <label className="input-label">Payment Note (Optional)</label>
+          <label className="input-label">PAYMENT NOTE (OPTIONAL)</label>
           <input
             type="text"
             className="input-field"
             value={note}
             onChange={handleNoteChange}
-            placeholder="e.g. Dinner split, Coffee, or Bill payment"
+            placeholder="xa"
           />
         </div>
+
+        {/* SELECT PAYMENT METHOD: 2 CARDS matching screenshot */}
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ fontSize: 11, color: 'var(--sub)', fontWeight: 800, marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+            SELECT PAYMENT METHOD:
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            {/* Card 1: Pay Online */}
+            <div
+              onClick={() => setPaymentMethod('ONLINE')}
+              style={{
+                background: paymentMethod === 'ONLINE' ? 'rgba(99, 102, 241, 0.16)' : 'rgba(255, 255, 255, 0.03)',
+                border: paymentMethod === 'ONLINE' ? '2px solid var(--indigo-light)' : '1px solid var(--border)',
+                borderRadius: 14,
+                padding: 12,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 10,
+                boxShadow: paymentMethod === 'ONLINE' ? '0 4px 14px rgba(99, 102, 241, 0.3)' : 'none',
+                transition: 'all 0.2s ease'
+              }}
+            >
+              <div style={{
+                width: 36,
+                height: 36,
+                borderRadius: 10,
+                background: paymentMethod === 'ONLINE' ? 'var(--indigo)' : 'rgba(255, 255, 255, 0.08)',
+                color: '#fff',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0
+              }}>
+                <Zap size={20} />
+              </div>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 900, color: 'var(--text)' }}>Pay Online</div>
+                <div style={{ fontSize: 10, color: 'var(--sub)' }}>Open UPI App (GPay/PhonePe)</div>
+              </div>
+            </div>
+
+            {/* Card 2: In-App PIN */}
+            <div
+              onClick={() => setPaymentMethod('IN_APP_PIN')}
+              style={{
+                background: paymentMethod === 'IN_APP_PIN' ? 'rgba(99, 102, 241, 0.16)' : 'rgba(255, 255, 255, 0.03)',
+                border: paymentMethod === 'IN_APP_PIN' ? '2px solid var(--indigo-light)' : '1px solid var(--border)',
+                borderRadius: 14,
+                padding: 12,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 10,
+                boxShadow: paymentMethod === 'IN_APP_PIN' ? '0 4px 14px rgba(99, 102, 241, 0.3)' : 'none',
+                transition: 'all 0.2s ease'
+              }}
+            >
+              <div style={{
+                width: 36,
+                height: 36,
+                borderRadius: 10,
+                background: paymentMethod === 'IN_APP_PIN' ? 'var(--indigo)' : 'rgba(255, 255, 255, 0.08)',
+                color: '#fff',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0
+              }}>
+                <Lock size={18} />
+              </div>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 900, color: 'var(--text)' }}>In-App PIN</div>
+                <div style={{ fontSize: 10, color: 'var(--sub)' }}>Protected PIN Gateway</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* TARGET UPI APP matching screenshot (Visible when Pay Online selected) */}
+        {paymentMethod === 'ONLINE' && (
+          <div style={{
+            background: 'rgba(0, 0, 0, 0.25)',
+            border: '1px solid var(--border)',
+            borderRadius: 14,
+            padding: 12,
+            marginBottom: 16
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+              <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--indigo-light)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                TARGET UPI APP:
+              </span>
+              <span style={{ fontSize: 10, color: 'var(--sub)' }}>Opens directly on Pay Now</span>
+            </div>
+
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              {[
+                { id: 'all', label: '⚡ Auto / Default' },
+                { id: 'gpay', label: '🌐 Google Pay' },
+                { id: 'phonepe', label: '🟣 PhonePe' },
+                { id: 'paytm', label: '🔵 Paytm' },
+                { id: 'bhim', label: '🇮🇳 BHIM' },
+                { id: 'cred', label: '💳 CRED' }
+              ].map(app => (
+                <button
+                  key={app.id}
+                  type="button"
+                  onClick={() => setSelectedUpiApp(app.id)}
+                  style={{
+                    padding: '6px 12px',
+                    borderRadius: 20,
+                    border: selectedUpiApp === app.id ? '1px solid var(--indigo-light)' : '1px solid var(--border)',
+                    background: selectedUpiApp === app.id ? 'var(--indigo)' : 'rgba(255, 255, 255, 0.05)',
+                    color: selectedUpiApp === app.id ? '#fff' : 'var(--sub)',
+                    fontSize: 11,
+                    fontWeight: 800,
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease'
+                  }}
+                >
+                  {app.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Validation Error Banner */}
         {validationError && (
@@ -762,45 +802,56 @@ export default function PayView({
           </div>
         )}
 
-        {/* Primary Action Button: Run Risk Engine & Proceed */}
-        <button
-          className="btn-primary"
-          onClick={runRiskAnalysis}
-          disabled={isAnalyzing}
-          style={{ width: '100%', fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
-        >
-          {isAnalyzing ? (
-            <>
-              <RefreshCw size={18} className="spin" />
-              <span>Analyzing AI Risk Signals...</span>
-            </>
-          ) : (
-            <>
-              <Send size={18} />
-              <span>Proceed to Risk Scan & Transfer</span>
-            </>
-          )}
-        </button>
-
-        {(recipientUpi || amount || note || accountNo || netbankingId) && (
+        {/* ACTION ROW: Pay Now ₹50 & Clear Form matching screenshot */}
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
           <button
+            className="btn-primary"
+            onClick={runRiskAnalysis}
+            disabled={isAnalyzing}
+            style={{
+              flex: 1,
+              fontSize: 15,
+              fontWeight: 900,
+              padding: '12px 16px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 8,
+              background: 'linear-gradient(135deg, #6366f1, #4f46e5)',
+              boxShadow: '0 4px 16px rgba(99, 102, 241, 0.4)'
+            }}
+          >
+            {isAnalyzing ? (
+              <>
+                <RefreshCw size={18} className="spin" />
+                <span>Analyzing Risk...</span>
+              </>
+            ) : (
+              <>
+                <Zap size={18} />
+                <span>Pay Now ₹{amount || '50'}</span>
+              </>
+            )}
+          </button>
+
+          <button
+            type="button"
             onClick={handleResetDraft}
             style={{
-              background: 'rgba(255, 255, 255, 0.05)',
+              background: 'rgba(255, 255, 255, 0.06)',
               border: '1px solid var(--border)',
               color: 'var(--sub)',
-              fontSize: 11,
+              fontSize: 12,
               fontWeight: 700,
-              padding: '6px 12px',
-              borderRadius: 10,
-              marginTop: 10,
+              padding: '12px 16px',
+              borderRadius: 12,
               cursor: 'pointer',
-              width: '100%'
+              whiteSpace: 'nowrap'
             }}
           >
             Clear Form
           </button>
-        )}
+        </div>
       </div>
 
       {/* Live AI Risk & Behavioral Signals Output */}
@@ -1279,6 +1330,17 @@ export default function PayView({
           </div>
         </div>
       )}
+
+      {/* UPI Direct Intent App Modal */}
+      <UpiModal
+        isOpen={isUpiModalOpen}
+        onClose={() => setIsUpiModalOpen(false)}
+        amount={amount}
+        recipientUpi={recipientUpi}
+        note={note}
+        selectedApp={selectedUpiApp}
+        onSuccess={handlePinSuccess}
+      />
 
       {/* PIN Entry Modal */}
       <PINModal
