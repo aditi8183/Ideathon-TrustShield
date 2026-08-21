@@ -342,6 +342,21 @@ const isUpiIdAlreadyRegistered = (targetUpi) => {
 
   return false;
 };
+
+const isEmployeeIdAlreadyRegistered = (targetEmpId) => {
+  if (!targetEmpId) return false;
+  const cleanEmp = targetEmpId.toUpperCase().trim();
+
+  const profiles = getStoredUserProfiles();
+  for (const key in profiles) {
+    const p = profiles[key];
+    if (p?.employee_id) {
+      if (p.employee_id.toUpperCase().trim() === cleanEmp) return true;
+    }
+  }
+
+  return false;
+};
   const createFreshUserProfile = ({
   id,
   role,
@@ -554,19 +569,24 @@ bank_name: bankName || '',
       return;
     }
 
-    // IF REGISTER MODE: Check for duplicate Email and Phone Number!
+    // IF REGISTER MODE: Cross-Role Duplicate Check (Customer & Bank Admin)
     if (isEmailAlreadyRegistered(cleanEmail)) {
-      setFormError('⚠️ An account with this Email Address is already registered. Please click "Sign In" to access your account.');
+      setFormError('⚠️ An account (Customer or Bank Admin) with this Email Address is already registered. Please click "Sign In" to access your account.');
       return;
     }
 
-    if (role === 'CUSTOMER' && isPhoneAlreadyRegistered(phone)) {
-      setFormError('⚠️ An account with this Mobile Number (+91) is already registered. Please click "Sign In" to access your account.');
+    if (phone && isPhoneAlreadyRegistered(phone)) {
+      setFormError('⚠️ An account (Customer or Bank Admin) with this Mobile Number (+91) is already registered. Please click "Sign In" to access your account.');
       return;
     }
 
     if (role === 'CUSTOMER' && upiId && isUpiIdAlreadyRegistered(upiId)) {
       setFormError(`⚠️ An account with this Primary UPI ID (${upiId.trim()}) is already registered. Please click "Sign In" to access your account.`);
+      return;
+    }
+
+    if (role === 'BANK_ADMIN' && employeeId && isEmployeeIdAlreadyRegistered(employeeId)) {
+      setFormError(`⚠️ A Bank Admin account with Employee ID (${employeeId.trim()}) is already registered. Please click "Sign In" to access your account.`);
       return;
     }
 
@@ -1317,7 +1337,20 @@ bank_name: bankName || '',
                   ) : (
                     <>
                       <div className="input-group">
-                        <label className="input-label">Bank Employee ID</label>
+                        <label className="input-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span>Bank Employee ID</span>
+                          {employeeId && employeeId.trim().length >= 3 && (
+                            isEmployeeIdAlreadyRegistered(employeeId) ? (
+                              <span style={{ fontSize: 11, color: 'var(--danger-light)', fontWeight: 800, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                                ⚠️ Employee ID Already Registered
+                              </span>
+                            ) : (
+                              <span style={{ fontSize: 11, color: 'var(--safe-light)', fontWeight: 800, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                                <CheckCircle2 size={13} /> Employee ID Available
+                              </span>
+                            )
+                          )}
+                        </label>
                         <input
                           type="text"
                           className="input-field mono"
@@ -1326,6 +1359,20 @@ bank_name: bankName || '',
                           placeholder="EMP-8842"
                           required
                         />
+                        {employeeId && employeeId.trim().length >= 3 && isEmployeeIdAlreadyRegistered(employeeId) && (
+                          <div style={{
+                            background: 'rgba(239, 68, 68, 0.12)',
+                            border: '1px solid rgba(239, 68, 68, 0.3)',
+                            color: 'var(--danger-light)',
+                            padding: '8px 12px',
+                            borderRadius: 8,
+                            fontSize: 11,
+                            fontWeight: 700,
+                            marginTop: 8
+                          }}>
+                            ⚠️ A Bank Admin account with Employee ID ({employeeId.trim()}) is already registered. Please click "Sign In".
+                          </div>
+                        )}
                       </div>
 
                       <div className="input-group">
