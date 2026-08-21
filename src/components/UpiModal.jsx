@@ -33,15 +33,6 @@ export default function UpiModal({
   const amtFormatted = amtNum.toFixed(2);
   const cleanNote = note.trim() || 'TrustShield Verified Payment';
 
-  // Package mapping for direct app opening on Android
-  const appPackageMap = {
-    gpay: 'com.google.android.apps.nbu.paisa.user',
-    phonepe: 'com.phonepe.app',
-    paytm: 'net.one97.paytm',
-    bhim: 'in.org.npci.upiapp',
-    cred: 'com.dreamplug.androidapp'
-  };
-
   // Determine if input is UPI ID or UPI Number (Phone / Numeric)
   const isUpiNumber = recipientUpi && !recipientUpi.includes('@') && recipientUpi.replace(/\D/g, '').length >= 8;
   const cleanDigits = recipientUpi ? recipientUpi.replace(/\D/g, '').slice(-10) : '';
@@ -49,27 +40,29 @@ export default function UpiModal({
   // NPCI Universal Target: for phone numbers, use standard `${cleanDigits}@upi` (or mapped VPA)
   const resolvedPayeeVpa = isUpiNumber ? `${cleanDigits}@upi` : recipientUpi.trim();
 
-  // Build NPCI compliant UPI Intent URI
+  // Build standard NPCI direct UPI URI without Play Store redirects
   function buildUpiUrl(appId) {
     const params = new URLSearchParams({
       pa: resolvedPayeeVpa,
-      pn: userName || 'Merchant',
+      pn: userName || 'Recipient',
       am: amtFormatted,
       cu: 'INR',
       tn: cleanNote
     }).toString();
 
-    const standardUpi = `upi://pay?${params}`;
-
-    // If a specific app is selected, on Android we construct the intent URI which directly opens that app
-    if (appId && appPackageMap[appId]) {
-      const isAndroid = typeof navigator !== 'undefined' && /android/i.test(navigator.userAgent || '');
-      if (isAndroid) {
-        return `intent://pay?${params}#Intent;scheme=upi;package=${appPackageMap[appId]};end`;
-      }
+    switch (appId) {
+      case 'gpay':
+        return `tez://upi/pay?${params}`;
+      case 'phonepe':
+        return `phonepe://pay?${params}`;
+      case 'paytm':
+        return `paytmmp://pay?${params}`;
+      case 'bhim':
+      case 'cred':
+      case 'all':
+      default:
+        return `upi://pay?${params}`;
     }
-
-    return standardUpi;
   }
 
   const currentUpiUrl = buildUpiUrl(activeApp);
@@ -78,19 +71,9 @@ export default function UpiModal({
   function tryLaunchUpi(url) {
     if (!url) return;
     try {
-      const link = document.createElement('a');
-      link.href = url;
-      link.target = '_top';
-      link.rel = 'noopener noreferrer';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      window.location.href = url;
     } catch (e) {
-      try {
-        window.location.href = url;
-      } catch (err) {
-        console.warn('UPI Launch redirect handled:', err);
-      }
+      console.warn('UPI Launch redirect handled:', e);
     }
   }
 
