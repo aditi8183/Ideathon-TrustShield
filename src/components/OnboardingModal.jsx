@@ -1,17 +1,17 @@
 import React, { useState } from 'react';
 import { ShieldCheck, ArrowRight, Building2, User, Phone, Wallet } from 'lucide-react';
 
-export default function OnboardingModal({ isOpen, onClose, user, onSaveUser }) {
-  const [name, setName] = useState(user.name || '');
-  const [upi, setUpi] = useState(user.upi_id || '');
-  const [phone, setPhone] = useState(user.phone || '');
-  const [bank, setBank] = useState(user.bank_name || '');
+export default function OnboardingModal({ isOpen, onClose, user, setUser }) {
+  const [name, setName] = useState(user?.name || '');
+  const [upi, setUpi] = useState(user?.upi_id || '');
+  const [phone, setPhone] = useState(user?.phone || '');
+  const [bank, setBank] = useState(user?.bank_name || '');
 
   if (!isOpen) return null;
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    onSaveUser({
+    setUser({
       ...user,
       name: name.trim(),
       upi_id: upi.trim(),
