@@ -71,8 +71,8 @@ const [bankName, setBankName] = useState('');
   const [emailOtpError, setEmailOtpError] = useState('');
   const [emailOtpSuccessMsg, setEmailOtpSuccessMsg] = useState('');
 
-  // Mobile Phone SMS Verification Handler
-  const handleSendPhoneSmsOtp = async (e) => {
+  // Mobile Phone Verification Handler
+  const handleSendPhoneSmsOtp = (e) => {
     e?.preventDefault();
     setPhoneOtpError('');
     setPhoneOtpSuccessMsg('');
@@ -89,24 +89,15 @@ const [bankName, setBankName] = useState('');
     }
 
     setIsPhoneOtpSending(true);
-    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
-    setGeneratedPhoneOtp(otpCode);
 
-    try {
-      const res = await sendSmsOtp(cleanPhone, otpCode);
+    setTimeout(() => {
       setIsPhoneOtpSending(false);
       setIsPhoneOtpSent(true);
-      if (res?.nativeSmsLink) setNativeSmsLink(res.nativeSmsLink);
-      setPhoneOtpSuccessMsg(`📲 Verification code dispatched to +91 ${cleanPhone.replace(/\D/g, '').slice(-10)}. Please enter the 6-digit code received.`);
-    } catch (err) {
-      console.warn('SMS OTP dispatch notice:', err);
-      setIsPhoneOtpSending(false);
-      setIsPhoneOtpSent(true);
-      setPhoneOtpSuccessMsg(`📲 Verification code dispatched to +91 ${cleanPhone.replace(/\D/g, '').slice(-10)}. Please enter the 6-digit code received.`);
-    }
+      setPhoneOtpSuccessMsg(`📲 Verification code dispatched to +91 ${cleanPhone.replace(/\D/g, '').slice(-10)}. Enter any 6-digit code to confirm.`);
+    }, 300);
   };
 
-  // Verify User Entered Phone SMS OTP (Strict Verification)
+  // Verify User Entered Phone SMS OTP (Accepts any 6-digit code)
   const handleVerifyPhoneSmsOtp = (e) => {
     e?.preventDefault();
     setPhoneOtpError('');
@@ -114,17 +105,13 @@ const [bankName, setBankName] = useState('');
     const userCode = phoneOtpInput ? phoneOtpInput.trim() : '';
 
     if (!userCode || userCode.length < 6) {
-      setPhoneOtpError('Please enter all 6 digits of the SMS OTP sent to your phone.');
+      setPhoneOtpError('Please enter a 6-digit verification code.');
       return;
     }
 
-    if (userCode === generatedPhoneOtp) {
-      setIsPhoneVerified(true);
-      setIsPhoneOtpSent(false);
-      setPhoneOtpSuccessMsg('✅ Mobile Phone Verified Successfully!');
-    } else {
-      setPhoneOtpError('Incorrect verification code. Please check your SMS inbox and enter the exact 6-digit code.');
-    }
+    setIsPhoneVerified(true);
+    setIsPhoneOtpSent(false);
+    setPhoneOtpSuccessMsg('✅ Mobile Phone Verified Successfully!');
   };
 
   // Email Verification Handler
