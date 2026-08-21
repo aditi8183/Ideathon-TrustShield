@@ -33,10 +33,17 @@ export default function UpiModal({
   const amtFormatted = amtNum.toFixed(2);
   const cleanNote = note.trim() || 'TrustShield Verified Payment';
 
+  // Determine if input is UPI ID or UPI Number (Phone / Numeric)
+  const isUpiNumber = recipientUpi && !recipientUpi.includes('@') && recipientUpi.replace(/\D/g, '').length >= 8;
+  const cleanDigits = recipientUpi ? recipientUpi.replace(/\D/g, '').slice(-10) : '';
+
+  // NPCI Universal Target: for phone numbers, use standard `${cleanDigits}@upi` (or mapped VPA)
+  const resolvedPayeeVpa = isUpiNumber ? `${cleanDigits}@upi` : recipientUpi.trim();
+
   // Build NPCI compliant UPI Intent URI
   function buildUpiUrl(appId) {
     const params = new URLSearchParams({
-      pa: recipientUpi.trim(),
+      pa: resolvedPayeeVpa,
       pn: userName || 'Merchant',
       am: amtFormatted,
       cu: 'INR',
@@ -166,9 +173,27 @@ export default function UpiModal({
             <h3 style={{ fontSize: 20, fontWeight: 900, marginBottom: 4 }}>
               Opening UPI App...
             </h3>
-            <p style={{ fontSize: 13, color: 'var(--sub)', marginBottom: 14 }}>
+            <p style={{ fontSize: 13, color: 'var(--sub)', marginBottom: isUpiNumber ? 8 : 14 }}>
               Completing ₹<span style={{ fontSize: 16, fontWeight: 900, color: 'var(--text)' }}>{amtNum.toLocaleString('en-IN')}</span> transfer to <span className="mono" style={{ color: 'var(--indigo-light)', fontWeight: 700 }}>{recipientUpi}</span>
             </p>
+
+            {isUpiNumber && (
+              <div style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 4,
+                background: 'rgba(56, 189, 248, 0.12)',
+                color: '#38bdf8',
+                border: '1px solid rgba(56, 189, 248, 0.3)',
+                padding: '3px 10px',
+                borderRadius: 8,
+                fontSize: 11,
+                fontWeight: 700,
+                marginBottom: 12
+              }}>
+                <span>📱 NPCI Mapper: {cleanDigits} → {resolvedPayeeVpa}</span>
+              </div>
+            )}
 
             {/* Security Guarantee Pill */}
             <div style={{
