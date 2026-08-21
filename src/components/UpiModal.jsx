@@ -40,14 +40,17 @@ export default function UpiModal({
   // NPCI Universal Target: for phone numbers, use standard `${cleanDigits}@upi` (or mapped VPA)
   const resolvedPayeeVpa = isUpiNumber ? `${cleanDigits}@upi` : recipientUpi.trim();
 
-  // Build standard NPCI direct UPI URI without Play Store redirects
+  // Build standard NPCI direct UPI URI with Web-Intent metadata
   function buildUpiUrl(appId) {
     const params = new URLSearchParams({
       pa: resolvedPayeeVpa,
       pn: userName || 'Recipient',
       am: amtFormatted,
       cu: 'INR',
-      tn: cleanNote
+      tn: cleanNote,
+      mode: '02',
+      purpose: '00',
+      orgid: '180001'
     }).toString();
 
     switch (appId) {
@@ -86,6 +89,14 @@ export default function UpiModal({
   const handleCopyLink = () => {
     if (navigator.clipboard) {
       navigator.clipboard.writeText(currentUpiUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  const handleCopyPayee = () => {
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(resolvedPayeeVpa);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     }
@@ -300,34 +311,56 @@ export default function UpiModal({
                 <div style={{ fontSize: 11, color: 'var(--sub)', marginBottom: 8, lineHeight: 1.3 }}>
                   On desktop or laptop? Scan this QR code with Google Pay, PhonePe, or Paytm to pay instantly.
                 </div>
-                <button
-                  onClick={handleCopyLink}
-                  style={{
-                    background: 'rgba(255, 255, 255, 0.06)',
-                    border: '1px solid var(--border)',
-                    color: 'var(--sub)',
-                    borderRadius: 8,
-                    padding: '4px 8px',
-                    fontSize: 11,
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 4
-                  }}
-                >
-                  {copied ? (
-                    <>
-                      <Check size={12} color="var(--safe-light)" />
-                      <span style={{ color: 'var(--safe-light)' }}>Copied Link!</span>
-                    </>
-                  ) : (
-                    <>
-                      <Copy size={12} />
-                      <span>Copy UPI Intent Link</span>
-                    </>
-                  )}
-                </button>
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                  <button
+                    onClick={handleCopyPayee}
+                    style={{
+                      background: 'rgba(99, 102, 241, 0.15)',
+                      border: '1px solid rgba(99, 102, 241, 0.3)',
+                      color: 'var(--indigo-light)',
+                      borderRadius: 8,
+                      padding: '4px 8px',
+                      fontSize: 11,
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 4
+                    }}
+                  >
+                    {copied ? (
+                      <>
+                        <Check size={12} color="var(--safe-light)" />
+                        <span style={{ color: 'var(--safe-light)' }}>Copied UPI ID!</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy size={12} />
+                        <span>Copy Payee UPI</span>
+                      </>
+                    )}
+                  </button>
+
+                  <button
+                    onClick={handleCopyLink}
+                    style={{
+                      background: 'rgba(255, 255, 255, 0.06)',
+                      border: '1px solid var(--border)',
+                      color: 'var(--sub)',
+                      borderRadius: 8,
+                      padding: '4px 8px',
+                      fontSize: 11,
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 4
+                    }}
+                  >
+                    <Copy size={12} />
+                    <span>Copy Intent Link</span>
+                  </button>
+                </div>
               </div>
             </div>
 
