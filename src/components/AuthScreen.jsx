@@ -308,10 +308,6 @@ const isEmailAlreadyRegistered = (targetEmail) => {
   if (profiles[cleanEmail]) return true;
   if (roles[cleanEmail]) return true;
 
-  if (cleanEmail === 'aditiansh8183@gmail.com' || cleanEmail === 'aditi.sharma@gmail.com') {
-    return true;
-  }
-
   return false;
 };
 
