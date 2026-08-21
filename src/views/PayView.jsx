@@ -714,60 +714,21 @@ userName: safeUser.name || 'User',
           </button>
         </div>
 
-        {/* Quick Payee Selection Bar */}
-        <div style={{ marginBottom: 14 }}>
-          <div style={{ fontSize: 11, color: 'var(--sub)', fontWeight: 700, marginBottom: 6 }}>
-            QUICK SEND — FREQUENT PAYEES:
-          </div>
-
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-            {frequentPayees.length > 0 ? (
-              frequentPayees.map((payee) => (
-                <button
-                  key={payee.upi}
-                  type="button"
-                  onClick={() => fillQuickPayee(payee.upi, '', 'Quick Payment', false)}
-                  style={{
-                    background: 'rgba(99, 102, 241, 0.15)',
-                    border: '1px solid rgba(99, 102, 241, 0.3)',
-                    color: 'var(--safe-light)',
-                    borderRadius: 20,
-                    padding: '4px 10px',
-                    fontSize: 11,
-                    fontWeight: 800,
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 4
-                  }}
-                  title={`${payee.upi} — ${payee.count} previous payments`}
-                >
-                  <Smartphone size={11} />
-                  <span>{payee.upi}</span>
-                  <span style={{ fontSize: 10, opacity: 0.8 }}>x{payee.count}</span>
-                </button>
-              ))
-            ) : (
-              
-               <span
-  style={{
-    fontSize: 12,
-    color: 'var(--text-secondary)',
-    fontWeight: 600
-  }}
->
-  No frequent payees yet. Your frequent recipients will appear here after you make payments.
-</span>
-       
-            )}
-          </div>
-        </div>
-                  
-                
-                
         {/* Input Form */}
         <div className="input-group">
-          <label className="input-label">RECIPIENT UPI ID</label>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+            <label className="input-label" style={{ marginBottom: 0 }}>Recipient UPI ID / UPI Mobile Number</label>
+            {payeeType === 'upi_id' && (
+              <span style={{ fontSize: 10, fontWeight: 800, color: 'var(--indigo-light)', background: 'rgba(99, 102, 241, 0.15)', border: '1px solid rgba(99, 102, 241, 0.3)', padding: '2px 8px', borderRadius: 6 }}>
+                🏷️ UPI ID
+              </span>
+            )}
+            {payeeType === 'upi_number' && (
+              <span style={{ fontSize: 10, fontWeight: 800, color: '#38bdf8', background: 'rgba(56, 189, 248, 0.15)', border: '1px solid rgba(56, 189, 248, 0.3)', padding: '2px 8px', borderRadius: 6 }}>
+                📱 10-Digit UPI Number
+              </span>
+            )}
+          </div>
           <div style={{ position: 'relative' }}>
             <input
               type="text"
@@ -775,7 +736,7 @@ userName: safeUser.name || 'User',
               value={recipientUpi}
               onChange={handleUpiChange}
               onPaste={handleUpiPaste}
-              placeholder="name@upi / phonepe / gpay"
+              placeholder="e.g. name@upi or 10-digit mobile number"
             />
             {isPasted && (
               <span style={{
@@ -1300,11 +1261,13 @@ Sent to: {safeUser?.trusted_nominee?.name || 'Trusted nominee'}
 
       {isUpiModalOpen && (
         <UpiModal
+          isOpen={isUpiModalOpen}
           onClose={() => setIsUpiModalOpen(false)}
           onSuccess={handlePinSuccess}
           amount={amount}
           recipientUpi={recipientUpi}
-          app={selectedUpiApp}
+          note={note}
+          selectedApp={selectedUpiApp}
         />
       )}
     </div>
