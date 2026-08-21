@@ -33,6 +33,15 @@ export default function UpiModal({
   const amtFormatted = amtNum.toFixed(2);
   const cleanNote = note.trim() || 'TrustShield Verified Payment';
 
+  // Package mapping for direct app opening on Android
+  const appPackageMap = {
+    gpay: 'com.google.android.apps.nbu.paisa.user',
+    phonepe: 'com.phonepe.app',
+    paytm: 'net.one97.paytm',
+    bhim: 'in.org.npci.upiapp',
+    cred: 'com.dreamplug.androidapp'
+  };
+
   // Determine if input is UPI ID or UPI Number (Phone / Numeric)
   const isUpiNumber = recipientUpi && !recipientUpi.includes('@') && recipientUpi.replace(/\D/g, '').length >= 8;
   const cleanDigits = recipientUpi ? recipientUpi.replace(/\D/g, '').slice(-10) : '';
@@ -50,30 +59,38 @@ export default function UpiModal({
       tn: cleanNote
     }).toString();
 
-    switch (appId) {
-      case 'gpay':
-        return `gpay://upi/pay?${params}`;
-      case 'phonepe':
-        return `phonepe://pay?${params}`;
-      case 'paytm':
-        return `paytmmp://pay?${params}`;
-      case 'cred':
-        return `cred://upi/pay?${params}`;
-      case 'bhim':
-      case 'all':
-      default:
-        return `upi://pay?${params}`;
+    const standardUpi = `upi://pay?${params}`;
+
+    // If a specific app is selected, on Android we construct the intent URI which directly opens that app
+    if (appId && appPackageMap[appId]) {
+      const isAndroid = typeof navigator !== 'undefined' && /android/i.test(navigator.userAgent || '');
+      if (isAndroid) {
+        return `intent://pay?${params}#Intent;scheme=upi;package=${appPackageMap[appId]};end`;
+      }
     }
+
+    return standardUpi;
   }
 
   const currentUpiUrl = buildUpiUrl(activeApp);
   const genericUpiUrl = buildUpiUrl('all');
 
   function tryLaunchUpi(url) {
+    if (!url) return;
     try {
-      window.location.href = url;
+      const link = document.createElement('a');
+      link.href = url;
+      link.target = '_top';
+      link.rel = 'noopener noreferrer';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
     } catch (e) {
-      console.warn('UPI Launch redirect handled:', e);
+      try {
+        window.location.href = url;
+      } catch (err) {
+        console.warn('UPI Launch redirect handled:', err);
+      }
     }
   }
 
@@ -226,30 +243,38 @@ export default function UpiModal({
                 Tap to Open Preferred App:
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
-                {upiApps.map((app) => (
-                  <button
-                    key={app.id}
-                    onClick={() => handleAppSelect(app.id)}
-                    style={{
-                      padding: '8px 6px',
-                      borderRadius: 10,
-                      border: activeApp === app.id ? '1.5px solid var(--indigo-light)' : '1px solid var(--border)',
-                      background: activeApp === app.id ? 'rgba(99, 102, 241, 0.2)' : 'rgba(255, 255, 255, 0.04)',
-                      color: 'var(--text)',
-                      fontSize: 12,
-                      fontWeight: 700,
-                      cursor: 'pointer',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      gap: 2,
-                      transition: 'all 0.15s'
-                    }}
-                  >
-                    <span style={{ fontSize: 16 }}>{app.icon || '⚡'}</span>
-                    <span style={{ fontSize: 11 }}>{app.name}</span>
-                  </button>
-                ))}
+                {upiApps.map((app) => {
+                  const targetUrl = buildUpiUrl(app.id);
+                  return (
+                    <a
+                      key={app.id}
+                      href={targetUrl}
+                      onClick={() => {
+                        setActiveApp(app.id);
+                        tryLaunchUpi(targetUrl);
+                      }}
+                      style={{
+                        padding: '8px 6px',
+                        borderRadius: 10,
+                        border: activeApp === app.id ? '1.5px solid var(--indigo-light)' : '1px solid var(--border)',
+                        background: activeApp === app.id ? 'rgba(99, 102, 241, 0.2)' : 'rgba(255, 255, 255, 0.04)',
+                        color: 'var(--text)',
+                        fontSize: 12,
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        gap: 2,
+                        textDecoration: 'none',
+                        transition: 'all 0.15s'
+                      }}
+                    >
+                      <span style={{ fontSize: 18 }}>{app.icon || '⚡'}</span>
+                      <span style={{ fontSize: 11 }}>{app.name}</span>
+                    </a>
+                  );
+                })}
               </div>
             </div>
 
@@ -325,17 +350,27 @@ export default function UpiModal({
 
             {/* Action Buttons */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <button
-                className="btn-primary"
+              <a
+                href={currentUpiUrl}
                 onClick={() => tryLaunchUpi(currentUpiUrl)}
+                className="btn-primary"
                 style={{
                   background: 'linear-gradient(135deg, var(--indigo), var(--indigo-dark))',
-                  padding: '12px'
+                  padding: '12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 8,
+                  textDecoration: 'none',
+                  color: '#fff',
+                  fontSize: 14,
+                  fontWeight: 800,
+                  cursor: 'pointer'
                 }}
               >
-                <RefreshCw size={16} />
-                <span>Launch {activeApp === 'all' ? 'UPI App' : upiApps.find(a => a.id === activeApp)?.name} Again</span>
-              </button>
+                <Zap size={16} />
+                <span>Open in {activeApp === 'all' ? 'Any UPI App' : upiApps.find(a => a.id === activeApp)?.name}</span>
+              </a>
 
               <button
                 onClick={handleCompletePayment}
