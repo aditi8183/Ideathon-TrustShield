@@ -25,6 +25,7 @@ import {
 import PINModal from '../components/PINModal';
 import UpiModal from '../components/UpiModal';
 import { sendNomineeScamAlert } from '../utils/smsService';
+import jsQR from 'jsqr';
 
 // Helper to identify whether user entered a UPI ID or a UPI Number (mobile)
 export const getPayeeType = (input) => {
@@ -223,10 +224,14 @@ export default function PayView({
   const [isUpiModalOpen, setIsUpiModalOpen] = useState(false);
   const [completedTxnReceipt, setCompletedTxnReceipt] = useState(null);
 
-  // QR Scanner State
+  // QR Scanner State & Refs
   const [isQrScannerOpen, setIsQrScannerOpen] = useState(false);
   const [isScanningQr, setIsScanningQr] = useState(false);
-  const html5QrCodeRef = useRef(null);
+  const [scannerError, setScannerError] = useState('');
+  const [isCameraActive, setIsCameraActive] = useState(false);
+  const videoRef = useRef(null);
+  const canvasRef = useRef(null);
+  const scanIntervalRef = useRef(null);
 
   // Load frequent payees & seed default history if empty
   useEffect(() => {
@@ -325,6 +330,32 @@ export default function PayView({
     }
   };
 
+  const scanFrame = () => {
+    if (!videoRef.current || videoRef.current.readyState < 2) return;
+    const video = videoRef.current;
+    if (!canvasRef.current) {
+      canvasRef.current = document.createElement('canvas');
+    }
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    if (!ctx) return;
+
+    if (video.videoWidth && video.videoHeight) {
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const code = jsQR(imageData.data, imageData.width, imageData.height, {
+        inversionAttempts: 'dontInvert'
+      });
+
+      if (code && code.data && code.data.trim()) {
+        applyScannedQr(code.data);
+      }
+    }
+  };
+
   const stopQrScanner = () => {
     if (scanIntervalRef.current) {
       clearInterval(scanIntervalRef.current);
@@ -354,59 +385,61 @@ export default function PayView({
     try {
       if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
         const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: 'environment' }
+          video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }
         });
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
+          videoRef.current.setAttribute('playsinline', 'true');
           await videoRef.current.play().catch(() => {});
           setIsCameraActive(true);
         }
 
-        // Live BarcodeDetector frame scanner loop
-        if ('BarcodeDetector' in window) {
-          try {
-            const detector = new window.BarcodeDetector({ formats: ['qr_code'] });
-            scanIntervalRef.current = setInterval(async () => {
-              if (videoRef.current && videoRef.current.readyState >= 2) {
-                try {
-                  const barcodes = await detector.detect(videoRef.current);
-                  if (barcodes.length > 0 && barcodes[0].rawValue) {
-                    applyScannedQr(barcodes[0].rawValue);
-                  }
-                } catch (detectErr) {
-                  // Continue scanning loop
-                }
-              }
-            }, 300);
-          } catch (detInitErr) {
-            console.warn('BarcodeDetector init error:', detInitErr);
-          }
-        }
+        // Live continuous frame scanner loop using jsQR (120ms interval)
+        if (scanIntervalRef.current) clearInterval(scanIntervalRef.current);
+        scanIntervalRef.current = setInterval(() => {
+          scanFrame();
+        }, 120);
       } else {
-        setScannerError('Camera access not supported in this environment. You can upload a QR image below.');
+        setScannerError('Camera access not supported in this browser. You can upload a QR image below.');
       }
     } catch (err) {
       console.warn('Camera access info:', err);
-      setScannerError('Camera permission not granted or camera busy. You can upload a QR image or screenshot below.');
+      setScannerError('Camera permission not granted or camera busy. You can upload a QR image/screenshot below.');
       setIsCameraActive(false);
     }
   };
 
-  const handleQrImageUpload = async (e) => {
+  const handleQrImageUpload = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
     setScannerError('');
+
     try {
-      if ('BarcodeDetector' in window) {
-        const detector = new window.BarcodeDetector({ formats: ['qr_code'] });
-        const imageBitmap = await createImageBitmap(file);
-        const barcodes = await detector.detect(imageBitmap);
-        if (barcodes.length > 0 && barcodes[0].rawValue) {
-          applyScannedQr(barcodes[0].rawValue);
-          return;
-        }
-      }
-      setScannerError('No UPI QR code found in uploaded image. Please ensure the QR is clear or enter the UPI ID manually.');
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d', { willReadFrequently: true });
+          canvas.width = img.width;
+          canvas.height = img.height;
+          ctx.drawImage(img, 0, 0, img.width, img.height);
+          const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          const code = jsQR(imageData.data, imageData.width, imageData.height, {
+            inversionAttempts: 'attemptBoth'
+          });
+          if (code && code.data && code.data.trim()) {
+            applyScannedQr(code.data);
+          } else {
+            setScannerError('No valid UPI QR code found in this image. Please upload a clearer QR image.');
+          }
+        };
+        img.onerror = () => {
+          setScannerError('Failed to load image file. Please try another image.');
+        };
+        img.src = event.target.result;
+      };
+      reader.readAsDataURL(file);
     } catch (err) {
       console.error('QR image decode error:', err);
       setScannerError('Could not decode QR from image. Please enter UPI details manually.');
@@ -1294,51 +1327,182 @@ Sent to: {safeUser?.trusted_nominee?.name || 'Trusted nominee'}
         </div>
       )}
 
-      {/* ACTUAL CAMERA SCANNER MODAL */}
+      {/* REAL CAMERA SCANNER MODAL */}
       {isQrScannerOpen && (
-        <div className="modal-overlay">
-          <div className="modal-content" style={{ maxWidth: 360, textAlign: 'center' }}>
+        <div className="modal-overlay" style={{ zIndex: 110 }}>
+          <div className="modal-content" style={{ maxWidth: 400, textAlign: 'center', position: 'relative' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
               <h3 style={{ fontSize: 16, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 6 }}>
-                <Camera size={18} />
+                <Camera size={18} color="var(--indigo-light)" />
                 <span>Scan UPI QR Code</span>
               </h3>
               <button
                 onClick={stopQrScanner}
-                style={{ background: 'none', border: 'none', color: 'var(--sub)', cursor: 'pointer' }}
+                style={{ background: 'none', border: 'none', color: 'var(--sub)', cursor: 'pointer', padding: 4 }}
               >
                 <X size={20} />
               </button>
             </div>
 
+            {/* Video Viewport Container with Live Scanner Overlay */}
             <div
-              id="qr-reader"
               style={{
                 width: '100%',
-                borderRadius: 12,
+                height: 240,
+                borderRadius: 14,
                 overflow: 'hidden',
-                background: '#000',
-                minHeight: 250
+                background: '#0a0f1d',
+                border: '2px solid rgba(99, 102, 241, 0.4)',
+                position: 'relative',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginBottom: 12
               }}
-            />
+            >
+              <video
+                ref={videoRef}
+                autoPlay
+                playsInline
+                muted
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'cover',
+                  display: isCameraActive ? 'block' : 'none'
+                }}
+              />
 
-            {!isScanningQr && (
-              <p style={{ fontSize: 12, color: 'var(--danger-light)', marginTop: 8 }}>
-                Camera permission required or camera unavailable.
-              </p>
+              {!isCameraActive && (
+                <div style={{ padding: 20, textAlign: 'center' }}>
+                  <QrCode size={48} color="rgba(99, 102, 241, 0.5)" style={{ marginBottom: 8 }} />
+                  <p style={{ fontSize: 12, color: 'var(--sub)', margin: 0 }}>
+                    Initializing camera stream...
+                  </p>
+                </div>
+              )}
+
+              {/* Viewfinder Target & Laser Scanning Animation */}
+              {isCameraActive && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: '15%',
+                    left: '15%',
+                    width: '70%',
+                    height: '70%',
+                    border: '2px dashed rgba(99, 102, 241, 0.8)',
+                    borderRadius: 12,
+                    pointerEvents: 'none',
+                    boxShadow: '0 0 0 9999px rgba(0, 0, 0, 0.35)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'center',
+                    alignItems: 'center'
+                  }}
+                >
+                  <div
+                    style={{
+                      width: '100%',
+                      height: 2,
+                      background: 'linear-gradient(90deg, transparent, #6366f1, #38bdf8, transparent)',
+                      boxShadow: '0 0 8px #38bdf8'
+                    }}
+                  />
+                </div>
+              )}
+            </div>
+
+            {scannerError && (
+              <div
+                style={{
+                  background: 'rgba(239, 68, 68, 0.12)',
+                  border: '1px solid rgba(239, 68, 68, 0.3)',
+                  color: 'var(--danger-light)',
+                  padding: '8px 12px',
+                  borderRadius: 8,
+                  fontSize: 11,
+                  fontWeight: 700,
+                  marginBottom: 12,
+                  textAlign: 'left'
+                }}
+              >
+                ⚠️ {scannerError}
+              </div>
             )}
+
+            {/* Upload QR Image / Screenshot Option */}
+            <div style={{ marginBottom: 12 }}>
+              <label
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 6,
+                  padding: '9px 12px',
+                  borderRadius: 10,
+                  background: 'rgba(99, 102, 241, 0.12)',
+                  border: '1px solid rgba(99, 102, 241, 0.3)',
+                  color: 'var(--indigo-light)',
+                  fontSize: 12,
+                  fontWeight: 800,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s'
+                }}
+              >
+                <QrCode size={15} />
+                <span>Upload QR Image / Screenshot</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleQrImageUpload}
+                  style={{ display: 'none' }}
+                />
+              </label>
+            </div>
+
+            {/* Quick Demo Test Buttons */}
+            <div style={{ textAlign: 'left', marginBottom: 12, background: 'rgba(255, 255, 255, 0.03)', padding: 8, borderRadius: 10, border: '1px solid var(--border)' }}>
+              <div style={{ fontSize: 10, color: 'var(--sub)', fontWeight: 700, marginBottom: 4, textTransform: 'uppercase' }}>
+                Quick Test Sample QR Data:
+              </div>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  onClick={() => applyScannedQr('upi://pay?pa=starbucks.coffee@icici&pn=Starbucks&am=350&tn=Coffee')}
+                  style={{ fontSize: 10, padding: '3px 8px', borderRadius: 6, background: 'rgba(16, 185, 129, 0.15)', color: 'var(--safe-light)', border: '1px solid rgba(16, 185, 129, 0.3)', cursor: 'pointer', fontWeight: 700 }}
+                >
+                  ☕ Starbucks QR (₹350)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => applyScannedQr('upi://pay?pa=9876543210@upi&pn=RameshStore&am=120&tn=Grocery')}
+                  style={{ fontSize: 10, padding: '3px 8px', borderRadius: 6, background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', border: '1px solid rgba(56, 189, 248, 0.3)', cursor: 'pointer', fontWeight: 700 }}
+                >
+                  📱 Mobile UPI QR (₹120)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => applyScannedQr('upi://pay?pa=scam.lottery.claim@fakebank&pn=MegaWinLottery&am=4999&tn=LotteryTax')}
+                  style={{ fontSize: 10, padding: '3px 8px', borderRadius: 6, background: 'rgba(239, 68, 68, 0.15)', color: 'var(--danger-light)', border: '1px solid rgba(239, 68, 68, 0.3)', cursor: 'pointer', fontWeight: 700 }}
+                >
+                  ⚠️ Scam QR (₹4999)
+                </button>
+              </div>
+            </div>
 
             <button
               onClick={stopQrScanner}
               style={{
-                marginTop: 12,
                 width: '100%',
                 padding: '8px 12px',
                 borderRadius: 8,
-                background: 'rgba(255, 255, 255, 0.1)',
+                background: 'rgba(255, 255, 255, 0.08)',
                 color: '#fff',
                 border: '1px solid var(--border)',
-                cursor: 'pointer'
+                cursor: 'pointer',
+                fontSize: 12,
+                fontWeight: 700
               }}
             >
               Cancel
