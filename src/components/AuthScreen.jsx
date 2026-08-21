@@ -327,6 +327,21 @@ const isPhoneAlreadyRegistered = (targetPhone) => {
 
   return false;
 };
+
+const isUpiIdAlreadyRegistered = (targetUpi) => {
+  if (!targetUpi || !targetUpi.includes('@')) return false;
+  const cleanUpi = targetUpi.toLowerCase().trim();
+
+  const profiles = getStoredUserProfiles();
+  for (const key in profiles) {
+    const p = profiles[key];
+    if (p?.upi_id) {
+      if (p.upi_id.toLowerCase().trim() === cleanUpi) return true;
+    }
+  }
+
+  return false;
+};
   const createFreshUserProfile = ({
   id,
   role,
@@ -547,6 +562,11 @@ bank_name: bankName || '',
 
     if (role === 'CUSTOMER' && isPhoneAlreadyRegistered(phone)) {
       setFormError('⚠️ An account with this Mobile Number (+91) is already registered. Please click "Sign In" to access your account.');
+      return;
+    }
+
+    if (role === 'CUSTOMER' && upiId && isUpiIdAlreadyRegistered(upiId)) {
+      setFormError(`⚠️ An account with this Primary UPI ID (${upiId.trim()}) is already registered. Please click "Sign In" to access your account.`);
       return;
     }
 
@@ -1232,7 +1252,20 @@ bank_name: bankName || '',
                       </div>
 
                       <div className="input-group">
-                        <label className="input-label">Primary UPI ID</label>
+                        <label className="input-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span>Primary UPI ID</span>
+                          {upiId && upiId.includes('@') && (
+                            isUpiIdAlreadyRegistered(upiId) ? (
+                              <span style={{ fontSize: 11, color: 'var(--danger-light)', fontWeight: 800, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                                ⚠️ Already Registered
+                              </span>
+                            ) : (
+                              <span style={{ fontSize: 11, color: 'var(--safe-light)', fontWeight: 800, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                                <CheckCircle2 size={13} /> UPI ID Available
+                              </span>
+                            )
+                          )}
+                        </label>
                         <input
                           type="text"
                           className="input-field mono"
@@ -1241,6 +1274,20 @@ bank_name: bankName || '',
                           placeholder="aditi@okicici"
                           required
                         />
+                        {upiId && upiId.includes('@') && isUpiIdAlreadyRegistered(upiId) && (
+                          <div style={{
+                            background: 'rgba(239, 68, 68, 0.12)',
+                            border: '1px solid rgba(239, 68, 68, 0.3)',
+                            color: 'var(--danger-light)',
+                            padding: '8px 12px',
+                            borderRadius: 8,
+                            fontSize: 11,
+                            fontWeight: 700,
+                            marginTop: 8
+                          }}>
+                            ⚠️ An account with this Primary UPI ID ({upiId.trim()}) is already registered. Please click "Sign In" to access your account.
+                          </div>
+                        )}
                       </div>
 
                       <div className="input-group">
