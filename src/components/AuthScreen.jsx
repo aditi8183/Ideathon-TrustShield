@@ -51,8 +51,7 @@ export default function AuthScreen({ onLoginSuccess }) {
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [upiId, setUpiId] = useState('');
-  const [bankName, setBankName] = useState('ICICI Bank');
-
+const [bankName, setBankName] = useState('');
   // Mobile Phone Verification State
   const [isPhoneOtpSending, setIsPhoneOtpSending] = useState(false);
   const [isPhoneOtpSent, setIsPhoneOtpSent] = useState(false);
@@ -222,8 +221,19 @@ export default function AuthScreen({ onLoginSuccess }) {
   });
 
   const googleButtonRef = useRef(null);
-  const banksList = ['ICICI Bank', 'SBI Bank', 'HDFC Bank', 'Axis Bank', 'Bank of Baroda', 'Kotak Mahindra'];
-
+const banksList = [
+  'State Bank of India',
+  'HDFC Bank',
+  'ICICI Bank',
+  'Axis Bank',
+  'Bank of Baroda',
+  'Kotak Mahindra Bank',
+  'Punjab National Bank',
+  'Canara Bank',
+  'Union Bank of India',
+  'IndusInd Bank',
+  'IDFC FIRST Bank'
+];
   // Save Google Account to device store
   const persistGoogleAccount = (acc) => {
     if (!acc || !acc.email) return;
@@ -531,9 +541,9 @@ const isPhoneAlreadyRegistered = (targetPhone) => {
           role,
           name: role === 'CUSTOMER' ? cleanEmail.split('@')[0] || 'Customer' : 'Bank Risk Officer',
           email: cleanEmail,
-          phone: '+91 98765 43210',
-          upi_id: `${cleanEmail.split('@')[0].replace(/[^a-zA-Z0-9]/g, '')}@okicici`,
-          bank_name: bankName || 'ICICI Bank',
+         phone: phone || '',
+upi_id: upiId || '',
+bank_name: bankName || '',
           employee_id: role === 'BANK_ADMIN' ? employeeId || 'EMP-9942' : null,
           branch: role === 'BANK_ADMIN' ? branchLocation : null,
           auth_provider: 'DIRECT_LOGIN'
@@ -634,13 +644,9 @@ const handleVerifyOtp = (e) => {
               ? email.split('@')[0] || 'Customer'
               : 'Bank Risk Officer'),
           email: cleanEmail,
-          phone: phone || '+91 98765 43210',
-          upi_id:
-            upiId ||
-            `${email
-              .split('@')[0]
-              .replace(/[^a-zA-Z0-9]/g, '')}@okicici`,
-          bank_name: bankName,
+         phone: phone || '',
+upi_id: upiId || '',
+bank_name: bankName || '',
           employee_id:
             role === 'BANK_ADMIN'
               ? employeeId || 'EMP-9942'
@@ -701,9 +707,9 @@ const completeGoogleLogin = ({
       role: activeRole,
       name: computedName || existingProfile.name,
       picture: userPic || existingProfile.picture || null,
-      phone: phone || existingProfile.phone,
-      upi_id: upiId || existingProfile.upi_id || cleanUpi,
-      bank_name: bankName || existingProfile.bank_name || 'ICICI Bank',
+    phone: phone || existingProfile.phone || '',
+upi_id: upiId || existingProfile.upi_id || '',
+bank_name: bankName || existingProfile.bank_name || '',
 
       current_device:
         navigator.userAgent.includes('Windows')
@@ -721,9 +727,9 @@ const completeGoogleLogin = ({
       name: computedName,
       email: cleanEmail,
       picture: userPic || null,
-      phone: phone || '+91 98765 43210',
-      upi_id: upiId || cleanUpi,
-      bank_name: bankName || 'ICICI Bank',
+     phone: phone || '',
+upi_id: upiId || '',
+bank_name: bankName || '',
       employee_id:
         activeRole === 'BANK_ADMIN'
           ? employeeId || 'EMP-9942'
@@ -1140,7 +1146,7 @@ const completeGoogleLogin = ({
                               setPhone(e.target.value);
                               if (isPhoneVerified) setIsPhoneVerified(false);
                             }}
-                            placeholder="+91 98765 43210"
+                           placeholder="Enter your 10-digit bank-registered mobile number"
                             required
                           />
                           {!isPhoneVerified && (
@@ -1256,17 +1262,26 @@ const completeGoogleLogin = ({
 
                       <div className="input-group">
                         <label className="input-label">Associated Bank</label>
-                        <select
-                          className="input-field"
-                          value={bankName}
-                          onChange={(e) => setBankName(e.target.value)}
-                        >
-                          {banksList.map((b) => (
-                            <option key={b} value={b} style={{ background: 'var(--surf)', color: 'var(--text)' }}>
-                              {b}
-                            </option>
-                          ))}
-                        </select>
+                       <select
+  className="input-field"
+  value={bankName}
+  onChange={(e) => setBankName(e.target.value)}
+  required
+>
+  <option value="" disabled>
+    Select your primary bank
+  </option>
+
+  {banksList.map((b) => (
+    <option
+      key={b}
+      value={b}
+      style={{ background: 'var(--surf)', color: 'var(--text)' }}
+    >
+      {b}
+    </option>
+  ))}
+</select>
                       </div>
                     </>
                   ) : (
