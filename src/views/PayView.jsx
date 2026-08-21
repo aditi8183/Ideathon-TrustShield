@@ -1,5 +1,32 @@
-import React, { useState, useEffect } from 'react';
-import { Send, ShieldAlert, AlertOctagon, CheckCircle2, QrCode, Camera, AlertTriangle, ArrowRight, Sparkles, X, UserCheck, Smartphone, Clock, Copy, ShieldCheck, HelpCircle, FileCheck2, Bell, Users } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import {
+  Send,
+  ShieldAlert,
+  AlertOctagon,
+  CheckCircle2,
+  QrCode,
+  Camera,
+  AlertTriangle,
+  ArrowRight,
+  Sparkles,
+  X,
+  UserCheck,
+  Smartphone,
+  Clock,
+  Copy,
+  ShieldCheck,
+  HelpCircle,
+  FileCheck2,
+  Bell,
+  Users,
+  Building2,
+  Landmark,
+  CreditCard,
+  Upload,
+  RefreshCw,
+  Zap
+} from 'lucide-react';
+import jsQR from 'jsqr';
 import PINModal from '../components/PINModal';
 import { sendNomineeScamAlert } from '../utils/smsService';
 
@@ -13,7 +40,6 @@ export default function PayView({
   onUpdatePaymentDraft,
   onClearPaymentDraft
 }) {
-  // Safe user fallback defaults
   const safeUser = user || {
     id: 'u042',
     name: 'Aditi Sharma',
@@ -25,16 +51,34 @@ export default function PayView({
     is_new_device: true
   };
 
+  const [payMode, setPayMode] = useState('UPI');
   const [recipientUpi, setRecipientUpi] = useState(paymentDraft?.recipientUpi || '');
   const [amount, setAmount] = useState(paymentDraft?.amount || '');
   const [note, setNote] = useState(paymentDraft?.note || '');
 
-  // Behavioral & Device Coercion signals
+  const [accountNo, setAccountNo] = useState('');
+  const [confirmAccountNo, setConfirmAccountNo] = useState('');
+  const [ifscCode, setIfscCode] = useState('');
+  const [beneficiaryName, setBeneficiaryName] = useState('');
+  const [transferType, setTransferType] = useState('IMPS');
+
+  const [selectedBank, setSelectedBank] = useState('State Bank of India');
+  const [netbankingId, setNetbankingId] = useState('');
+
   const [isPasted, setIsPasted] = useState(paymentDraft?.isPasted || false);
   const [isOddHour, setIsOddHour] = useState(false);
   const [validationError, setValidationError] = useState('');
 
-  // Keep state synchronized with persistent paymentDraft prop
+  const frequentPayees = [
+    { name: 'Papa', upi: 'rajesh.sharma@okicici', relation: 'Father', initial: 'P', color: '#6366f1' },
+    { name: 'Sister', upi: 'pooja.sharma@paytm', relation: 'Sister', initial: 'S', color: '#ec4899' },
+    { name: 'Starbucks Coffee', upi: 'starbucks.coffee@icici', relation: 'Merchant', initial: '☕', color: '#10b981' },
+    { name: 'Ramesh Supermarket', upi: 'ramesh.store@upi', relation: 'Vendor', initial: '🛒', color: '#f59e0b' },
+    { name: 'House Rent', upi: 'landlord.rent@hdfc', relation: 'Rent', initial: '🏠', color: '#8b5cf6' }
+  ];
+
+  const quickAmounts = [100, 500, 1000, 2000, 5000, 10000];
+
   useEffect(() => {
     if (paymentDraft) {
       if (paymentDraft.recipientUpi !== undefined && paymentDraft.recipientUpi !== recipientUpi) {
@@ -52,27 +96,25 @@ export default function PayView({
     }
   }, [paymentDraft]);
 
-  // Risk Analysis Output States
   const [riskScore, setRiskScore] = useState(0);
   const [riskFactors, setRiskFactors] = useState([]);
-  const [coerciveSignals, setCoerciveSignals] = useState([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
 
-  // Modal Visibility States
   const [isBlockedModalOpen, setIsBlockedModalOpen] = useState(false);
   const [isUrgentWarningOpen, setIsUrgentWarningOpen] = useState(false);
   const [isPinModalOpen, setIsPinModalOpen] = useState(false);
+
   const [isQrScannerOpen, setIsQrScannerOpen] = useState(false);
-  const [isScanningQr, setIsScanningQr] = useState(false);
+  const [isCameraActive, setIsCameraActive] = useState(false);
+  const [scannerError, setScannerError] = useState('');
+  const videoRef = useRef(null);
+  const canvasRef = useRef(null);
+  const animFrameRef = useRef(null);
+  const streamRef = useRef(null);
 
-  // Successful Payment Receipt Modal State
   const [completedTxnReceipt, setCompletedTxnReceipt] = useState(null);
-
-  // False Positive Override Request State
   const [userOverrideNote, setUserOverrideNote] = useState('');
   const [isOverrideSubmitted, setIsOverrideSubmitted] = useState(false);
-
-  // Nominee Alert State
   const [isNomineeAlertSent, setIsNomineeAlertSent] = useState(false);
   const [isSendingNomineeAlert, setIsSendingNomineeAlert] = useState(false);
 
@@ -83,9 +125,9 @@ export default function PayView({
         nomineeName: safeUser?.trusted_nominee?.name || 'Family Guardian',
         nomineePhone: safeUser?.trusted_nominee?.phone || '+91 98765 43210',
         userName: safeUser?.name || 'User',
-        scamCategory: riskFactors[0]?.label || 'High-Risk UPI Transaction',
+        scamCategory: riskFactors[0]?.label || 'High-Risk Transaction',
         blockedAmount: amount || 0,
-        recipientUpi: recipientUpi || 'fraudster@upi',
+        recipientUpi: getTargetDestinationString(),
         riskScore: riskScore || 95
       });
       setIsNomineeAlertSent(true);
@@ -98,10 +140,118 @@ export default function PayView({
   };
 
   useEffect(() => {
-    // Check current hour for odd-hour transaction warning (10 PM to 6 AM)
     const currentHour = new Date().getHours();
     setIsOddHour(currentHour >= 22 || currentHour < 6);
   }, []);
+
+  const startQrScanner = async () => {
+    setIsQrScannerOpen(true);
+    setScannerError('');
+    setIsCameraActive(false);
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment' }
+      });
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        videoRef.current.setAttribute('playsinline', 'true');
+        videoRef.current.play();
+        setIsCameraActive(true);
+        animFrameRef.current = requestAnimationFrame(tickScan);
+      }
+    } catch (err) {
+      console.warn('Camera stream error:', err);
+      setScannerError('Camera stream unavailable. You can upload a QR image/screenshot below.');
+    }
+  };
+
+  const tickScan = () => {
+    if (videoRef.current && videoRef.current.readyState === videoRef.current.HAVE_ENOUGH_DATA) {
+      const video = videoRef.current;
+      const canvas = canvasRef.current || document.createElement('canvas');
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const code = jsQR(imageData.data, imageData.width, imageData.height, {
+        inversionAttempts: 'dontInvert'
+      });
+
+      if (code && code.data) {
+        stopQrScanner();
+        parseAndApplyUpiQr(code.data);
+        return;
+      }
+    }
+    animFrameRef.current = requestAnimationFrame(tickScan);
+  };
+
+  const stopQrScanner = () => {
+    if (animFrameRef.current) {
+      cancelAnimationFrame(animFrameRef.current);
+    }
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(t => t.stop());
+      streamRef.current = null;
+    }
+    setIsCameraActive(false);
+    setIsQrScannerOpen(false);
+  };
+
+  const handleQrImageUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0);
+        const imageData = ctx.getImageData(0, 0, img.width, img.height);
+        const code = jsQR(imageData.data, imageData.width, imageData.height);
+        if (code && code.data) {
+          stopQrScanner();
+          parseAndApplyUpiQr(code.data);
+        } else {
+          setScannerError('Could not decode a valid UPI QR code from the uploaded image.');
+        }
+      };
+      img.src = event.result;
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const parseAndApplyUpiQr = (qrString) => {
+    setPayMode('UPI');
+    if (qrString.startsWith('upi://pay')) {
+      try {
+        const url = new URL(qrString);
+        const pa = url.searchParams.get('pa') || '';
+        const am = url.searchParams.get('am') || '';
+        const tn = url.searchParams.get('tn') || '';
+        if (pa) setRecipientUpi(pa);
+        if (am) setAmount(am);
+        if (tn) setNote(tn);
+      } catch (err) {
+        const paMatch = qrString.match(/pa=([^&]+)/);
+        const amMatch = qrString.match(/am=([^&]+)/);
+        const tnMatch = qrString.match(/tn=([^&]+)/);
+        if (paMatch) setRecipientUpi(paMatch[1]);
+        if (amMatch) setAmount(amMatch[1]);
+        if (tnMatch) setNote(decodeURIComponent(tnMatch[1]));
+      }
+    } else if (qrString.includes('@')) {
+      setRecipientUpi(qrString.trim());
+    } else {
+      setRecipientUpi(qrString.trim());
+    }
+  };
 
   const handleUpiChange = (e) => {
     const val = e.target.value;
@@ -140,6 +290,11 @@ export default function PayView({
     setRecipientUpi('');
     setAmount('');
     setNote('');
+    setAccountNo('');
+    setConfirmAccountNo('');
+    setIfscCode('');
+    setBeneficiaryName('');
+    setNetbankingId('');
     setIsPasted(false);
     setValidationError('');
     setRiskScore(0);
@@ -149,44 +304,56 @@ export default function PayView({
     }
   };
 
-  // Quick Payee Selectors
   const fillQuickPayee = (upi, amt, payNote, pasted = false) => {
+    setPayMode('UPI');
     setRecipientUpi(upi);
-    setAmount(String(amt));
-    setNote(payNote);
+    if (amt) setAmount(String(amt));
+    if (payNote) setNote(payNote);
     setIsPasted(pasted);
     if (onUpdatePaymentDraft) {
-      onUpdatePaymentDraft({ recipientUpi: upi, amount: String(amt), note: payNote, isPasted: pasted });
+      onUpdatePaymentDraft({ recipientUpi: upi, amount: amt ? String(amt) : amount, note: payNote || note, isPasted: pasted });
     }
     setValidationError('');
   };
 
-  // QR Code Scanner Simulation
-  const handleScanQrCode = () => {
-    setIsQrScannerOpen(true);
-    setIsScanningQr(true);
-
-    setTimeout(() => {
-      setIsScanningQr(false);
-      fillQuickPayee('starbucks.coffee@icici', 450, 'Coffee & Snacks Scan', false);
-      setTimeout(() => {
-        setIsQrScannerOpen(false);
-      }, 800);
-    }, 1500);
+  const getTargetDestinationString = () => {
+    if (payMode === 'UPI') return recipientUpi || 'merchant@upi';
+    if (payMode === 'BANK_ACCOUNT') return `A/C ${accountNo} (${ifscCode.toUpperCase() || 'IFSC'})`;
+    return `${selectedBank} NetBanking (${netbankingId || 'User Direct'})`;
   };
 
-  // Run Zero-Knowledge AI Risk & Coercion Engine
   const runRiskAnalysis = () => {
-    if (!recipientUpi.trim()) {
-      setValidationError('Please enter a Recipient UPI ID or tap a Quick Payee.');
-      return;
+    if (payMode === 'UPI') {
+      if (!recipientUpi.trim()) {
+        setValidationError('Please enter a Recipient UPI ID or select a Frequent Payee.');
+        return;
+      }
+      if (!recipientUpi.includes('@')) {
+        setValidationError('Please enter a valid UPI ID (e.g. name@upi or phonepe/gpay).');
+        return;
+      }
+    } else if (payMode === 'BANK_ACCOUNT') {
+      if (!accountNo.trim() || accountNo.length < 9) {
+        setValidationError('Please enter a valid Bank Account Number (minimum 9 digits).');
+        return;
+      }
+      if (accountNo !== confirmAccountNo) {
+        setValidationError('Account Number and Confirm Account Number do not match.');
+        return;
+      }
+      if (!ifscCode.trim() || ifscCode.length < 11) {
+        setValidationError('Please enter a valid 11-character Bank IFSC Code (e.g. SBIN0001234).');
+        return;
+      }
+    } else if (payMode === 'NETBANKING') {
+      if (!netbankingId.trim()) {
+        setValidationError('Please enter your Customer ID or NetBanking User ID.');
+        return;
+      }
     }
-    if (!recipientUpi.includes('@')) {
-      setValidationError('Please enter a valid UPI ID (e.g. name@upi or phonepe/gpay).');
-      return;
-    }
+
     if (!amount || parseFloat(amount) <= 0) {
-      setValidationError('Please enter a valid amount in ₹.');
+      setValidationError('Please enter a valid payment amount in ₹.');
       return;
     }
 
@@ -197,60 +364,52 @@ export default function PayView({
     setTimeout(() => {
       let score = 0;
       const factors = [];
-      const cSignals = [];
-      const amtNum = parseFloat(amount) || 0;
-      const userAvg = safeUser.avg_transaction_amount || 2500;
+      const targetDest = getTargetDestinationString().toLowerCase();
+      const amtNum = parseFloat(amount);
+      const avgAmt = safeUser.avg_transaction_amount || 2500;
 
-      // 1. Live Call Coercion Pattern (Vishing Call Active)
-      if (detectedScamCall && detectedScamCall.category) {
-        const cat = detectedScamCall.category;
-        score += 50;
-        cSignals.push('Live Active Call');
+      const scamMatch = scamList.find(s =>
+        (s.keyword && targetDest.includes(s.keyword.toLowerCase())) ||
+        (s.category && targetDest.includes(s.category.toLowerCase())) ||
+        (s.bank_name && targetDest.includes(s.bank_name.toLowerCase()))
+      );
+
+      if (scamMatch || targetDest.includes('fraud') || targetDest.includes('trai') || targetDest.includes('customs') || targetDest.includes('lottery')) {
+        score += 65;
         factors.push({
-          id: 'voice_scam_category',
-          label: `Coercive Voice Call Active: ${cat.name || 'Phishing Scam'}`,
-          labelHindi: `सक्रिय वॉयस कॉल दबाव: ${cat.nameHindi || 'धोखाधड़ी चेतावनी'}`,
+          id: 'blacklisted_destination',
+          label: `Blacklisted Account Match: ${scamMatch?.category || 'High Risk Cyber Fraud Entity'}`,
+          labelHindi: `ब्लैकलिस्टेड साइबर धोखाधड़ी खाता मिला`,
+          severity: 'danger',
+          score: 65
+        });
+      }
+
+      if (detectedScamCall && detectedScamCall.category) {
+        score += 50;
+        factors.push({
+          id: 'voice_coercion',
+          label: `Live Voice Call Coercion: ${detectedScamCall.category.name || 'Digital Arrest Coercion'}`,
+          labelHindi: `लाइव वॉयस कॉल दबाव की चेतावनी`,
           severity: 'danger',
           score: 50
         });
       }
 
-      // 2. Blacklist Check against community fraud DB
-      const safeScamList = scamList || [];
-      const isBlacklisted = safeScamList.some(s =>
-        (s.upi_ids || []).some(u => u.toLowerCase() === recipientUpi.toLowerCase())
-      ) || recipientUpi.toLowerCase().includes('fraud') || recipientUpi.toLowerCase().includes('trai');
-
-      if (isBlacklisted) {
-        score += 55;
-        cSignals.push('Blacklisted Fraud Payee');
-        factors.push({
-          id: 'blacklisted_upi',
-          label: 'Matches community fraud database',
-          labelHindi: 'सक्रिय धोखाधड़ी UPI डेटाबेस से मेल खाता है',
-          severity: 'danger',
-          score: 55
-        });
-      }
-
-      // 3. Amount Anomaly & Coercive Spike Signal
-      const isHighAmount = amtNum > 50000 || amtNum > (userAvg * 5);
-      if (isHighAmount) {
+      if (amtNum > avgAmt * 3) {
+        const multiplier = (amtNum / avgAmt).toFixed(1);
         score += 25;
-        cSignals.push('Amount Spike Escalation');
         factors.push({
-          id: 'amount_anomaly',
-          label: `Coercive Amount Spike (₹${amtNum.toLocaleString('en-IN')} vs avg ₹${userAvg})`,
-          labelHindi: `असामान्य रूप से बड़ी राशि (औसत ₹${userAvg} से अधिक)`,
-          severity: 'danger',
+          id: 'amount_spike',
+          label: `Abnormal Payment Amount: ${multiplier}x higher than your average transfer (₹${avgAmt.toLocaleString('en-IN')})`,
+          labelHindi: `असामान्य रूप से बड़ी राशि (आपकी औसत से ${multiplier}x अधिक)`,
+          severity: 'warn',
           score: 25
         });
       }
 
-      // 4. Device Fingerprint Change Signal
       if (safeUser.is_new_device) {
         score += 15;
-        cSignals.push('New Device Anomaly');
         factors.push({
           id: 'new_device',
           label: `Device Change Detected: ${safeUser.current_device || 'Unrecognized Device'}`,
@@ -260,36 +419,19 @@ export default function PayView({
         });
       }
 
-      // 5. Interaction Clipboard Pattern (Pasted UPI)
       if (isPasted) {
         score += 15;
-        cSignals.push('Clipboard Paste Interaction');
         factors.push({
-          id: 'pasted_upi',
-          label: 'UPI ID pasted from clipboard — possible copy-paste coercion',
-          labelHindi: 'UPI ID क्लिपबोर्ड से पेस्ट की गई — पहचान की जांच करें',
+          id: 'pasted_destination',
+          label: 'Payment address pasted from clipboard — possible copy-paste coercion',
+          labelHindi: 'भुगतान विवरण क्लिपबोर्ड से पेस्ट किया गया',
           severity: 'warn',
           score: 15
         });
       }
 
-      // 6. First-time Transfer Warning
-      if (recipientUpi && !recipientUpi.includes('aditi')) {
-        score += 10;
-        cSignals.push('First-Time Transfer');
-        factors.push({
-          id: 'first_time_payee',
-          label: 'First-time transfer to this recipient',
-          labelHindi: 'इस पते पर पहला लेनदेन',
-          severity: 'info',
-          score: 10
-        });
-      }
-
-      // 7. Late Night Panic Hours
       if (isOddHour) {
         score += 10;
-        cSignals.push('Late Night Hours');
         factors.push({
           id: 'odd_hours',
           label: 'Late night transaction attempt (10 PM - 6 AM)',
@@ -302,42 +444,37 @@ export default function PayView({
       const finalScore = Math.min(100, score);
       setRiskScore(finalScore);
       setRiskFactors(factors);
-      setCoerciveSignals(cSignals);
       setIsAnalyzing(false);
 
       if (finalScore >= 70) {
-        // High Risk: Block Payment & Show Full Risk Explanation Modal
         setIsBlockedModalOpen(true);
         if (onPaymentBlocked) {
           onPaymentBlocked({
             amount: amtNum,
-            recipient_upi: recipientUpi,
+            recipient_upi: targetDest,
             risk_score: finalScore,
             blocked_reason: factors.map(f => f.label).join(' + ')
           });
         }
       } else if (finalScore >= 40) {
-        // Moderate Risk: Show Security Warning Confirmation Modal
         setIsUrgentWarningOpen(true);
       } else {
-        // Safe: Open Interactive PIN Modal
         setIsPinModalOpen(true);
       }
     }, 600);
   };
 
-  // Safe Payment Successful PIN Handler
   const handlePinSuccess = () => {
     setIsPinModalOpen(false);
     const amtNum = parseFloat(amount) || 0;
-    const payeeUpi = recipientUpi || 'merchant@upi';
+    const dest = getTargetDestinationString();
     const payNote = note || 'Verified Safe Payment';
     const txnId = `TS-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
 
     setCompletedTxnReceipt({
       txnId,
       amount: amtNum,
-      recipientUpi: payeeUpi,
+      recipientUpi: dest,
       note: payNote,
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       date: new Date().toLocaleDateString()
@@ -346,86 +483,21 @@ export default function PayView({
     if (onPaymentSuccess) {
       onPaymentSuccess(amtNum);
     }
-
     handleResetDraft();
   };
 
-  // Submit False Positive Request to Bank Risk Officer Console
   const handleSubmitFalsePositive = () => {
     if (!userOverrideNote.trim()) return;
     setIsOverrideSubmitted(true);
   };
 
-  const getRiskColor = (score) => {
-    if (score >= 70) return 'var(--danger-light)';
-    if (score >= 40) return 'var(--warn-light)';
-    return 'var(--safe-light)';
-  };
-
   return (
     <div style={{ padding: 16 }}>
-      {/* Device Fingerprint Security Badge */}
-      <div style={{
-        background: 'rgba(255, 255, 255, 0.03)',
-        border: '1px solid var(--border)',
-        borderRadius: 12,
-        padding: '8px 12px',
-        marginBottom: 14,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        fontSize: 11
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--sub)' }}>
-          <Smartphone size={14} color="var(--indigo-light)" />
-          <span>Device: <strong>{safeUser.current_device || 'Chrome on Windows'}</strong></span>
-        </div>
-        {safeUser.is_new_device && (
-          <span style={{
-            background: 'rgba(245, 158, 11, 0.15)',
-            color: 'var(--warn-light)',
-            border: '1px solid rgba(245, 158, 11, 0.3)',
-            padding: '2px 6px',
-            borderRadius: 4,
-            fontWeight: 800
-          }}>
-            New Device Signal
-          </span>
-        )}
-      </div>
-
-      {/* Live Voice Phishing Banner Alert (If Active Call Flagged) */}
-      {detectedScamCall && detectedScamCall.category && (
-        <div style={{
-          background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgba(12, 18, 32, 0.95))',
-          border: '1px solid rgba(239, 68, 68, 0.4)',
-          borderRadius: 16,
-          padding: 12,
-          marginBottom: 16,
-          display: 'flex',
-          alignItems: 'center',
-          gap: 10
-        }}>
-          <AlertOctagon size={24} color="var(--danger-light)" style={{ flexShrink: 0 }} />
-          <div>
-            <div style={{ fontSize: 13, fontWeight: 900, color: 'var(--danger-light)' }}>
-              LIVE VOICE SCAM WARNING: {detectedScamCall.category.name || 'Vishing Call'}
-            </div>
-            <div style={{ fontSize: 11, color: 'var(--sub)' }}>
-              Speech engine flagged coercion terms. Any transfer will be blocked to protect your money.
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Main Payment Card */}
       <div className="glass-card">
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-          <h2 style={{ fontSize: 20, fontWeight: 900 }}>UPI Payment Scanner</h2>
-
-          {/* QR Code Scanner Button */}
+          <h2 style={{ fontSize: 19, fontWeight: 900, margin: 0 }}>Send Payment & Risk Shield</h2>
           <button
-            onClick={handleScanQrCode}
+            onClick={startQrScanner}
             style={{
               background: 'rgba(99, 102, 241, 0.15)',
               border: '1px solid rgba(99, 102, 241, 0.35)',
@@ -433,11 +505,12 @@ export default function PayView({
               borderRadius: 10,
               padding: '6px 12px',
               fontSize: 12,
-              fontWeight: 700,
+              fontWeight: 800,
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
-              gap: 6
+              gap: 6,
+              transition: 'all 0.2s ease'
             }}
           >
             <QrCode size={16} />
@@ -445,104 +518,223 @@ export default function PayView({
           </button>
         </div>
 
-        {/* Quick Payee Selection Bar */}
-        <div style={{ marginBottom: 14 }}>
-          <div style={{ fontSize: 11, color: 'var(--sub)', fontWeight: 700, marginBottom: 6 }}>
-            QUICK TAP DEMO PAYEES:
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: '1fr 1fr 1fr',
+          gap: 6,
+          background: 'var(--card-inner)',
+          padding: 4,
+          borderRadius: 14,
+          border: '1px solid var(--border)',
+          marginBottom: 16
+        }}>
+          <button
+            type="button"
+            onClick={() => setPayMode('UPI')}
+            style={{
+              padding: '8px 4px',
+              borderRadius: 10,
+              border: 'none',
+              background: payMode === 'UPI' ? 'var(--indigo)' : 'transparent',
+              color: payMode === 'UPI' ? '#fff' : 'var(--sub)',
+              fontSize: 11,
+              fontWeight: 800,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 4
+            }}
+          >
+            <Zap size={14} />
+            <span>UPI ID</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setPayMode('BANK_ACCOUNT')}
+            style={{
+              padding: '8px 4px',
+              borderRadius: 10,
+              border: 'none',
+              background: payMode === 'BANK_ACCOUNT' ? 'var(--indigo)' : 'transparent',
+              color: payMode === 'BANK_ACCOUNT' ? '#fff' : 'var(--sub)',
+              fontSize: 11,
+              fontWeight: 800,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 4
+            }}
+          >
+            <Landmark size={14} />
+            <span>Bank A/C</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setPayMode('NETBANKING')}
+            style={{
+              padding: '8px 4px',
+              borderRadius: 10,
+              border: 'none',
+              background: payMode === 'NETBANKING' ? 'var(--indigo)' : 'transparent',
+              color: payMode === 'NETBANKING' ? '#fff' : 'var(--sub)',
+              fontSize: 11,
+              fontWeight: 800,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 4
+            }}
+          >
+            <Building2 size={14} />
+            <span>NetBanking</span>
+          </button>
+        </div>
+
+        {payMode === 'UPI' && (
+          <>
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ fontSize: 11, color: 'var(--sub)', fontWeight: 800, marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                Quick Send
+              </div>
+              <div style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingBottom: 6, scrollbarWidth: 'none' }}>
+                {frequentPayees.map((payee, idx) => (
+                  <div
+                    key={idx}
+                    onClick={() => fillQuickPayee(payee.upi, 0, `${payee.name} Payment`, false)}
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      gap: 6,
+                      cursor: 'pointer',
+                      minWidth: 64
+                    }}
+                  >
+                    <div style={{
+                      width: 48,
+                      height: 48,
+                      borderRadius: '50%',
+                      background: payee.color,
+                      color: '#fff',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: 18,
+                      fontWeight: 900,
+                      border: '2px solid rgba(255, 255, 255, 0.15)'
+                    }}>
+                      {payee.initial}
+                    </div>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text)' }}>{payee.name}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="input-group">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                <label className="input-label" style={{ margin: 0 }}>Recipient UPI ID</label>
+                <button
+                  type="button"
+                  onClick={handleUpiPaste}
+                  style={{ background: 'none', border: 'none', color: 'var(--indigo-light)', fontSize: 11, fontWeight: 800, cursor: 'pointer' }}
+                >
+                  <Copy size={12} /> Paste Clipboard
+                </button>
+              </div>
+              <input
+                type="text"
+                className="input-field mono"
+                value={recipientUpi}
+                onChange={handleUpiChange}
+                placeholder="name@upi or phone number"
+                required
+              />
+            </div>
+          </>
+        )}
+
+        {payMode === 'BANK_ACCOUNT' && (
+          <div style={{ marginBottom: 16 }}>
+            <div className="input-group">
+              <label className="input-label">Beneficiary Account Number</label>
+              <input type="text" className="input-field mono" value={accountNo} onChange={(e) => setAccountNo(e.target.value)} placeholder="e.g. 5010029481923" />
+            </div>
+            <div className="input-group">
+              <label className="input-label">Confirm Beneficiary Account Number</label>
+              <input type="password" className="input-field mono" value={confirmAccountNo} onChange={(e) => setConfirmAccountNo(e.target.value)} placeholder="Re-enter" />
+            </div>
+            <div className="input-group">
+              <label className="input-label">Bank IFSC Code</label>
+              <input type="text" className="input-field mono" value={ifscCode} onChange={(e) => setIfscCode(e.target.value.toUpperCase())} placeholder="e.g. SBIN0001234" maxLength={11} />
+            </div>
           </div>
+        )}
+
+        {payMode === 'NETBANKING' && (
+          <div style={{ marginBottom: 16 }}>
+            <div className="input-group">
+              <label className="input-label">Select Your Bank</label>
+              <select className="input-field" value={selectedBank} onChange={(e) => setSelectedBank(e.target.value)}>
+                <option value="State Bank of India">State Bank of India</option>
+                <option value="HDFC Bank">HDFC Bank</option>
+                <option value="ICICI Bank">ICICI Bank</option>
+              </select>
+            </div>
+            <div className="input-group">
+              <label className="input-label">User ID</label>
+              <input type="text" className="input-field mono" value={netbankingId} onChange={(e) => setNetbankingId(e.target.value)} />
+            </div>
+          </div>
+        )}
+
+        {/* Quick Amount Selector Chips */}
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ fontSize: 11, color: 'var(--sub)', fontWeight: 700, marginBottom: 6 }}>QUICK SELECT AMOUNT:</div>
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-            <button
-              onClick={() => fillQuickPayee('starbucks.coffee@icici', 350, 'Coffee Payment', false)}
-              style={{
-                background: 'rgba(16, 185, 129, 0.1)',
-                border: '1px solid rgba(16, 185, 129, 0.25)',
-                color: 'var(--safe-light)',
-                borderRadius: 20,
-                padding: '4px 10px',
-                fontSize: 11,
-                fontWeight: 700,
-                cursor: 'pointer'
-              }}
-            >
-              ☕ Cafe Coffee (Safe)
-            </button>
-
-            <button
-              onClick={() => fillQuickPayee('landlord.rent@hdfc', 15000, 'House Rent', false)}
-              style={{
-                background: 'rgba(99, 102, 241, 0.1)',
-                border: '1px solid rgba(99, 102, 241, 0.25)',
-                color: 'var(--indigo-light)',
-                borderRadius: 20,
-                padding: '4px 10px',
-                fontSize: 11,
-                fontWeight: 700,
-                cursor: 'pointer'
-              }}
-            >
-              🏠 Rent Transfer (Safe)
-            </button>
-
-            <button
-              onClick={() => fillQuickPayee('trai.verify@fraudster', 18500, 'Customs Fee Clearance', true)}
-              style={{
-                background: 'rgba(239, 68, 68, 0.12)',
-                border: '1px solid rgba(239, 68, 68, 0.3)',
-                color: 'var(--danger-light)',
-                borderRadius: 20,
-                padding: '4px 10px',
-                fontSize: 11,
-                fontWeight: 700,
-                cursor: 'pointer'
-              }}
-            >
-              🚨 TRAI Scam (Fraud)
-            </button>
+            {quickAmounts.map((amtVal) => (
+              <button
+                key={amtVal}
+                type="button"
+                onClick={() => {
+                  setAmount(String(amtVal));
+                  if (validationError) setValidationError('');
+                }}
+                style={{
+                  background: amount === String(amtVal) ? 'var(--indigo)' : 'rgba(255, 255, 255, 0.05)',
+                  border: `1px solid ${amount === String(amtVal) ? 'var(--indigo-light)' : 'var(--border)'}`,
+                  color: amount === String(amtVal) ? '#fff' : 'var(--sub)',
+                  borderRadius: 16,
+                  padding: '4px 10px',
+                  fontSize: 11,
+                  fontWeight: 800,
+                  cursor: 'pointer'
+                }}
+              >
+                ₹{amtVal.toLocaleString('en-IN')}
+              </button>
+            ))}
           </div>
         </div>
 
-        {/* Input Form */}
+        {/* Amount Input */}
         <div className="input-group">
-          <label className="input-label">Recipient UPI ID</label>
-          <div style={{ position: 'relative' }}>
-            <input
-              type="text"
-              className="input-field mono"
-              value={recipientUpi}
-              onChange={handleUpiChange}
-              onPaste={handleUpiPaste}
-              placeholder="name@upi / phonepe / gpay"
-            />
-            {isPasted && (
-              <span style={{
-                position: 'absolute',
-                right: 10,
-                top: 10,
-                fontSize: 10,
-                fontWeight: 800,
-                color: 'var(--warn-light)',
-                background: 'rgba(245, 158, 11, 0.15)',
-                padding: '2px 6px',
-                borderRadius: 4
-              }}>
-                PASTED
-              </span>
-            )}
-          </div>
-        </div>
-
-        <div className="input-group">
-          <label className="input-label">Amount (₹)</label>
+          <label className="input-label">Transfer Amount (₹ INR)</label>
           <input
             type="number"
             className="input-field mono"
             value={amount}
             onChange={handleAmountChange}
-            placeholder="0.00"
-            style={{ fontSize: 18, fontWeight: 800 }}
+            placeholder="e.g. 2500"
+            style={{ fontSize: 18, fontWeight: 900, color: 'var(--indigo-light)' }}
+            required
           />
         </div>
 
+        {/* Note / Purpose Input */}
         <div className="input-group">
           <label className="input-label">Payment Note (Optional)</label>
           <input
@@ -550,61 +742,65 @@ export default function PayView({
             className="input-field"
             value={note}
             onChange={handleNoteChange}
-            placeholder="e.g. Rent, Clearance Fee, Shopping"
+            placeholder="e.g. Dinner split, Coffee, or Bill payment"
           />
         </div>
 
+        {/* Validation Error Banner */}
         {validationError && (
           <div style={{
-            background: 'rgba(239, 68, 68, 0.12)',
-            border: '1px solid rgba(239, 68, 68, 0.3)',
+            background: 'rgba(239, 68, 68, 0.15)',
+            border: '1px solid rgba(239, 68, 68, 0.4)',
             color: 'var(--danger-light)',
-            padding: 10,
+            padding: '10px 14px',
             borderRadius: 10,
             fontSize: 12,
             fontWeight: 700,
-            marginBottom: 12
+            marginBottom: 16
           }}>
             ⚠️ {validationError}
           </div>
         )}
 
-        <div style={{ display: 'flex', gap: 10 }}>
-          <button
-            className="btn-primary"
-            onClick={runRiskAnalysis}
-            disabled={isAnalyzing}
-            style={{ flex: 1, marginTop: 8 }}
-          >
-            {isAnalyzing ? (
-              <span>Analyzing Zero-Knowledge Risk & Coercion Signals...</span>
-            ) : (
-              <>
-                <Send size={18} />
-                <span>Scan & Pay ₹{amount || '0'}</span>
-              </>
-            )}
-          </button>
-
-          {(recipientUpi || amount || note) && (
-            <button
-              onClick={handleResetDraft}
-              style={{
-                background: 'rgba(255, 255, 255, 0.05)',
-                border: '1px solid var(--border)',
-                color: 'var(--sub)',
-                fontSize: 11,
-                fontWeight: 700,
-                padding: '6px 12px',
-                borderRadius: 10,
-                marginTop: 8,
-                cursor: 'pointer'
-              }}
-            >
-              Clear Form
-            </button>
+        {/* Primary Action Button: Run Risk Engine & Proceed */}
+        <button
+          className="btn-primary"
+          onClick={runRiskAnalysis}
+          disabled={isAnalyzing}
+          style={{ width: '100%', fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+        >
+          {isAnalyzing ? (
+            <>
+              <RefreshCw size={18} className="spin" />
+              <span>Analyzing AI Risk Signals...</span>
+            </>
+          ) : (
+            <>
+              <Send size={18} />
+              <span>Proceed to Risk Scan & Transfer</span>
+            </>
           )}
-        </div>
+        </button>
+
+        {(recipientUpi || amount || note || accountNo || netbankingId) && (
+          <button
+            onClick={handleResetDraft}
+            style={{
+              background: 'rgba(255, 255, 255, 0.05)',
+              border: '1px solid var(--border)',
+              color: 'var(--sub)',
+              fontSize: 11,
+              fontWeight: 700,
+              padding: '6px 12px',
+              borderRadius: 10,
+              marginTop: 10,
+              cursor: 'pointer',
+              width: '100%'
+            }}
+          >
+            Clear Form
+          </button>
+        )}
       </div>
 
       {/* Live AI Risk & Behavioral Signals Output */}
