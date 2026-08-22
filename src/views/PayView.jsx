@@ -655,7 +655,7 @@ export default function PayView({
 
           {/* QR Code Scanner Button */}
           <button
-            onClick={startQrScanner}
+            onClick={handleScanQrCode}
             style={{
               background: 'rgba(99, 102, 241, 0.2)',
               border: '1px solid rgba(99, 102, 241, 0.4)',
@@ -1260,7 +1260,11 @@ export default function PayView({
                 className="btn-primary"
                 onClick={() => {
                   setIsUrgentWarningOpen(false);
-                  setIsPinModalOpen(true);
+                  if (paymentMethod === 'ONLINE') {
+                    setIsUpiModalOpen(true);
+                  } else {
+                    setIsPinModalOpen(true);
+                  }
                 }}
                 style={{ background: 'var(--indigo)' }}
               >
