@@ -219,115 +219,6 @@ export default function PayView({
     setIsOddHour(currentHour >= 22 || currentHour < 6);
   }, []);
 
-  const startQrScanner = async () => {
-    setIsQrScannerOpen(true);
-    setScannerError('');
-    setIsCameraActive(false);
-
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment' }
-      });
-      streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        videoRef.current.setAttribute('playsinline', 'true');
-        videoRef.current.play();
-        setIsCameraActive(true);
-        animFrameRef.current = requestAnimationFrame(tickScan);
-      }
-    } catch (err) {
-      console.warn('Camera stream error:', err);
-      setScannerError('Camera stream unavailable. You can upload a QR image/screenshot below.');
-    }
-  };
-
-  const tickScan = () => {
-    if (videoRef.current && videoRef.current.readyState === videoRef.current.HAVE_ENOUGH_DATA) {
-      const video = videoRef.current;
-      const canvas = canvasRef.current || document.createElement('canvas');
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      const code = jsQR(imageData.data, imageData.width, imageData.height, {
-        inversionAttempts: 'dontInvert'
-      });
-
-      if (code && code.data) {
-        stopQrScanner();
-        parseAndApplyUpiQr(code.data);
-        return;
-      }
-    }
-    animFrameRef.current = requestAnimationFrame(tickScan);
-  };
-
-  const stopQrScanner = () => {
-    if (animFrameRef.current) {
-      cancelAnimationFrame(animFrameRef.current);
-    }
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(t => t.stop());
-      streamRef.current = null;
-    }
-    setIsCameraActive(false);
-    setIsQrScannerOpen(false);
-  };
-
-  const handleQrImageUpload = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const img = new Image();
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        canvas.width = img.width;
-        canvas.height = img.height;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0);
-        const imageData = ctx.getImageData(0, 0, img.width, img.height);
-        const code = jsQR(imageData.data, imageData.width, imageData.height);
-        if (code && code.data) {
-          stopQrScanner();
-          parseAndApplyUpiQr(code.data);
-        } else {
-          setScannerError('Could not decode a valid UPI QR code from the uploaded image.');
-        }
-      };
-      img.src = event.target.result;
-    };
-    reader.readAsDataURL(file);
-  };
-
-  const parseAndApplyUpiQr = (qrString) => {
-    setPayMode('UPI');
-    if (qrString.startsWith('upi://pay')) {
-      try {
-        const url = new URL(qrString);
-        const pa = url.searchParams.get('pa') || '';
-        const am = url.searchParams.get('am') || '';
-        const tn = url.searchParams.get('tn') || '';
-        if (pa) setRecipientUpi(pa);
-        if (am) setAmount(am);
-        if (tn) setNote(tn);
-      } catch (err) {
-        const paMatch = qrString.match(/pa=([^&]+)/);
-        const amMatch = qrString.match(/am=([^&]+)/);
-        const tnMatch = qrString.match(/tn=([^&]+)/);
-        if (paMatch) setRecipientUpi(paMatch[1]);
-        if (amMatch) setAmount(amMatch[1]);
-        if (tnMatch) setNote(decodeURIComponent(tnMatch[1]));
-      }
-    } else if (qrString.includes('@')) {
-      setRecipientUpi(qrString.trim());
-    } else {
-      setRecipientUpi(qrString.trim());
-    }
-  };
-
   const handleUpiChange = (e) => {
     const val = e.target.value;
     setRecipientUpi(val);
@@ -546,7 +437,6 @@ export default function PayView({
       setScannerError('Could not decode QR from image. Please enter UPI details manually.');
     }
     e.target.value = '';
->>>>>>> bdb55e4 (fix(ui): upgrade live QR scanner, match home dashboard layout, remove quick payees, and set nominee placeholders)
   };
 
   const runRiskAnalysis = () => {
