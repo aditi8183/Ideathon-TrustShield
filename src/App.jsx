@@ -263,20 +263,41 @@ const handleTranscriptChange = (text) => {
     ...prev
   ]);
 };
- const handlePaymentSuccess = (amount) => {
-  clearPaymentDraft();
+  const handlePaymentSuccess = (amount, upi = null) => {
+    clearPaymentDraft();
 
-  setUser(prev => {
-    const newPoints = (Number(prev.guardian_points) || 0) + 25;
-    const newLevel = calculateLevel(newPoints);
+    setUser(prev => {
+      const newPoints = (Number(prev.guardian_points) || 0) + 25;
+      const newLevel = calculateLevel(newPoints);
+      
+      let updatedPayees = prev.frequent_payees ? [...prev.frequent_payees] : [];
+      if (upi) {
+        const existingIdx = updatedPayees.findIndex(p => p.upi === upi);
+        if (existingIdx !== -1) {
+          updatedPayees[existingIdx].count = (updatedPayees[existingIdx].count || 1) + 1;
+        } else {
+          // Generate an initial and color
+          const namePart = upi.split('@')[0];
+          const name = namePart.charAt(0).toUpperCase() + namePart.slice(1);
+          const initial = name.charAt(0).toUpperCase();
+          const colors = ['#10b981', '#6366f1', '#ec4899', '#f59e0b', '#8b5cf6'];
+          const color = colors[updatedPayees.length % colors.length];
+          updatedPayees.push({ name, upi, initial, color, count: 1 });
+        }
+        // Sort by count descending
+        updatedPayees.sort((a, b) => b.count - a.count);
+        // Keep top 4
+        updatedPayees = updatedPayees.slice(0, 4);
+      }
 
-    return {
-      ...prev,
-      guardian_points: newPoints,
-      level: newLevel,
-      guardian_level: `Level ${newLevel} Guardian`
-    };
-  });
+      return {
+        ...prev,
+        guardian_points: newPoints,
+        level: newLevel,
+        guardian_level: `Level ${newLevel} Guardian`,
+        frequent_payees: updatedPayees
+      };
+    });
 
   setPointEvents(prev => [
     {

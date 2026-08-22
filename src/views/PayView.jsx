@@ -124,12 +124,7 @@ export default function PayView({
   const [isOddHour, setIsOddHour] = useState(false);
   const [validationError, setValidationError] = useState('');
 
-  const frequentPayees = [
-    { name: 'Aditi', upi: 'aditi@upi', initial: 'A', color: '#10b981' },
-    { name: 'Fan', upi: 'fan@upi', initial: 'F', color: '#6366f1' },
-    { name: 'User1', upi: 'user1@upi', initial: 'U', color: '#ec4899' },
-    { name: 'User2', upi: 'user2@upi', initial: 'U', color: '#f59e0b' }
-  ];
+  const frequentPayees = safeUser.frequent_payees || [];
 
   const quickAmounts = [100, 500, 1000, 2000, 5000, 10000];
 
@@ -601,7 +596,11 @@ export default function PayView({
     });
 
     if (onPaymentSuccess) {
-      onPaymentSuccess(amtNum);
+      if (payMode === 'UPI' && recipientUpi) {
+        onPaymentSuccess(amtNum, recipientUpi);
+      } else {
+        onPaymentSuccess(amtNum);
+      }
     }
     handleResetDraft();
   };
@@ -680,51 +679,53 @@ export default function PayView({
         {/* Input Form */}
 
         {/* QUICK SEND — FREQUENT PAYEES matching screenshot */}
-        <div style={{ marginBottom: 16 }}>
-          <div style={{ fontSize: 11, color: 'var(--sub)', fontWeight: 800, marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-            QUICK SEND — FREQUENT PAYEES
+        {frequentPayees.length > 0 && (
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ fontSize: 11, color: 'var(--sub)', fontWeight: 800, marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+              QUICK SEND — FREQUENT PAYEES
+            </div>
+            <div style={{ display: 'flex', gap: 16, overflowX: 'auto', paddingBottom: 8, alignItems: 'flex-start', scrollbarWidth: 'none' }}>
+              {frequentPayees.map((payee, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => fillQuickPayee(payee.upi, 0, '', false)}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: 'var(--text)',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: 8,
+                    padding: 0,
+                    minWidth: 64
+                  }}
+                >
+                  <div style={{
+                    width: 52,
+                    height: 52,
+                    borderRadius: '50%',
+                    background: payee.color || 'var(--indigo)',
+                    color: '#fff',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: 22,
+                    fontWeight: 'bold',
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                  }}>
+                    {payee.initial}
+                  </div>
+                  <span style={{ fontSize: 12, fontWeight: 600, textAlign: 'center', color: 'var(--text)' }}>
+                    {payee.name}
+                  </span>
+                </button>
+              ))}
+            </div>
           </div>
-          <div style={{ display: 'flex', gap: 16, overflowX: 'auto', paddingBottom: 8, alignItems: 'flex-start', scrollbarWidth: 'none' }}>
-            {frequentPayees.map((payee, idx) => (
-              <button
-                key={idx}
-                type="button"
-                onClick={() => fillQuickPayee(payee.upi, 0, '', false)}
-                style={{
-                  background: 'transparent',
-                  border: 'none',
-                  color: 'var(--text)',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: 8,
-                  padding: 0,
-                  minWidth: 64
-                }}
-              >
-                <div style={{
-                  width: 52,
-                  height: 52,
-                  borderRadius: '50%',
-                  background: payee.color || 'var(--indigo)',
-                  color: '#fff',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: 22,
-                  fontWeight: 'bold',
-                  boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                }}>
-                  {payee.initial}
-                </div>
-                <span style={{ fontSize: 12, fontWeight: 600, textAlign: 'center', color: 'var(--text)' }}>
-                  {payee.name}
-                </span>
-              </button>
-            ))}
-          </div>
-        </div>
+        )}
 
         {/* RECIPIENT UPI ID matching screenshot */}
 
