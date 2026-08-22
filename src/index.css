@@ -730,3 +730,22 @@ body {
   line-height: 1.2;
 }
 
+/* QR Code Laser Scanner Animation */
+@keyframes qrLaserScan {
+  0% { top: 8%; opacity: 0.85; }
+  50% { top: 88%; opacity: 1; }
+  100% { top: 8%; opacity: 0.85; }
+}
+
+.qr-laser-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, #6366f1, #38bdf8, transparent);
+  box-shadow: 0 0 12px #38bdf8, 0 0 20px rgba(99, 102, 241, 0.6);
+  animation: qrLaserScan 2s ease-in-out infinite;
+  pointer-events: none;
+}
+
+

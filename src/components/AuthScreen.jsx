@@ -1072,6 +1072,59 @@ bank_name: bankName || '',
 
   const isEmailGoogle = email.toLowerCase().trim().endsWith('@gmail.com') || email.toLowerCase().trim().endsWith('@googlemail.com');
 
+  // Instant 1-Click Demo Login Handler for testing & evaluation
+  const handleQuickDemoLogin = (demoRole = 'CUSTOMER') => {
+    if (demoRole === 'BANK_ADMIN') {
+      const bankAdminUser = {
+        id: 'admin_demo_01',
+        name: 'Officer Rajesh Sharma',
+        email: 'rajesh.risk.sbi@gmail.com',
+        role: 'BANK_ADMIN',
+        bank_name: 'State Bank of India',
+        employee_id: 'SBI-RISK-9942',
+        branch: 'Mumbai Central Cyber Cell',
+        guardian_points: 2500,
+        level: 5,
+        guardian_level: 'Level 5 Guardian',
+        total_saved: 185000,
+        current_device: 'Chrome on Windows 11',
+        is_new_device: false,
+        auth_provider: 'DEMO_LOGIN'
+      };
+      saveStoredUserProfile(bankAdminUser);
+      registerUserRole(bankAdminUser.email, 'BANK_ADMIN');
+      onLoginSuccess(bankAdminUser);
+    } else {
+      const customerUser = {
+        id: 'user_demo_01',
+        name: 'Aditi Sharma',
+        email: 'aditi.sharma@gmail.com',
+        role: 'CUSTOMER',
+        bank_name: 'ICICI Bank',
+        phone: '+91 98765 43210',
+        upi_id: 'aditi@okicici',
+        avg_transaction_amount: 2500,
+        total_saved: 48500,
+        guardian_points: 1250,
+        level: 3,
+        guardian_level: 'Level 3 Guardian',
+        streak: 7,
+        current_device: 'Chrome on Windows 11',
+        is_new_device: false,
+        trusted_nominee: {
+          name: 'Ramesh Sharma',
+          relationship: 'Father',
+          phone: '+91 98765 43211',
+          email: 'ramesh.sharma@family.com'
+        },
+        auth_provider: 'DEMO_LOGIN'
+      };
+      saveStoredUserProfile(customerUser);
+      registerUserRole(customerUser.email, 'CUSTOMER');
+      onLoginSuccess(customerUser);
+    }
+  };
+
   return (
     <div className="app-container" data-theme={theme} style={{ minHeight: '100vh', justifyContent: 'center', paddingBottom: 20, position: 'relative' }}>
       {/* Top Header Theme Toggle */}

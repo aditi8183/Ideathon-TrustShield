@@ -27,10 +27,55 @@ import {
   Zap,
   Lock
 } from 'lucide-react';
-import jsQR from 'jsqr';
 import PINModal from '../components/PINModal';
 import UpiModal from '../components/UpiModal';
 import { sendNomineeScamAlert } from '../utils/smsService';
+import jsQR from 'jsqr';
+
+// Helper to parse standard UPI QR strings (upi://pay?pa=...&pn=...&am=...&tn=...)
+export const parseUpiQrCode = (text) => {
+  if (!text || typeof text !== 'string') return null;
+  const trimmed = text.trim();
+
+  // Standard UPI URI scheme: upi://pay?pa=...&pn=...&am=...&tn=...
+  if (trimmed.toLowerCase().startsWith('upi://pay') || trimmed.includes('pa=')) {
+    try {
+      const urlStr = trimmed.startsWith('upi://') ? trimmed : `upi://pay?${trimmed}`;
+      const url = new URL(urlStr);
+      const pa = url.searchParams.get('pa') || '';
+      const pn = url.searchParams.get('pn') || '';
+      const am = url.searchParams.get('am') || '';
+      const tn = url.searchParams.get('tn') || pn || '';
+      return { upi: pa, amount: am, note: tn, name: pn };
+    } catch (e) {
+      console.warn('UPI QR URL parse fallback:', e);
+      const paMatch = trimmed.match(/pa=([^&]+)/i);
+      const pnMatch = trimmed.match(/pn=([^&]+)/i);
+      const amMatch = trimmed.match(/am=([^&]+)/i);
+      const tnMatch = trimmed.match(/tn=([^&]+)/i);
+      const pa = paMatch ? decodeURIComponent(paMatch[1]) : '';
+      const pn = pnMatch ? decodeURIComponent(pnMatch[1]) : '';
+      const am = amMatch ? decodeURIComponent(amMatch[1]) : '';
+      const tn = tnMatch ? decodeURIComponent(tnMatch[1]) : pn;
+      if (pa) {
+        return { upi: pa, amount: am, note: tn, name: pn };
+      }
+    }
+  }
+
+  // Raw UPI ID (e.g. aditi@okhdfcbank or starbucks@icici)
+  if (trimmed.includes('@')) {
+    return { upi: trimmed, amount: '', note: '', name: '' };
+  }
+
+  // 10-digit phone or UPI number
+  const digits = trimmed.replace(/\D/g, '');
+  if (digits.length >= 8 && digits.length <= 12) {
+    return { upi: digits.slice(-10), amount: '', note: '', name: '' };
+  }
+
+  return { upi: trimmed, amount: '', note: '', name: '' };
+};
 
 export default function PayView({
   user,
@@ -112,19 +157,41 @@ export default function PayView({
   const [isPinModalOpen, setIsPinModalOpen] = useState(false);
   const [isUpiModalOpen, setIsUpiModalOpen] = useState(false);
 
-  const [isQrScannerOpen, setIsQrScannerOpen] = useState(false);
-  const [isCameraActive, setIsCameraActive] = useState(false);
-  const [scannerError, setScannerError] = useState('');
+  // QR Scanner Refs & States
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
-  const animFrameRef = useRef(null);
-  const streamRef = useRef(null);
+  const scanIntervalRef = useRef(null);
+
+  const [isQrScannerOpen, setIsQrScannerOpen] = useState(false);
+  const [isScanningQr, setIsScanningQr] = useState(false);
+  const [isCameraActive, setIsCameraActive] = useState(false);
+  const [scannerError, setScannerError] = useState('');
+  const [scannedSuccessInfo, setScannedSuccessInfo] = useState(null);
 
   const [completedTxnReceipt, setCompletedTxnReceipt] = useState(null);
   const [userOverrideNote, setUserOverrideNote] = useState('');
   const [isOverrideSubmitted, setIsOverrideSubmitted] = useState(false);
   const [isNomineeAlertSent, setIsNomineeAlertSent] = useState(false);
   const [isSendingNomineeAlert, setIsSendingNomineeAlert] = useState(false);
+
+  // Cleanup camera stream and scan interval on unmount
+  useEffect(() => {
+    return () => {
+      if (scanIntervalRef.current) {
+        clearInterval(scanIntervalRef.current);
+        scanIntervalRef.current = null;
+      }
+      if (videoRef.current && videoRef.current.srcObject) {
+        try {
+          const tracks = videoRef.current.srcObject.getTracks();
+          tracks.forEach(track => track.stop());
+        } catch (err) {
+          console.error('Error stopping camera stream on unmount:', err);
+        }
+        videoRef.current.srcObject = null;
+      }
+    };
+  }, []);
 
   const handleSendNomineeAlert = async () => {
     setIsSendingNomineeAlert(true);
@@ -283,7 +350,7 @@ export default function PayView({
     const val = e.target.value;
     setNote(val);
     if (onUpdatePaymentDraft) {
-      onUpdatePaymentDraft({ recipientUpi, amount, note: val, isPasted });
+      onUpdatePaymentDraft({ recipientUpi, amount: val, note: val, isPasted });
     }
   };
 
@@ -328,6 +395,158 @@ export default function PayView({
     if (payMode === 'UPI') return recipientUpi || 'merchant@upi';
     if (payMode === 'BANK_ACCOUNT') return `A/C ${accountNo} (${ifscCode.toUpperCase() || 'IFSC'})`;
     return `${selectedBank} NetBanking (${netbankingId || 'User Direct'})`;
+  };
+
+  // Real Camera & QR Scanner Handlers
+  const stopQrScanner = () => {
+    if (scanIntervalRef.current) {
+      clearInterval(scanIntervalRef.current);
+      scanIntervalRef.current = null;
+    }
+    if (videoRef.current && videoRef.current.srcObject) {
+      try {
+        const tracks = videoRef.current.srcObject.getTracks();
+        tracks.forEach(track => track.stop());
+      } catch (err) {
+        console.error('Error stopping camera stream:', err);
+      }
+      videoRef.current.srcObject = null;
+    }
+    setIsScanningQr(false);
+    setIsCameraActive(false);
+    setIsQrScannerOpen(false);
+    setScannerError('');
+    setScannedSuccessInfo(null);
+  };
+
+  const applyScannedQr = (rawQrString) => {
+    if (!rawQrString || !rawQrString.trim()) return;
+    const parsed = parseUpiQrCode(rawQrString);
+    if (parsed && parsed.upi) {
+      setScannedSuccessInfo({
+        upi: parsed.upi,
+        amount: parsed.amount,
+        note: parsed.note,
+        name: parsed.name
+      });
+      setRecipientUpi(parsed.upi);
+      if (parsed.amount) setAmount(parsed.amount);
+      if (parsed.note) setNote(parsed.note);
+      setIsPasted(false);
+      if (onUpdatePaymentDraft) {
+        onUpdatePaymentDraft({
+          recipientUpi: parsed.upi,
+          amount: parsed.amount || amount,
+          note: parsed.note || note,
+          isPasted: false
+        });
+      }
+      setValidationError('');
+      setTimeout(() => {
+        stopQrScanner();
+      }, 1200);
+    } else {
+      setScannerError('Could not find a valid UPI ID in this QR code.');
+    }
+  };
+
+  const scanFrame = () => {
+    if (!videoRef.current || videoRef.current.readyState < 2) return;
+    const video = videoRef.current;
+    if (!canvasRef.current) {
+      canvasRef.current = document.createElement('canvas');
+    }
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    if (!ctx) return;
+
+    if (video.videoWidth && video.videoHeight) {
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const code = jsQR(imageData.data, imageData.width, imageData.height, {
+        inversionAttempts: 'dontInvert'
+      });
+
+      if (code && code.data && code.data.trim()) {
+        applyScannedQr(code.data);
+      }
+    }
+  };
+
+  const handleScanQrCode = async () => {
+    setIsQrScannerOpen(true);
+    setIsScanningQr(true);
+    setScannerError('');
+    setScannedSuccessInfo(null);
+    setIsCameraActive(false);
+
+    try {
+      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }
+        });
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          videoRef.current.setAttribute('playsinline', 'true');
+          await videoRef.current.play().catch(() => {});
+          setIsCameraActive(true);
+        }
+
+        if (scanIntervalRef.current) clearInterval(scanIntervalRef.current);
+        scanIntervalRef.current = setInterval(() => {
+          scanFrame();
+        }, 120);
+      } else {
+        setScannerError('Live camera not supported in this browser. You can upload a QR image/screenshot below.');
+      }
+    } catch (err) {
+      console.warn('Camera access note:', err);
+      setScannerError('Camera access unavailable or permission denied. You can upload a QR screenshot or test a sample below.');
+      setIsCameraActive(false);
+    }
+  };
+
+  const handleQrImageUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setScannerError('');
+    setScannedSuccessInfo(null);
+
+    try {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d', { willReadFrequently: true });
+          canvas.width = img.width;
+          canvas.height = img.height;
+          ctx.drawImage(img, 0, 0, img.width, img.height);
+          const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          const code = jsQR(imageData.data, imageData.width, imageData.height, {
+            inversionAttempts: 'attemptBoth'
+          });
+          if (code && code.data && code.data.trim()) {
+            applyScannedQr(code.data);
+          } else {
+            setScannerError('No valid UPI QR code found in this image. Please upload a clearer QR image.');
+          }
+        };
+        img.onerror = () => {
+          setScannerError('Failed to load image file. Please try another image.');
+        };
+        img.src = event.target.result;
+      };
+      reader.readAsDataURL(file);
+    } catch (err) {
+      console.error('QR image decode error:', err);
+      setScannerError('Could not decode QR from image. Please enter UPI details manually.');
+    }
+    e.target.value = '';
+>>>>>>> bdb55e4 (fix(ui): upgrade live QR scanner, match home dashboard layout, remove quick payees, and set nominee placeholders)
   };
 
   const runRiskAnalysis = () => {
@@ -566,54 +785,7 @@ export default function PayView({
           </button>
         </div>
 
-        {/* QUICK SEND — FREQUENT PAYEES matching screenshot */}
-        <div style={{ marginBottom: 16 }}>
-          <div style={{ fontSize: 11, color: 'var(--sub)', fontWeight: 800, marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-            QUICK SEND — FREQUENT PAYEES
-          </div>
-          <div style={{ display: 'flex', gap: 16, overflowX: 'auto', paddingBottom: 8, alignItems: 'flex-start', scrollbarWidth: 'none' }}>
-            {frequentPayees.map((payee, idx) => (
-              <button
-                key={idx}
-                type="button"
-                onClick={() => fillQuickPayee(payee.upi, 0, '', false)}
-                style={{
-                  background: 'transparent',
-                  border: 'none',
-                  color: 'var(--text-main)',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: 8,
-                  padding: 0,
-                  minWidth: 64
-                }}
-              >
-                <div style={{
-                  width: 52,
-                  height: 52,
-                  borderRadius: '50%',
-                  background: payee.color || 'var(--indigo-main)',
-                  color: '#fff',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: 22,
-                  fontWeight: 'bold',
-                  boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                }}>
-                  {payee.initial}
-                </div>
-                <span className="mono" style={{ fontSize: 11, fontWeight: 600, textAlign: 'center', opacity: 0.8 }}>
-                  {payee.upi}
-                </span>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* RECIPIENT UPI ID matching screenshot */}
+        {/* Input Form */}
         <div className="input-group">
           <label className="input-label">RECIPIENT UPI ID</label>
           <input
@@ -899,59 +1071,241 @@ export default function PayView({
         </div>
       )}
 
-      {/* QR Code Scanner Camera Simulator Modal */}
+      {/* REAL LIVE CAMERA & IMAGE QR CODE SCANNER MODAL */}
       {isQrScannerOpen && (
-        <div className="modal-overlay">
-          <div className="modal-content" style={{ textAlign: 'center', maxWidth: 360 }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-              <div style={{ fontSize: 16, fontWeight: 900 }}>Scan Merchant QR Code</div>
+        <div className="modal-overlay" style={{ zIndex: 110 }}>
+          <div className="modal-content" style={{ maxWidth: 420, textAlign: 'center', position: 'relative' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+              <div style={{ fontSize: 17, fontWeight: 900, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Camera size={20} color="var(--indigo-light)" />
+                <span>Scan Merchant UPI QR Code</span>
+              </div>
               <button
-                onClick={() => setIsQrScannerOpen(false)}
-                style={{ background: 'none', border: 'none', color: 'var(--sub)', cursor: 'pointer' }}
+                type="button"
+                onClick={stopQrScanner}
+                style={{ background: 'none', border: 'none', color: 'var(--sub)', cursor: 'pointer', padding: 4 }}
               >
                 <X size={20} />
               </button>
             </div>
 
-            <div style={{
-              width: '100%',
-              height: 220,
-              borderRadius: 16,
-              background: 'rgba(0, 0, 0, 0.6)',
-              border: '2px dashed var(--indigo-light)',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              position: 'relative',
-              overflow: 'hidden',
-              marginBottom: 16
-            }}>
-              <Camera size={48} color="var(--indigo-light)" className="pulse" />
-              <div style={{ fontSize: 13, color: 'var(--sub)', marginTop: 12 }}>
-                {isScanningQr ? 'Aligning QR Code...' : 'QR Code Detected!'}
-              </div>
+            {/* Video Viewport Container with Live Scanner Overlay */}
+            <div
+              style={{
+                width: '100%',
+                height: 250,
+                borderRadius: 16,
+                background: '#07090e',
+                border: '2px solid rgba(99, 102, 241, 0.4)',
+                position: 'relative',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                overflow: 'hidden',
+                marginBottom: 12
+              }}
+            >
+              <video
+                ref={videoRef}
+                autoPlay
+                playsInline
+                muted
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'cover',
+                  display: isCameraActive ? 'block' : 'none'
+                }}
+              />
 
-              {/* Scanning Crosshair */}
-              <div style={{
-                position: 'absolute',
-                inset: 30,
-                border: '2px solid var(--safe-light)',
-                borderRadius: 12,
-                boxShadow: '0 0 20px rgba(16, 185, 129, 0.4)'
-              }} />
+              {!isCameraActive && (
+                <div style={{ padding: 20, textAlign: 'center' }}>
+                  <QrCode size={48} color="rgba(99, 102, 241, 0.6)" style={{ marginBottom: 8 }} />
+                  <p style={{ fontSize: 13, color: 'var(--sub)', margin: 0, fontWeight: 600 }}>
+                    {scannerError ? 'Camera unavailable' : 'Initializing camera stream...'}
+                  </p>
+                </div>
+              )}
+
+              {/* Viewfinder Target & Laser Scanning Animation */}
+              {isCameraActive && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: '12%',
+                    left: '12%',
+                    width: '76%',
+                    height: '76%',
+                    border: '2px dashed rgba(99, 102, 241, 0.85)',
+                    borderRadius: 14,
+                    pointerEvents: 'none',
+                    boxShadow: '0 0 0 9999px rgba(0, 0, 0, 0.45)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'center',
+                    alignItems: 'center'
+                  }}
+                >
+                  <div className="qr-laser-line" />
+                </div>
+              )}
+
+              {/* Scanned Confirmation Overlay */}
+              {scannedSuccessInfo && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    inset: 0,
+                    background: 'rgba(16, 185, 129, 0.92)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#fff',
+                    padding: 16,
+                    zIndex: 10
+                  }}
+                >
+                  <CheckCircle2 size={44} style={{ marginBottom: 8 }} />
+                  <div style={{ fontSize: 16, fontWeight: 900 }}>QR Code Detected!</div>
+                  <div style={{ fontSize: 13, marginTop: 4, fontWeight: 700 }} className="mono">
+                    {scannedSuccessInfo.upi} {scannedSuccessInfo.amount ? `(₹${scannedSuccessInfo.amount})` : ''}
+                  </div>
+                </div>
+              )}
             </div>
 
-            {isScanningQr ? (
-              <div style={{ fontSize: 13, color: 'var(--indigo-light)', fontWeight: 700 }}>
-                Extracting Merchant UPI & Amount...
-              </div>
-            ) : (
-              <div style={{ fontSize: 13, color: 'var(--safe-light)', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                <CheckCircle2 size={16} />
-                <span>Extracted: starbucks.coffee@icici (₹450)</span>
+            {scannerError && (
+              <div
+                style={{
+                  background: 'rgba(239, 68, 68, 0.12)',
+                  border: '1px solid rgba(239, 68, 68, 0.3)',
+                  color: 'var(--danger-light)',
+                  padding: '8px 12px',
+                  borderRadius: 10,
+                  fontSize: 12,
+                  fontWeight: 700,
+                  marginBottom: 12,
+                  textAlign: 'left'
+                }}
+              >
+                ⚠️ {scannerError}
               </div>
             )}
+
+            {/* Upload QR Image / Screenshot Option */}
+            <div style={{ marginBottom: 12 }}>
+              <label
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 8,
+                  padding: '10px 14px',
+                  borderRadius: 12,
+                  background: 'rgba(99, 102, 241, 0.12)',
+                  border: '1px solid rgba(99, 102, 241, 0.3)',
+                  color: 'var(--indigo-light)',
+                  fontSize: 12,
+                  fontWeight: 800,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s'
+                }}
+              >
+                <Upload size={15} />
+                <span>Upload QR Image / Screenshot</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleQrImageUpload}
+                  style={{ display: 'none' }}
+                />
+              </label>
+            </div>
+
+            {/* Quick Demo Test Buttons */}
+            <div
+              style={{
+                textAlign: 'left',
+                marginBottom: 14,
+                background: 'rgba(255, 255, 255, 0.03)',
+                padding: 10,
+                borderRadius: 12,
+                border: '1px solid var(--border)'
+              }}
+            >
+              <div style={{ fontSize: 10, color: 'var(--sub)', fontWeight: 800, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                Quick Test Sample UPI QR Codes:
+              </div>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  onClick={() => applyScannedQr('upi://pay?pa=starbucks.coffee@icici&pn=Starbucks%20Coffee&am=350&tn=Coffee%20Payment')}
+                  style={{
+                    fontSize: 11,
+                    padding: '5px 10px',
+                    borderRadius: 8,
+                    background: 'rgba(16, 185, 129, 0.15)',
+                    color: 'var(--safe-light)',
+                    border: '1px solid rgba(16, 185, 129, 0.3)',
+                    cursor: 'pointer',
+                    fontWeight: 700
+                  }}
+                >
+                  ☕ Starbucks (₹350)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => applyScannedQr('upi://pay?pa=landlord.rent@hdfc&pn=Rajesh%20Kumar&am=15000&tn=House%20Rent')}
+                  style={{
+                    fontSize: 11,
+                    padding: '5px 10px',
+                    borderRadius: 8,
+                    background: 'rgba(99, 102, 241, 0.15)',
+                    color: 'var(--indigo-light)',
+                    border: '1px solid rgba(99, 102, 241, 0.3)',
+                    cursor: 'pointer',
+                    fontWeight: 700
+                  }}
+                >
+                  🏠 Rent (₹15,000)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => applyScannedQr('upi://pay?pa=trai.verify@fraudster&pn=TRAI%20Customs%20Verification&am=18500&tn=Penalty%20Clearance')}
+                  style={{
+                    fontSize: 11,
+                    padding: '5px 10px',
+                    borderRadius: 8,
+                    background: 'rgba(239, 68, 68, 0.15)',
+                    color: 'var(--danger-light)',
+                    border: '1px solid rgba(239, 68, 68, 0.3)',
+                    cursor: 'pointer',
+                    fontWeight: 700
+                  }}
+                >
+                  🚨 TRAI Scam QR (₹18,500)
+                </button>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={stopQrScanner}
+              style={{
+                width: '100%',
+                padding: '9px 14px',
+                borderRadius: 10,
+                background: 'rgba(255, 255, 255, 0.06)',
+                color: 'var(--sub)',
+                border: '1px solid var(--border)',
+                cursor: 'pointer',
+                fontSize: 12,
+                fontWeight: 700
+              }}
+            >
+              Cancel Scanner
+            </button>
           </div>
         </div>
       )}
