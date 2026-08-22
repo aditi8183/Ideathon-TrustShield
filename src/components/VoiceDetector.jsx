@@ -263,43 +263,24 @@ export default function VoiceDetector({
     processAutonomousClassification(val);
   };
 
-  // Simulation Trigger with Indic Multi-Lingual Speech Streams
-  const triggerRandomIncomingCall = () => {
+  // Simulation Trigger with actual mic recording
+  const triggerRandomIncomingCall = async () => {
     setIsListening(true);
-    setIsSimulating(true);
+    setIsSimulating(false);
     setTranscript('');
     if (onTranscriptChange) onTranscriptChange('');
     setClassification(null);
     accumulatedTranscriptRef.current = '';
-    setMicStatusText('Simulated Call Active... Parsing spoken Indic speech word-by-word');
+    setMicStatusText('Live Web Call Active... Recording and parsing spoken speech word-by-word');
 
-    const SIMULATED_CALL_SPEECH_STREAM = [
-      "Sir aapka SBI bank KYC expire ho gaya hai. Agar abhi OTP nahi diya toh account block ho jayega.",
-      "Hello, your Flipkart parcel containing illegal contraband and fake passports has been detained. Pay Rs 499 clearance duty fee immediately.",
-      "This is Inspector Sharma from Delhi Cyber Crime Cell and CBI. Your Aadhaar card is involved in money laundering. You are under digital arrest.",
-      "TRAI Alert Notice: Your mobile numbers will be disconnected within 2 hours due to illegal broadcasting. Press 9 to talk to officer.",
-      "Dear consumer, your electricity bill is unpaid. Power connection will be disconnected tonight at 9:30 PM by electricity discom office.",
-      "Please send the invoice to accounts department for payment processing." // Negative legitimate example
-    ];
-
-    const randomSpeech = SIMULATED_CALL_SPEECH_STREAM[Math.floor(Math.random() * SIMULATED_CALL_SPEECH_STREAM.length)];
-
-    let currentText = '';
-    const words = randomSpeech.split(' ');
-    let wordIndex = 0;
-
-    const interval = setInterval(() => {
-      if (wordIndex < words.length) {
-        currentText += (wordIndex === 0 ? '' : ' ') + words[wordIndex];
-        setTranscript(currentText);
-        if (onTranscriptChange) onTranscriptChange(currentText);
-        processAutonomousClassification(currentText);
-        wordIndex++;
-      } else {
-        clearInterval(interval);
-        setIsSimulating(false);
+    await startAudioAnalyzer();
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.start();
+      } catch (e) {
+        console.warn('Speech recognition start error:', e);
       }
-    }, 140);
+    }
   };
 
   const renderCategoryIcon = (iconName) => {
