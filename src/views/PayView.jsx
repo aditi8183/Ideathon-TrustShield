@@ -442,7 +442,7 @@ export default function PayView({
   const runRiskAnalysis = () => {
     if (payMode === 'UPI') {
       if (!recipientUpi.trim()) {
-        setValidationError('Please enter a Recipient UPI ID or select a Frequent Payee.');
+        setValidationError('Please enter a Recipient UPI ID or 10-digit UPI Number.');
         return;
       }
     } else if (payMode === 'BANK_ACCOUNT') {
@@ -677,13 +677,28 @@ export default function PayView({
 
         {/* Input Form */}
         <div className="input-group">
-          <label className="input-label">RECIPIENT UPI ID</label>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+            <label className="input-label" style={{ margin: 0 }}>RECIPIENT UPI ID / UPI NUMBER</label>
+            {recipientUpi && !recipientUpi.includes('@') && recipientUpi.replace(/\D/g, '').length >= 8 && (
+              <span style={{
+                fontSize: 10,
+                fontWeight: 800,
+                color: 'var(--indigo-light)',
+                background: 'rgba(99, 102, 241, 0.15)',
+                border: '1px solid rgba(99, 102, 241, 0.3)',
+                padding: '2px 8px',
+                borderRadius: 6
+              }}>
+                📱 UPI Number (NPCI Mapped)
+              </span>
+            )}
+          </div>
           <input
             type="text"
             className="input-field mono"
             value={recipientUpi}
             onChange={handleUpiChange}
-            placeholder="aditiansh@oksbi"
+            placeholder="aditiansh@oksbi or 9876543210"
             required
           />
         </div>
