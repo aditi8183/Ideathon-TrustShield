@@ -241,7 +241,7 @@ export default function ProfileView({ user, pointEvents = [], onOpenOnboarding, 
             className="input-field mono"
             value={nomineePhone}
             onChange={(e) => setNomineePhone(e.target.value)}
-            placeholder="+91 98765 43211"
+            placeholder="+91 98765 XXXXX"
           />
         </div>
 

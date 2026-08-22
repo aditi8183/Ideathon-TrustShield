@@ -79,7 +79,7 @@ export default function OnboardingModal({ isOpen, onClose, user, setUser }) {
               className="input-field mono"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
-              placeholder="+91 98765 43210"
+              placeholder="+91 98765 XXXXX"
               required
             />
           </div>
