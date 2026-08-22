@@ -78,10 +78,10 @@ export default function PayView({
   const [validationError, setValidationError] = useState('');
 
   const frequentPayees = [
-    { name: 'aditiansh@oksbi', upi: 'aditiansh@oksbi', count: '×1', initial: '👤', color: '#10b981' },
-    { name: 'Papa', upi: 'rajesh.sharma@okicici', count: '', initial: 'P', color: '#6366f1' },
-    { name: 'Sister', upi: 'pooja.sharma@paytm', count: '', initial: 'S', color: '#ec4899' },
-    { name: 'Starbucks', upi: 'starbucks.coffee@icici', count: '', initial: '☕', color: '#10b981' }
+    { name: 'Aditi', upi: 'aditiansh@oksbi', initial: 'A', color: '#10b981' },
+    { name: 'Fan', upi: 'fan@upi', initial: 'F', color: '#6366f1' },
+    { name: 'User1', upi: 'friend@okicici', initial: 'U', color: '#ec4899' },
+    { name: 'User2', upi: 'pay@ybl', initial: 'P', color: '#f59e0b' }
   ];
 
   const quickAmounts = [100, 500, 1000, 2000, 5000, 10000];
@@ -571,50 +571,43 @@ export default function PayView({
           <div style={{ fontSize: 11, color: 'var(--sub)', fontWeight: 800, marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
             QUICK SEND — FREQUENT PAYEES
           </div>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-            <button
-              type="button"
-              onClick={() => fillQuickPayee('aditiansh@oksbi', 50, '', false)}
-              style={{
-                background: 'rgba(16, 185, 129, 0.15)',
-                border: '1px solid rgba(16, 185, 129, 0.35)',
-                color: 'var(--safe-light)',
-                borderRadius: 20,
-                padding: '6px 12px',
-                fontSize: 12,
-                fontWeight: 800,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 6
-              }}
-            >
-              <UserCheck size={14} />
-              <span className="mono">aditiansh@oksbi</span>
-              <span style={{ opacity: 0.7, fontSize: 11 }}>×1</span>
-            </button>
-
-            {frequentPayees.slice(1).map((payee, idx) => (
+          <div style={{ display: 'flex', gap: 16, overflowX: 'auto', paddingBottom: 8, alignItems: 'flex-start', scrollbarWidth: 'none' }}>
+            {frequentPayees.map((payee, idx) => (
               <button
                 key={idx}
                 type="button"
-                onClick={() => fillQuickPayee(payee.upi, 0, `${payee.name} Payment`, false)}
+                onClick={() => fillQuickPayee(payee.upi, 0, '', false)}
                 style={{
-                  background: 'rgba(99, 102, 241, 0.12)',
-                  border: '1px solid rgba(99, 102, 241, 0.3)',
-                  color: 'var(--indigo-light)',
-                  borderRadius: 20,
-                  padding: '6px 12px',
-                  fontSize: 12,
-                  fontWeight: 800,
+                  background: 'transparent',
+                  border: 'none',
+                  color: 'var(--text-main)',
                   cursor: 'pointer',
                   display: 'flex',
+                  flexDirection: 'column',
                   alignItems: 'center',
-                  gap: 6
+                  gap: 8,
+                  padding: 0,
+                  minWidth: 64
                 }}
               >
-                <span>{payee.initial}</span>
-                <span>{payee.name}</span>
+                <div style={{
+                  width: 52,
+                  height: 52,
+                  borderRadius: '50%',
+                  background: payee.color || 'var(--indigo-main)',
+                  color: '#fff',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: 22,
+                  fontWeight: 'bold',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                }}>
+                  {payee.initial}
+                </div>
+                <span className="mono" style={{ fontSize: 11, fontWeight: 600, textAlign: 'center', opacity: 0.8 }}>
+                  {payee.upi}
+                </span>
               </button>
             ))}
           </div>
