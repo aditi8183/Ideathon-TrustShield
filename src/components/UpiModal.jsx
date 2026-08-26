@@ -37,20 +37,8 @@ export default function UpiModal({
   const isUpiNumber = recipientUpi && !recipientUpi.includes('@') && recipientUpi.replace(/\D/g, '').length >= 8;
   const cleanDigits = recipientUpi ? recipientUpi.replace(/\D/g, '').slice(-10) : '';
 
-  // NPCI Universal Target: for phone numbers, use standard `${cleanDigits}@upi` (or mapped VPA)
-  const resolvedPayeeVpa = isUpiNumber ? `${cleanDigits}@upi` : recipientUpi.trim();
-
-  // Package names for Android Intent URLs
-  const PACKAGE_MAP = {
-    gpay: 'com.google.android.apps.nbu.paisa.user',
-    phonepe: 'com.phonepe.app',
-    paytm: 'net.one97.paytm',
-    bhim: 'in.org.npci.upiapp',
-    cred: 'com.dreamplug.androidapp'
-  };
-
-  // Build standard NPCI direct UPI URI and Android Intent URIs
-  function buildUpiUrl(appId, forceIntent = false) {
+  // Build standard NPCI direct UPI URI without strict package forcing (prevents Play Store redirect)
+  function buildUpiUrl(appId) {
     const rawParams = {
       pa: resolvedPayeeVpa,
       pn: userName || 'Recipient',
@@ -62,16 +50,6 @@ export default function UpiModal({
       orgid: '180001'
     };
     const params = new URLSearchParams(rawParams).toString();
-
-    const isAndroid = typeof navigator !== 'undefined' && /android/i.test(navigator.userAgent || '');
-
-    if (forceIntent || (isAndroid && appId !== 'custom')) {
-      const pkg = PACKAGE_MAP[appId];
-      if (pkg) {
-        return `intent://pay?${params}#Intent;scheme=upi;package=${pkg};end`;
-      }
-      return `intent://pay?${params}#Intent;scheme=upi;end`;
-    }
 
     switch (appId) {
       case 'gpay':
@@ -92,33 +70,29 @@ export default function UpiModal({
   const genericUpiUrl = `upi://pay?pa=${encodeURIComponent(resolvedPayeeVpa)}&pn=${encodeURIComponent(userName || 'Recipient')}&am=${amtFormatted}&cu=INR&tn=${encodeURIComponent(cleanNote)}`;
 
   function tryLaunchUpi(url, appId = activeApp) {
-    if (!url) return;
-    try {
-      const isAndroid = typeof navigator !== 'undefined' && /android/i.test(navigator.userAgent || '');
-      
-      if (isAndroid) {
-        // Build Android Intent URL
-        const intentUrl = buildUpiUrl(appId, true);
-        
-        // Try creating dynamic link click
-        const link = document.createElement('a');
-        link.href = intentUrl;
-        link.rel = 'noopener noreferrer';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+    const targetUrl = url || buildUpiUrl(appId);
+    if (!targetUrl) return;
 
-        // Fallback to standard URI scheme after 100ms
-        setTimeout(() => {
-          try {
-            window.location.href = `upi://pay?pa=${encodeURIComponent(resolvedPayeeVpa)}&pn=${encodeURIComponent(userName || 'Recipient')}&am=${amtFormatted}&cu=INR&tn=${encodeURIComponent(cleanNote)}`;
-          } catch (e) {}
-        }, 120);
-      } else {
-        window.location.href = url;
-      }
+    try {
+      // Create and trigger direct link click (universal for Android & iOS)
+      const link = document.createElement('a');
+      link.href = targetUrl;
+      link.target = '_self';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      // Also set window.location as primary trigger
+      setTimeout(() => {
+        try {
+          window.location.href = targetUrl;
+        } catch (err) {}
+      }, 50);
     } catch (e) {
       console.warn('UPI Launch redirect handled:', e);
+      try {
+        window.location.href = targetUrl;
+      } catch (err) {}
     }
   }
 
