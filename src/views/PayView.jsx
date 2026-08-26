@@ -1641,6 +1641,10 @@ export default function PayView({
         note={note}
         selectedApp="all"
         onSuccess={handlePinSuccess}
+        onEnterPin={() => {
+          setIsUpiModalOpen(false);
+          setIsPinModalOpen(true);
+        }}
       />
 
       {/* PIN Entry Modal */}

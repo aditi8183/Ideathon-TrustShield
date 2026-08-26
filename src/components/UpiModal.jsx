@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Smartphone, ExternalLink, QrCode, Copy, Check, CheckCircle2, X, RefreshCw, ShieldCheck, Zap } from 'lucide-react';
+import { Smartphone, ExternalLink, QrCode, Copy, Check, CheckCircle2, X, RefreshCw, ShieldCheck, Zap, Lock } from 'lucide-react';
 
 export default function UpiModal({
   isOpen,
@@ -9,7 +9,8 @@ export default function UpiModal({
   note = '',
   userName = 'Recipient',
   selectedApp = 'all',
-  onSuccess
+  onSuccess,
+  onEnterPin
 }) {
   const [activeApp, setActiveApp] = useState(selectedApp);
   const [copied, setCopied] = useState(false);
@@ -426,8 +427,31 @@ export default function UpiModal({
                 }}
               >
                 <CheckCircle2 size={18} />
-                <span>I Have Completed Payment in UPI App</span>
+                <span>Confirm Payment Receipt</span>
               </button>
+
+              {onEnterPin && (
+                <button
+                  onClick={onEnterPin}
+                  style={{
+                    background: 'rgba(99, 102, 241, 0.12)',
+                    border: '1px solid rgba(99, 102, 241, 0.3)',
+                    color: 'var(--indigo-light)',
+                    padding: '10px',
+                    borderRadius: 12,
+                    fontSize: 13,
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 6
+                  }}
+                >
+                  <Lock size={15} />
+                  <span>Enter UPI PIN (Simulation Demo Mode)</span>
+                </button>
+              )}
 
               <button
                 onClick={onClose}
