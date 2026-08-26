@@ -569,11 +569,7 @@ export default function PayView({
       } else if (finalScore >= 40) {
         setIsUrgentWarningOpen(true);
       } else {
-        if (paymentMethod === 'ONLINE') {
-          setIsUpiModalOpen(true);
-        } else {
-          setIsPinModalOpen(true);
-        }
+        setIsUpiModalOpen(true);
       }
     }, 600);
   };
@@ -1328,11 +1324,7 @@ export default function PayView({
                 className="btn-primary"
                 onClick={() => {
                   setIsUrgentWarningOpen(false);
-                  if (paymentMethod === 'ONLINE') {
-                    setIsUpiModalOpen(true);
-                  } else {
-                    setIsPinModalOpen(true);
-                  }
+                  setIsUpiModalOpen(true);
                 }}
                 style={{ background: 'var(--indigo)' }}
               >
@@ -1647,7 +1639,7 @@ export default function PayView({
         amount={amount}
         recipientUpi={recipientUpi}
         note={note}
-        selectedApp={selectedUpiApp}
+        selectedApp="all"
         onSuccess={handlePinSuccess}
       />
 

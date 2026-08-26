@@ -40,9 +40,18 @@ export default function UpiModal({
   // NPCI Universal Target: for phone numbers, use standard `${cleanDigits}@upi` (or mapped VPA)
   const resolvedPayeeVpa = isUpiNumber ? `${cleanDigits}@upi` : recipientUpi.trim();
 
-  // Build standard NPCI direct UPI URI with Web-Intent metadata
-  function buildUpiUrl(appId) {
-    const params = new URLSearchParams({
+  // Package names for Android Intent URLs
+  const PACKAGE_MAP = {
+    gpay: 'com.google.android.apps.nbu.paisa.user',
+    phonepe: 'com.phonepe.app',
+    paytm: 'net.one97.paytm',
+    bhim: 'in.org.npci.upiapp',
+    cred: 'com.dreamplug.androidapp'
+  };
+
+  // Build standard NPCI direct UPI URI and Android Intent URIs
+  function buildUpiUrl(appId, forceIntent = false) {
+    const rawParams = {
       pa: resolvedPayeeVpa,
       pn: userName || 'Recipient',
       am: amtFormatted,
@@ -51,7 +60,18 @@ export default function UpiModal({
       mode: '02',
       purpose: '00',
       orgid: '180001'
-    }).toString();
+    };
+    const params = new URLSearchParams(rawParams).toString();
+
+    const isAndroid = typeof navigator !== 'undefined' && /android/i.test(navigator.userAgent || '');
+
+    if (forceIntent || (isAndroid && appId !== 'custom')) {
+      const pkg = PACKAGE_MAP[appId];
+      if (pkg) {
+        return `intent://pay?${params}#Intent;scheme=upi;package=${pkg};end`;
+      }
+      return `intent://pay?${params}#Intent;scheme=upi;end`;
+    }
 
     switch (appId) {
       case 'gpay':
@@ -69,12 +89,34 @@ export default function UpiModal({
   }
 
   const currentUpiUrl = buildUpiUrl(activeApp);
-  const genericUpiUrl = buildUpiUrl('all');
+  const genericUpiUrl = `upi://pay?pa=${encodeURIComponent(resolvedPayeeVpa)}&pn=${encodeURIComponent(userName || 'Recipient')}&am=${amtFormatted}&cu=INR&tn=${encodeURIComponent(cleanNote)}`;
 
-  function tryLaunchUpi(url) {
+  function tryLaunchUpi(url, appId = activeApp) {
     if (!url) return;
     try {
-      window.location.href = url;
+      const isAndroid = typeof navigator !== 'undefined' && /android/i.test(navigator.userAgent || '');
+      
+      if (isAndroid) {
+        // Build Android Intent URL
+        const intentUrl = buildUpiUrl(appId, true);
+        
+        // Try creating dynamic link click
+        const link = document.createElement('a');
+        link.href = intentUrl;
+        link.rel = 'noopener noreferrer';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        // Fallback to standard URI scheme after 100ms
+        setTimeout(() => {
+          try {
+            window.location.href = `upi://pay?pa=${encodeURIComponent(resolvedPayeeVpa)}&pn=${encodeURIComponent(userName || 'Recipient')}&am=${amtFormatted}&cu=INR&tn=${encodeURIComponent(cleanNote)}`;
+          } catch (e) {}
+        }, 120);
+      } else {
+        window.location.href = url;
+      }
     } catch (e) {
       console.warn('UPI Launch redirect handled:', e);
     }
@@ -83,7 +125,7 @@ export default function UpiModal({
   const handleAppSelect = (appId) => {
     setActiveApp(appId);
     const url = buildUpiUrl(appId);
-    tryLaunchUpi(url);
+    tryLaunchUpi(url, appId);
   };
 
   const handleCopyLink = () => {
@@ -243,9 +285,9 @@ export default function UpiModal({
                     <a
                       key={app.id}
                       href={targetUrl}
-                      onClick={() => {
-                        setActiveApp(app.id);
-                        tryLaunchUpi(targetUrl);
+                      onClick={(e) => {
+                        e.preventDefault();
+                        handleAppSelect(app.id);
                       }}
                       style={{
                         padding: '8px 6px',
@@ -368,7 +410,10 @@ export default function UpiModal({
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               <a
                 href={currentUpiUrl}
-                onClick={() => tryLaunchUpi(currentUpiUrl)}
+                onClick={(e) => {
+                  e.preventDefault();
+                  tryLaunchUpi(currentUpiUrl, activeApp);
+                }}
                 className="btn-primary"
                 style={{
                   background: 'linear-gradient(135deg, var(--indigo), var(--indigo-dark))',
