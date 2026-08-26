@@ -36,6 +36,7 @@ export default function UpiModal({
   // Determine if input is UPI ID or UPI Number (Phone / Numeric)
   const isUpiNumber = recipientUpi && !recipientUpi.includes('@') && recipientUpi.replace(/\D/g, '').length >= 8;
   const cleanDigits = recipientUpi ? recipientUpi.replace(/\D/g, '').slice(-10) : '';
+  const resolvedPayeeVpa = isUpiNumber ? `${cleanDigits}@upi` : (recipientUpi ? recipientUpi.trim() : '');
 
   // Build standard NPCI direct UPI URI without strict package forcing (prevents Play Store redirect)
   function buildUpiUrl(appId) {
