@@ -11,6 +11,10 @@
     "package": "electron-packager . TrustShield --platform=win32 --arch=x64 --out=release-builds --overwrite"
   },
   "dependencies": {
+    "@capacitor-community/speech-recognition": "^7.0.1",
+    "@capacitor/android": "^8.5.0",
+    "@capacitor/cli": "^8.5.0",
+    "@capacitor/core": "^8.5.0",
     "html5-qrcode": "^2.3.8",
     "jsqr": "^1.4.0",
     "lucide-react": "^0.428.0",

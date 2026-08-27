@@ -1,11 +1,11 @@
-import React from 'react';
-import { LayoutGrid, Send, Users, Building2, User } from 'lucide-react';
+import { LayoutGrid, Send, Users, Building2, User, Radar } from 'lucide-react';
 
 export default function Navigation({ user, theme = 'dark', activeTab, setActiveTab, pendingBankCount }) {
   const isBankAdmin = user && user.role === 'BANK_ADMIN';
 
   const navItems = [
     { id: 'home', label: 'Home', icon: LayoutGrid },
+    { id: 'scanner', label: 'Scanner', icon: Radar },
     { id: 'pay', label: 'Pay', icon: Send },
     { id: 'community', label: 'Community', icon: Users },
     // Only Bank Risk Admins see the Bank Audit portal tab

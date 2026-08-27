@@ -3,11 +3,13 @@ import Header from './components/Header';
 import Navigation from './components/Navigation';
 import AuthScreen from './components/AuthScreen';
 import HomeView from './views/HomeView';
+import ScannerView from './views/ScannerView';
 import PayView from './views/PayView';
 import CommunityView from './views/CommunityView';
 import BankView from './views/BankView';
 import ProfileView from './views/ProfileView';
 import OnboardingModal from './components/OnboardingModal';
+import PWAInstallPrompt from './components/PWAInstallPrompt';
 
 import {
   INITIAL_COMMUNITY_SCAMS,
@@ -444,6 +446,13 @@ setUser(prev => {
           />
         )}
 
+        {activeTab === 'scanner' && (
+          <ScannerView
+            user={user}
+            onAddScam={handleAddScam}
+          />
+        )}
+
         {activeTab === 'pay' && (
           <PayView
             user={user}
@@ -505,6 +514,9 @@ setUser(prev => {
         user={user}
         setUser={setUser}
       />
+
+      {/* PWA Mobile Install Banner */}
+      <PWAInstallPrompt />
     </div>
   );
 }

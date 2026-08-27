@@ -1,0 +1,20 @@
+{
+  "short_name": "TrustShield",
+  "name": "TrustShield - AI Fraud & Scam Defense",
+  "description": "On-Device UPI Fraud & Voice Phishing Detection for India.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "theme_color": "#07090e",
+  "background_color": "#07090e",
+  "categories": ["finance", "security", "utilities"],
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "type": "image/svg+xml",
+      "sizes": "192x192 512x512",
+      "purpose": "any maskable"
+    }
+  ]
+}

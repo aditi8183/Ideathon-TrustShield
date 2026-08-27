@@ -33,6 +33,12 @@ const DEFAULT_GOOGLE_ACCOUNTS = [
     color: 'linear-gradient(135deg, #6366f1, #818cf8)'
   },
   {
+    name: 'Ram Kumar',
+    email: 'rkrram.2024@gmail.com',
+    role: 'CUSTOMER',
+    color: 'linear-gradient(135deg, #ea580c, #f97316)'
+  },
+  {
     name: 'Officer Rajesh Sharma',
     email: 'rajesh.risk.sbi@gmail.com',
     role: 'BANK_ADMIN',
@@ -935,69 +941,11 @@ bank_name: bankName || '',
 
   onLoginSuccess(authenticatedUser);
 };
-  // Google OAuth Popup Click Handler
+  // Google Sign-in Handler (Direct In-App Google Material Modal to eliminate origin_mismatch on Android)
   const handleGoogleSignInClick = () => {
     setFormError('');
     setGoogleAuthError('');
-
-    // If Google Cloud Client ID is configured, try native GIS token client
-    if (window.google?.accounts?.oauth2 && googleClientId && googleClientId.includes('.apps.googleusercontent.com') && !googleClientId.startsWith('your-')) {
-      try {
-        const tokenClient = window.google.accounts.oauth2.initTokenClient({
-          client_id: googleClientId,
-          scope: 'email profile openid',
-          callback: async (tokenResponse) => {
-            if (tokenResponse?.access_token) {
-              try {
-                const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-                  headers: { Authorization: `Bearer ${tokenResponse.access_token}` }
-                });
-                const userInfo = await res.json();
-                if (userInfo?.email) {
-                  completeGoogleLogin({
-                    email: userInfo.email,
-                    name: userInfo.name,
-                    picture: userInfo.picture,
-                    googleId: userInfo.sub
-                  });
-                  return;
-                }
-              } catch (e) {
-                console.warn('OAuth userinfo fetch error:', e);
-              }
-            }
-          }
-        });
-        tokenClient.requestAccessToken();
-        return;
-      } catch (e) {
-        console.warn('Native GIS token client warning:', e);
-      }
-    }
-
-    // Open Real Google Sign-in Popup Window (840x640 centered on screen)
-    const width = 840;
-    const height = 640;
-    const left = window.screenX + (window.outerWidth - width) / 2;
-    const top = window.screenY + (window.outerHeight - height) / 2;
-
-    const popupUrl = `/google-auth.html?role=${encodeURIComponent(role)}`;
-    const popup = window.open(
-      popupUrl,
-      'GoogleSignInPopup',
-      `width=${width},height=${height},left=${left},top=${top},scrollbars=yes,status=no,toolbar=no,menubar=no,location=no`
-    );
-
-    if (!popup || popup.closed || typeof popup.closed === 'undefined') {
-      // If browser blocked popup window, fallback to in-app Google modal
-      setGoogleStep('EMAIL');
-      setModalEmail('');
-      setModalPassword('');
-      setModalError('');
-      setIsGoogleModalOpen(true);
-    } else {
-      popup.focus();
-    }
+    openInAppGoogleModal('PICKER');
   };
 
   // Open in-app Google modal directly

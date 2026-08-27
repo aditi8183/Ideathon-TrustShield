@@ -32,49 +32,72 @@ import UpiModal from '../components/UpiModal';
 import { sendNomineeScamAlert } from '../utils/smsService';
 import jsQR from 'jsqr';
 
-// Helper to parse standard UPI QR strings (upi://pay?pa=...&pn=...&am=...&tn=...)
+// Universal parser for standard UPI QR strings, merchant URLs, VPAs, and BharatQR
 export const parseUpiQrCode = (text) => {
   if (!text || typeof text !== 'string') return null;
   const trimmed = text.trim();
 
-  // Standard UPI URI scheme: upi://pay?pa=...&pn=...&am=...&tn=...
-  if (trimmed.toLowerCase().startsWith('upi://pay') || trimmed.includes('pa=')) {
+  // Try decoding URI components if encoded
+  let cleanText = trimmed;
+  try {
+    cleanText = decodeURIComponent(trimmed);
+  } catch (e) {}
+
+  // 1. Standard UPI URI scheme or URLs containing pa=
+  if (cleanText.toLowerCase().includes('pa=') || cleanText.toLowerCase().startsWith('upi:')) {
     try {
-      const urlStr = trimmed.startsWith('upi://') ? trimmed : `upi://pay?${trimmed}`;
-      const url = new URL(urlStr);
-      const pa = url.searchParams.get('pa') || '';
-      const pn = url.searchParams.get('pn') || '';
-      const am = url.searchParams.get('am') || '';
-      const tn = url.searchParams.get('tn') || pn || '';
-      return { upi: pa, amount: am, note: tn, name: pn };
-    } catch (e) {
-      console.warn('UPI QR URL parse fallback:', e);
-      const paMatch = trimmed.match(/pa=([^&]+)/i);
-      const pnMatch = trimmed.match(/pn=([^&]+)/i);
-      const amMatch = trimmed.match(/am=([^&]+)/i);
-      const tnMatch = trimmed.match(/tn=([^&]+)/i);
-      const pa = paMatch ? decodeURIComponent(paMatch[1]) : '';
-      const pn = pnMatch ? decodeURIComponent(pnMatch[1]) : '';
-      const am = amMatch ? decodeURIComponent(amMatch[1]) : '';
-      const tn = tnMatch ? decodeURIComponent(tnMatch[1]) : pn;
-      if (pa) {
-        return { upi: pa, amount: am, note: tn, name: pn };
+      let queryStr = cleanText;
+      if (cleanText.includes('?')) {
+        queryStr = cleanText.split('?')[1];
+      } else if (cleanText.startsWith('upi://pay')) {
+        queryStr = cleanText.replace(/^upi:\/\/pay\??/i, '');
       }
+
+      const searchParams = new URLSearchParams(queryStr);
+      const pa = searchParams.get('pa') || searchParams.get('PA') || '';
+      const pn = searchParams.get('pn') || searchParams.get('PN') || '';
+      const am = searchParams.get('am') || searchParams.get('AM') || '';
+      const tn = searchParams.get('tn') || searchParams.get('TN') || searchParams.get('note') || pn || '';
+
+      if (pa) {
+        return { upi: pa.trim(), amount: am.trim(), note: tn.trim(), name: pn.trim() };
+      }
+    } catch (e) {
+      console.warn('UPI param parse fallback:', e);
     }
   }
 
-  // Raw UPI ID (e.g. aditi@okhdfcbank or starbucks@icici)
-  if (trimmed.includes('@')) {
-    return { upi: trimmed, amount: '', note: '', name: '' };
+  // 2. Direct regex match for pa=... in any URL or string
+  const paMatch = cleanText.match(/[?&]pa=([^&]+)/i);
+  if (paMatch && paMatch[1]) {
+    const pnMatch = cleanText.match(/[?&]pn=([^&]+)/i);
+    const amMatch = cleanText.match(/[?&]am=([^&]+)/i);
+    const tnMatch = cleanText.match(/[?&]tn=([^&]+)/i);
+    return {
+      upi: decodeURIComponent(paMatch[1]).trim(),
+      amount: amMatch ? decodeURIComponent(amMatch[1]).trim() : '',
+      note: tnMatch ? decodeURIComponent(tnMatch[1]).trim() : (pnMatch ? decodeURIComponent(pnMatch[1]).trim() : ''),
+      name: pnMatch ? decodeURIComponent(pnMatch[1]).trim() : ''
+    };
   }
 
-  // 10-digit phone or UPI number
-  const digits = trimmed.replace(/\D/g, '');
+  // 3. Raw UPI VPA (e.g. aditi@okhdfcbank, starbucks@icici, 9876543210@paytm, user@ybl)
+  const vpaMatch = cleanText.match(/[a-zA-Z0-9.\-_]{2,256}@[a-zA-Z]{2,64}/i);
+  if (vpaMatch && vpaMatch[0]) {
+    return { upi: vpaMatch[0].trim(), amount: '', note: '', name: '' };
+  }
+
+  // 4. 10-digit phone or UPI number
+  const digits = cleanText.replace(/\D/g, '');
   if (digits.length >= 8 && digits.length <= 12) {
     return { upi: digits.slice(-10), amount: '', note: '', name: '' };
   }
 
-  return { upi: trimmed, amount: '', note: '', name: '' };
+  if (cleanText.length > 3) {
+    return { upi: cleanText, amount: '', note: '', name: '' };
+  }
+
+  return null;
 };
 
 export default function PayView({
@@ -317,6 +340,7 @@ export default function PayView({
         note: parsed.note,
         name: parsed.name
       });
+      setPayMode('UPI');
       setRecipientUpi(parsed.upi);
       if (parsed.amount) setAmount(parsed.amount);
       if (parsed.note) setNote(parsed.note);
@@ -332,15 +356,17 @@ export default function PayView({
       setValidationError('');
       setTimeout(() => {
         stopQrScanner();
-      }, 1200);
+      }, 800);
     } else {
       setScannerError('Could not find a valid UPI ID in this QR code.');
     }
   };
 
   const scanFrame = () => {
-    if (!videoRef.current || videoRef.current.readyState < 2) return;
+    if (!videoRef.current) return;
     const video = videoRef.current;
+    if (video.readyState < 2 || !video.videoWidth || !video.videoHeight) return;
+
     if (!canvasRef.current) {
       canvasRef.current = document.createElement('canvas');
     }
@@ -348,19 +374,17 @@ export default function PayView({
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
     if (!ctx) return;
 
-    if (video.videoWidth && video.videoHeight) {
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      const code = jsQR(imageData.data, imageData.width, imageData.height, {
-        inversionAttempts: 'dontInvert'
-      });
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const code = jsQR(imageData.data, imageData.width, imageData.height, {
+      inversionAttempts: 'attemptBoth'
+    });
 
-      if (code && code.data && code.data.trim()) {
-        applyScannedQr(code.data);
-      }
+    if (code && code.data && code.data.trim()) {
+      applyScannedQr(code.data);
     }
   };
 
@@ -378,15 +402,20 @@ export default function PayView({
         });
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
+          videoRef.current.muted = true;
+          videoRef.current.playsInline = true;
+          videoRef.current.autoplay = true;
           videoRef.current.setAttribute('playsinline', 'true');
-          await videoRef.current.play().catch(() => {});
+          videoRef.current.setAttribute('muted', 'true');
+          videoRef.current.setAttribute('autoplay', 'true');
+          await videoRef.current.play().catch((err) => console.log('Video play catch:', err));
           setIsCameraActive(true);
         }
 
         if (scanIntervalRef.current) clearInterval(scanIntervalRef.current);
         scanIntervalRef.current = setInterval(() => {
           scanFrame();
-        }, 120);
+        }, 100);
       } else {
         setScannerError('Live camera not supported in this browser. You can upload a QR image/screenshot below.');
       }
@@ -408,19 +437,38 @@ export default function PayView({
       reader.onload = (event) => {
         const img = new Image();
         img.onload = () => {
-          const canvas = document.createElement('canvas');
-          const ctx = canvas.getContext('2d', { willReadFrequently: true });
-          canvas.width = img.width;
-          canvas.height = img.height;
-          ctx.drawImage(img, 0, 0, img.width, img.height);
-          const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-          const code = jsQR(imageData.data, imageData.width, imageData.height, {
-            inversionAttempts: 'attemptBoth'
-          });
+          // Helper to decode a specific canvas size
+          const tryDecodeAtScale = (targetWidth, targetHeight) => {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d', { willReadFrequently: true });
+            canvas.width = targetWidth;
+            canvas.height = targetHeight;
+            ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
+            const imageData = ctx.getImageData(0, 0, targetWidth, targetHeight);
+            return jsQR(imageData.data, targetWidth, targetHeight, {
+              inversionAttempts: 'attemptBoth'
+            });
+          };
+
+          // 1. Try full resolution
+          let code = tryDecodeAtScale(img.width, img.height);
+
+          // 2. If not found and image is large (> 1000px), downscale to 1000px
+          if (!code && (img.width > 1000 || img.height > 1000)) {
+            const scale = Math.min(1000 / img.width, 1000 / img.height);
+            code = tryDecodeAtScale(Math.round(img.width * scale), Math.round(img.height * scale));
+          }
+
+          // 3. If still not found, try 600px scale for noisy screenshots
+          if (!code && (img.width > 600 || img.height > 600)) {
+            const scale = Math.min(600 / img.width, 600 / img.height);
+            code = tryDecodeAtScale(Math.round(img.width * scale), Math.round(img.height * scale));
+          }
+
           if (code && code.data && code.data.trim()) {
             applyScannedQr(code.data);
           } else {
-            setScannerError('No valid UPI QR code found in this image. Please upload a clearer QR image.');
+            setScannerError('No valid UPI QR code detected in this gallery image. Please select a clearer QR image.');
           }
         };
         img.onerror = () => {
@@ -475,46 +523,68 @@ export default function PayView({
       let score = 0;
       const factors = [];
       const targetDest = getTargetDestinationString().toLowerCase();
+      const targetNote = (note || '').toLowerCase();
       const amtNum = parseFloat(amount);
       const avgAmt = safeUser.avg_transaction_amount || 2500;
 
+      const fraudKeywords = [
+        'fraud', 'trai', 'customs', 'police', 'cbi', 'lottery', 'prize', 'kyc', 'penalty',
+        'fine', 'apk', 'clearance', 'arrest', 'task', 'telegram', 'electricity', 'disconnect',
+        'power', 'refund', 'win', 'crypto', 'instant', 'bonus', 'job', 'deposit', 'urgent',
+        'recovery', 'narcotics', 'fake', 'support', 'helpdesk', 'scam', 'arrears', 'verify'
+      ];
+
+      const hasDestFraudWord = fraudKeywords.some(kw => targetDest.includes(kw));
+      const hasNoteFraudWord = fraudKeywords.some(kw => targetNote.includes(kw));
+
       const scamMatch = scamList.find(s =>
-        (s.keyword && targetDest.includes(s.keyword.toLowerCase())) ||
-        (s.category && targetDest.includes(s.category.toLowerCase())) ||
+        (s.keyword && (targetDest.includes(s.keyword.toLowerCase()) || targetNote.includes(s.keyword.toLowerCase()))) ||
+        (s.category && (targetDest.includes(s.category.toLowerCase()) || targetNote.includes(s.category.toLowerCase()))) ||
         (s.bank_name && targetDest.includes(s.bank_name.toLowerCase()))
       );
 
-      if (scamMatch || targetDest.includes('fraud') || targetDest.includes('trai') || targetDest.includes('customs') || targetDest.includes('lottery')) {
-        score += 65;
+      if (scamMatch || hasDestFraudWord) {
+        score += 70;
         factors.push({
           id: 'blacklisted_destination',
-          label: `Blacklisted Account Match: ${scamMatch?.category || 'High Risk Cyber Fraud Entity'}`,
+          label: `Blacklisted / Known Fraud VPA Pattern Match: ${scamMatch?.category || 'High Risk Cyber Threat Entity'}`,
           labelHindi: `ब्लैकलिस्टेड साइबर धोखाधड़ी खाता मिला`,
           severity: 'danger',
-          score: 65
+          score: 70
+        });
+      }
+
+      if (hasNoteFraudWord) {
+        score += 45;
+        factors.push({
+          id: 'suspicious_note',
+          label: `Coercive / High-Risk Transaction Note Keywords: "${note}"`,
+          labelHindi: `संदिग्ध / दबावपूर्ण लेनदेन विवरण मिला`,
+          severity: 'danger',
+          score: 45
         });
       }
 
       if (detectedScamCall && detectedScamCall.category) {
-        score += 50;
+        score += 60;
         factors.push({
           id: 'voice_coercion',
-          label: `Live Voice Call Coercion: ${detectedScamCall.category.name || 'Digital Arrest Coercion'}`,
+          label: `Active Voice Call Threat Detected: ${detectedScamCall.category.name || 'Digital Arrest / Cyber Coercion'}`,
           labelHindi: `लाइव वॉयस कॉल दबाव की चेतावनी`,
           severity: 'danger',
-          score: 50
+          score: 60
         });
       }
 
-      if (amtNum > avgAmt * 3) {
+      if (amtNum > avgAmt * 2.5 || amtNum >= 5000) {
         const multiplier = (amtNum / avgAmt).toFixed(1);
-        score += 25;
+        score += 30;
         factors.push({
           id: 'amount_spike',
-          label: `Abnormal Payment Amount: ${multiplier}x higher than your average transfer (₹${avgAmt.toLocaleString('en-IN')})`,
+          label: `Abnormal High-Value Transfer: ₹${amtNum.toLocaleString('en-IN')} (${multiplier}x higher than standard ₹${avgAmt.toLocaleString('en-IN')})`,
           labelHindi: `असामान्य रूप से बड़ी राशि (आपकी औसत से ${multiplier}x अधिक)`,
           severity: 'warn',
-          score: 25
+          score: 30
         });
       }
 

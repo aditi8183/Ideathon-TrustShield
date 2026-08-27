@@ -4,7 +4,8 @@ import {
   Send,
   Users,
   TrendingUp,
-  ArrowUpRight
+  ArrowUpRight,
+  Radar
 } from 'lucide-react';
 import VoiceDetector from '../components/VoiceDetector';
 
@@ -132,15 +133,20 @@ export default function HomeView({
       {/* ========================================================================= */}
       {/* 3. QUICK ACTION BUTTONS */}
       {/* ========================================================================= */}
-      <div className="actions-grid">
-        <button className="btn-primary" onClick={() => onNavigate('pay')}>
-          <Send size={18} />
-          <span>Pay & Scan UPI</span>
+      <div className="actions-grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+        <button className="btn-primary" onClick={() => onNavigate('pay')} style={{ padding: '12px 8px', fontSize: 12 }}>
+          <Send size={16} />
+          <span>Pay & UPI</span>
         </button>
 
-        <button className="btn-secondary" onClick={() => onNavigate('community')}>
-          <Users size={18} color="var(--indigo)" />
-          <span>Community Feed</span>
+        <button className="btn-secondary" onClick={() => onNavigate('scanner')} style={{ padding: '12px 8px', fontSize: 12, borderColor: 'rgba(99, 102, 241, 0.4)', background: 'rgba(99, 102, 241, 0.1)' }}>
+          <Radar size={16} color="var(--indigo-light)" />
+          <span>Spam Scanner</span>
+        </button>
+
+        <button className="btn-secondary" onClick={() => onNavigate('community')} style={{ padding: '12px 8px', fontSize: 12 }}>
+          <Users size={16} color="var(--indigo)" />
+          <span>Feed</span>
         </button>
       </div>
 
